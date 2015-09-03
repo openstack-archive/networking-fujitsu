@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Workflow+1: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Submitted-by: Jenkins
+Submitted-at: Thu, 03 Sep 2015 16:45:11 +0000
+Reviewed-on: https://review.openstack.org/220220
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
