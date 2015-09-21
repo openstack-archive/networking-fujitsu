@@ -4,4 +4,4 @@ source = networking_fujitsu
 omit = networking_fujitsu/openstack/*
 
 [report]
-ignore-errors = True
+ignore_errors = True
