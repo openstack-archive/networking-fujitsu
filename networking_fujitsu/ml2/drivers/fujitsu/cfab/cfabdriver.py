@@ -24,10 +24,7 @@ import select
 import eventlet
 telnetlib = eventlet.import_patched('telnetlib')
 
-try:
-    from oslo_config import cfg
-except ImportError:
-    from oslo.config import cfg
+from oslo_config import cfg
 try:
     from oslo_log import log as logging
 except ImportError:
