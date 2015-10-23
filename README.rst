@@ -23,7 +23,7 @@ How to Install
 
     $ pip install networking-fujitsu
 
-2. Add ``fujitsu`` to mechanism_drivers option in
+2. Add ``fujitsu_cfab`` to mechanism_drivers option in
    /etc/neutron/plugins/ml2/ml2_conf.ini, for example::
 
      mechanism_drivers = openvswitch,fujitsu_cfab
