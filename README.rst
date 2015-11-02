@@ -3,18 +3,27 @@ networking-fujitsu
 ===============================
 
 FUJITSU plugins/drivers for OpenStack Neutron.
-Following mechanism drivers are available in this repository:
+Following mechanism driver is available in this repository:
 
-1. (ML2) Mechanism driver for FUJITSU Converged Fabric Switch(C-Fabric)
-2. (ML2) Mechanism driver for FUJITSU Software ServerView Infrastructure Manager
+* (ML2) Mechanism driver for FUJITSU Converged Fabric Switch(C-Fabric)
+
+.. NOTE::
+
+This package also includes following plugin:
+
+* (ML2) Mechanism driver for FUJITSU Software ServerView Infrastructure Manager
+
+This plugin is under development.  Therefore, PLEASE DO NOT ADD ``fujitsu_ism``
+to mechanism_drivers option in /etc/neutron/plugins/ml2/ml2_conf.ini.
 
 * Free software: Apache license
 * Documentation: http://docs.openstack.org/developer/networking-fujitsu
 * Source: http://git.openstack.org/cgit/openstack/networking-fujitsu
 * Bugs: http://bugs.launchpad.net/networking-fujitsu
 
-1. Mechanism driver for FUJITSU Converged Fabric Switch(C-Fabric)
-=================================================================
+
+Mechanism driver for FUJITSU Converged Fabric Switch(C-Fabric)
+==============================================================
 
 How to Install
 --------------
@@ -26,23 +35,23 @@ How to Install
 2. Add ``fujitsu_cfab`` to mechanism_drivers option in
    /etc/neutron/plugins/ml2/ml2_conf.ini, for example::
 
-     mechanism_drivers = openvswitch,fujitsu_cfab
+    mechanism_drivers = openvswitch,fujitsu_cfab
 
 3. Modify ml2_conf_fujitsu.ini and make neutron-server to read it.
 
    For RedHat, add the following options in ExecStart in
    /usr/lib/systemd/system/neutron-server.service::
 
-     --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini
+    --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini
 
    For Ubuntu, add the following line to /etc/default/neutron-server::
 
-     NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini"
+    NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini"
 
    and add the following line before 'exec start-stop-daemon ...' in
    /etc/init/neutron-server.conf::
 
-     [ -r "$NEUTRON_PLUGIN_ML2_CONFIG" ] && CONF_ARG="${CONF_ARG} --config-file $NEUTRON_PLUGIN_ML2_CONFIG"
+    [ -r "$NEUTRON_PLUGIN_ML2_CONFIG" ] && CONF_ARG="${CONF_ARG} --config-file $NEUTRON_PLUGIN_ML2_CONFIG"
 
 Configuration
 -------------
@@ -140,8 +149,8 @@ configurations are needed for the mechanism driver.
 
    Example::
 
-     evb ampp arp on
-     evb ampp dhcp on
+    evb ampp arp on
+    evb ampp dhcp on
 
    Please note that ``evb ampp dhcp`` is not supported in earlier
    versions of C-Fabric firmware.  Therefore, please create the subnet
@@ -155,48 +164,14 @@ configurations are needed for the mechanism driver.
 
    Example::
 
-     ifgroup 0 ether 1/1/0/1-1/1/0/18
-     ifgroup 1 ether 1/1/0/19-1/1/0/26
-     ifgroup 2 ether 1/2/0/1
-     vfab 1 cir-ports ifgroup 1
-     vfab 1 ampp-area 0
-     vfab 1 through ifgroup 2
-     interface 1/2/0/1
-         vfab through mode on
+    ifgroup 0 ether 1/1/0/1-1/1/0/18
+    ifgroup 1 ether 1/1/0/19-1/1/0/26
+    ifgroup 2 ether 1/2/0/1
+    vfab 1 cir-ports ifgroup 1
+    vfab 1 ampp-area 0
+    vfab 1 through ifgroup 2
+    interface 1/2/0/1
+        vfab through mode on
 
    Please note that ``vfab through`` commands are only available on
    C-Fabric firmware V02.30 and later.
-
-2. Mechanism driver for FUJITSU Software ServerView Infrastructure Manager
-==========================================================================
-
-How to Install
---------------
-
-1. Install the package::
-
-    $ pip install networking-fujitsu
-
-2. Add ``fujitsu`` to mechanism_drivers option in
-   /etc/neutron/plugins/ml2/ml2_conf.ini, for example::
-
-     mechanism_drivers = openvswitch,fujitsu_ism
-
-3. Modify ml2_conf_fujitsu.ini and make neutron-server to read it.
-
-   For RedHat, add the following options in ExecStart in
-   /usr/lib/systemd/system/neutron-server.service::
-
-     --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu_ism.ini
-
-   For Ubuntu, add the following line to /etc/default/neutron-server::
-
-     NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu_ism.ini"
-
-   and add the following line before 'exec start-stop-daemon ...' in
-   /etc/init/neutron-server.conf::
-
-     [ -r "$NEUTRON_PLUGIN_ML2_CONFIG" ] && CONF_ARG="${CONF_ARG} --config-file $NEUTRON_PLUGIN_ML2_CONFIG"
-
-Configuration
--------------
