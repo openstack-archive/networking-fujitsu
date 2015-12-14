@@ -13,13 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import httplib
 import httplib2
 import json
 import os.path
 import re
 import subprocess
 import urllib
+
+from six.moves import http_client as httplib
 
 from oslo_config import cfg
 from oslo_log import log as logging
