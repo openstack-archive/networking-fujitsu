@@ -1,4 +1,4 @@
-# Copyright 2015 FUJITSU LIMITED
+# Copyright 2015-2016 FUJITSU LIMITED
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,13 +30,11 @@ from neutron.tests import base
 FUJITSU_CFAB = "networking_fujitsu.ml2.drivers.fujitsu.cfab."
 _CFABDRIVER__CFABMANAGER = FUJITSU_CFAB + "cfabdriver._CFABManager"
 _TELNETLIB_TELNET = FUJITSU_CFAB + "cfabdriver.telnetlib.Telnet"
-
 _EXCLUDE_BRACKET_LINE_RE = re.compile(r"^[^[].*$", re.MULTILINE)
 
 
 class BaseTestMockedCFABManager(base.BaseTestCase):
-    """Base class to test Fujitsu C-Fabric manager.
-    """
+    """Base class to test Fujitsu C-Fabric manager."""
 
     def setUp(self):
         super(BaseTestMockedCFABManager, self).setUp()
@@ -50,8 +48,7 @@ class BaseTestMockedCFABManager(base.BaseTestCase):
 
 
 class TestMockedCFABManager(BaseTestMockedCFABManager):
-    """Test Fujitsu C-Fabric manager.
-    """
+    """Test Fujitsu C-Fabric manager."""
 
     def test_connect(self):
         with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
@@ -74,8 +71,7 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
 
 
 class BaseTestMockedCFABManagerConnected(BaseTestMockedCFABManager):
-    """Base class to test Fujitsu C-Fabric manager after connected.
-    """
+    """Base class to test Fujitsu C-Fabric manager after connected."""
 
     def setUp(self):
         super(BaseTestMockedCFABManagerConnected, self).setUp()
@@ -294,6 +290,7 @@ class TestCFABManager(base.BaseTestCase):
 
 
 class BaseTestCFABdriver(base.BaseTestCase):
+
     """Base class to test Fujitsu C-Fabric mechanism driver.
     """
 
@@ -318,6 +315,7 @@ class BaseTestCFABdriver(base.BaseTestCase):
 
 
 class TestCFABdriver(BaseTestCFABdriver):
+
     """Test Fujitsu C-Fabric mechanism driver.
     """
 
@@ -441,7 +439,6 @@ vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:05 00:01:02:03:04:05
 class TestCFABdriverSharePprofile(BaseTestCFABdriver):
     """Test Fujitsu C-Fabric mechanism driver with shared pprofile.
     """
-
     def setUp(self):
         cfg.CONF.set_override('share_pprofile', True, "fujitsu_cfab")
         super(TestCFABdriverSharePprofile, self).setUp()
@@ -569,7 +566,6 @@ vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
 class TestCFABdriverSharedPprofilePrefixed(BaseTestCFABdriver):
     """Test Fujitsu C-Fabric mechanism driver with pprofile prefix.
     """
-
     def setUp(self):
         cfg.CONF.set_override('share_pprofile', True, "fujitsu_cfab")
         cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
@@ -612,7 +608,6 @@ pprofile test-1 vlan tag 2
 vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 test-1
 vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:06 1
 """
-
         self.driver.dissociate_mac_from_network(
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
@@ -629,7 +624,6 @@ vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:06 1
 vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 test-1
 vfab 3 pprofile 1 vsiid mac 00:01:02:03:04:06 test-1
 """
-
         self.driver.dissociate_mac_from_network(
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
@@ -644,7 +638,6 @@ vfab 3 pprofile 1 vsiid mac 00:01:02:03:04:06 test-1
 vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 test-1
 vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:06 test-1
 """
-
         self.driver.dissociate_mac_from_network(
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
@@ -658,7 +651,6 @@ vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:06 test-1
         mgr.get_running_config.return_value = """pprofile 1 vlan tag 2
 vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
 """
-
         self.driver.dissociate_mac_from_network(
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
@@ -668,8 +660,7 @@ vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
 
 
 class TestCFABdriverPprofilePrefix(base.BaseTestCase):
-    """Test Fujitsu C-Fabric mechanism driver for pprofile_prefix errors.
-    """
+    """Test Fujitsu C-Fabric mechanism driver for pprofile_prefix errors."""
 
     def test_too_long(self):
         cfg.CONF.set_override('pprofile_prefix', "a" * 29, "fujitsu_cfab")
