@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mock
 import os
 import re
 import socket
-
-import mock
 import testtools
 
+from itertools import chain
 from networking_fujitsu.ml2.drivers.fujitsu.cfab import cfabdriver
 from networking_fujitsu.ml2.drivers.fujitsu.cfab.mechanism_fujitsu import cfg
 from neutron.common import utils
@@ -98,6 +98,14 @@ class BaseTestMockedCFABManagerConnected(BaseTestMockedCFABManager):
 class TestMockedCFABManagerConnected(BaseTestMockedCFABManagerConnected):
     """Test Fujitsu C-Fabric manager after connected.
     """
+
+    def test_get_candidate_config(self):
+        candidate_config = self.manager.get_candidate_config()
+
+        self.assertEqual(
+            mock.call("show candidate-config\n"),
+            self.manager._telnet.write.call_args)
+        self.assertEqual("", candidate_config)
 
     def test_get_running_config(self):
         running_config = self.manager.get_running_config()
@@ -306,8 +314,9 @@ class BaseTestCFABdriver(base.BaseTestCase):
     def assert_configured(self, cmds):
         mgr = self.driver.mgr
         """:type : mock.MagicMock"""
-        self.assertEqual(
-            cmds, [x[0][0][0] for x in mgr.configure.call_args_list])
+        tmp = [x[0][0] for x in mgr.configure.call_args_list]
+        actual = list(chain.from_iterable(tmp))
+        self.assertEqual(cmds, actual)
 
         # Make sure that only the last configure has commit=True.
         commits = [x[1].get('commit', True)
@@ -680,3 +689,255 @@ class TestCFABdriverPprofilePrefix(base.BaseTestCase):
         cfg.CONF.set_override('pprofile_prefix', '"', "fujitsu_cfab")
         with mock.patch(_CFABDRIVER__CFABMANAGER, autospec=True):
             self.assertRaises(ValueError, cfabdriver.CFABdriver, cfg.CONF)
+
+
+class TestCFABdriverVlan(BaseTestCFABdriver):
+    """Test Fujitsu C-Fabric mechanism driver for VLAN configuration.
+    """
+
+    def test_setup_vlan_no_preconfig_exist(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = ""
+        ports = "1/1/0/1"
+        self.driver.setup_vlan("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_single())
+
+    def test_setup_vlan_exist_ifgroup(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = "ifgroup 0 ether 1/1/0/10"
+        ports = "1/1/0/1"
+        self.driver.setup_vlan("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_single(ifgroup_id="1"))
+
+    def test_setup_vlan_exists_vlan_definition(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+interface 1/1/0/1
+    type endponit
+    cfab port-mode external
+    lldp mode enable
+    exit
+vfab 1 vlan 8 endpoint untag 0
+        """
+        ports = "1/1/0/2"
+        self.driver.setup_vlan("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_single(ports=ports, ifgroup_id="1",
+                                          ifg="0,1"))
+
+    def test_setup_vlan_with_lag_no_preconfig_exist(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = ""
+        ports = "1/1/0/1,1/1/0/2"
+        self.driver.setup_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_lag())
+
+    def test_setup_vlan_with_lag_exist_lag_id_and_ifgroup(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+interface 1/1/0/3
+    type linkaggregation 1
+    lldp mode enable
+    exit
+interface 1/1/0/4
+    type linkaggregation 1
+    lldp mode enable
+    exit
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 mode active
+linkaggregation 1 1 type endpoint
+vfab 1 vlan 8 endpoint untag 0
+        """
+        ports = "1/1/0/1,1/1/0/2"
+        self.driver.setup_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_lag(lag_id="2", ifgroup_id="1",
+                                       ifg="0,1"))
+
+    def test_clear_vlan_completely(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+interface 1/1/0/1
+    type endponit
+    cfab port-mode external
+    lldp mode enable
+    exit
+vfab 1 vlan 8 endpoint untag 0
+        """
+        ports = "1/1/0/1"
+        self.driver.clear_vlan("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_cl_single())
+
+    def test_clear_vlan_eliminate_own_definition(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+ifgroup 1 ether 1/1/0/2
+interface 1/1/0/1
+    type endponit
+    cfab port-mode external
+    lldp mode enable
+    exit
+interface 1/1/0/2
+    type endponit
+    cfab port-mode external
+    lldp mode enable
+    exit
+vfab 1 vlan 8 endpoint untag 0,1
+        """
+        ports = "1/1/0/1"
+        self.driver.clear_vlan("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_mod_single(ifg="1"))
+
+    def test_clear_vlan_with_lag_completely(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+interface 1/1/0/1
+    type linkaggregation 1
+    lldp mode enable
+    exit
+interface 1/1/0/2
+    type linkaggregation 1
+    lldp mode enable
+    exit
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 mode active
+linkaggregation 1 1 type endpoint
+vfab 1 vlan 8 endpoint untag 0
+        """
+        ports = "1/1/0/1,1/1/0/2"
+        self.driver.clear_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_cl_lag())
+
+    def test_clear_vlan_with_lag_eliminate_own_definition(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+ifgroup 1 linkaggregation 1 2
+interface 1/1/0/1
+    type linkaggregation 1
+    lldp mode enable
+    exit
+interface 1/1/0/2
+    type linkaggregation 1
+    lldp mode enable
+    exit
+interface 1/1/0/3
+    type linkaggregation 2
+    lldp mode enable
+    exit
+interface 1/1/0/4
+    type linkaggregation 2
+    lldp mode enable
+    exit
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 mode active
+linkaggregation 1 1 type endpoint
+linkaggregation 1 2 cfab port-mode external
+linkaggregation 1 2 mode active
+linkaggregation 1 2 type endpoint
+vfab 1 vlan 8 endpoint untag 0,1
+        """
+        ports = "1/1/0/1,1/1/0/2"
+        self.driver.clear_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_mod_lag(ifg="1"))
+
+
+def exp_single(vfab_id="1", vlanid=8, ifgroup_id="0",
+               ports="1/1/0/1", ifg=None):
+    ifg = ifgroup_id if ifg is None else ifg
+    return ["ifgroup {if_id} ether {p}".format(if_id=ifgroup_id, p=ports),
+            "interface range {p}".format(p=ports),
+            "cfab port-mode external",
+            "type endpoint",
+            "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
+                vfab=vfab_id, vid=vlanid, ifg=ifg)]
+
+
+def exp_lag(vfab_id="1", vlanid=8, ifgroup_id="0",
+            ports="1/1/0/1,1/1/0/2", lag_id="1", domain_id="1", ifg=None):
+    ifg = ifgroup_id if ifg is None else ifg
+    return ['linkaggregation {dom} {lag} cfab port-mode external'.format(
+                lag=lag_id, dom=domain_id),
+            'linkaggregation {dom} {lag} mode active'.format(
+                lag=lag_id, dom=domain_id),
+            'linkaggregation {dom} {lag} type endpoint'.format(
+                lag=lag_id, dom=domain_id),
+            'ifgroup {if_id} linkaggregation {dom} {lag}'.format(
+                if_id=ifgroup_id, dom=domain_id, lag=lag_id),
+            'interface range {ports}'.format(ports=ports),
+            'type linkaggregation {lag}'.format(lag=lag_id),
+            "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
+                vfab=vfab_id, vid=vlanid, ifg=ifg)]
+
+
+# Remove VFAB VLAN definition completely
+def exp_cl_single(vfab_id="1", vlanid=8, ifgroup_id="0",
+                  ports="1/1/0/1", ifg="0"):
+    ifg = ifgroup_id if ifg is None else ifg
+    return ["interface range {ports}".format(ports=ports),
+            "no type",
+            "no cfab port-mode",
+            "no vfab {vfab} vlan {vid} endpoint untag".format(vfab=vfab_id,
+                                                              vid=vlanid)]
+
+
+# Modify(eliminate) own VFAB VLAN definition
+def exp_mod_single(vfab_id="1", vlanid=8, ifgroup_id="0", ifg="0",
+                   ports="1/1/0/1"):
+    ifg = ifgroup_id if ifg is None else ifg
+    return ["interface range {ports}".format(ports=ports),
+            "no type",
+            "no cfab port-mode",
+            "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
+                vfab=vfab_id, vid=vlanid, ifg=ifg)]
+
+
+# Remove VFAB VLAN definition completely in case of LAG
+def exp_cl_lag(vfab_id="1", vlanid=8, lag_id="1", domain_id="1",
+               ports="1/1/0/1,1/1/0/2"):
+    return ["interface range {ports}".format(ports=ports),
+            "no type",
+            "no vfab {vfab} vlan {vid} endpoint untag".format(
+                vfab=vfab_id, vid=vlanid),
+            'no linkaggregation {dom} {lag} cfab port-mode'.format(
+                lag=lag_id, dom=domain_id),
+            'no linkaggregation {dom} {lag} mode active'.format(
+                lag=lag_id, dom=domain_id),
+            'no linkaggregation {dom} {lag} type'.format(
+                lag=lag_id, dom=domain_id)]
+
+
+# Modify(eliminate) own VFAB VLAN definition in case of LAG
+def exp_mod_lag(vfab_id="1", vlanid=8, lag_id="1", domain_id="1",
+                ifg="0", ports="1/1/0/1,1/1/0/2"):
+    return ["interface range {ports}".format(ports=ports),
+            "no type",
+            "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
+                vfab=vfab_id, vid=vlanid, ifg=ifg),
+            'no linkaggregation {dom} {lag} cfab port-mode'.format(
+                lag=lag_id, dom=domain_id),
+            'no linkaggregation {dom} {lag} mode active'.format(
+                lag=lag_id, dom=domain_id),
+            'no linkaggregation {dom} {lag} type'.format(
+                lag=lag_id, dom=domain_id)]

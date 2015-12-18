@@ -45,12 +45,17 @@ except ImportError:
     except ImportError:
         from neutron.openstack.common.gettextutils import _LE
         from neutron.openstack.common.gettextutils import _LW
+from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 
 
 LOG = logging.getLogger(__name__)
 TELNET_PORT = 23
 
+_EP = 'endpoint'
+_PORT_MODE = 'cfab port-mode'
+_IFGROUP = 'ifgroup'
+_LAG = 'linkaggregation'
 _LOCK_NAME = 'fujitsu'
 _TIMEOUT = 30
 _TIMEOUT_LOGIN = 5
@@ -74,7 +79,15 @@ _INDEX_RE = re.compile(r"^(\d+)\s+", re.MULTILINE)
 _VFAB_PPROFILE_RE = re.compile(
     r"^vfab\s+(default|\d+)\s+pprofile\s+(\d+)\s+"
     r"vsiid\s+(?:mac|uuid)\s+\S+\s+(\S+)", re.MULTILINE)
+_IFGROUP_RE = r"^ifgroup\s+(\d+)\s+(?:ether|linkaggregation)\s+"
+_LAG_RE = r"^linkaggregation\s+(\d+)\s(?:\d)\s+"
+_VFAB_VLAN = r'^vfab\s+{v}\s+vlan\s+{vlan}\s+endpoint\s+{vlan_type}\s+(\d.*)'
+_IFGROUP_BOUNDARY = re.compile(r'(\d+)-(\d+)')
 _PPROFILE_INDICES = frozenset(range(0, 4096))
+_IFGROUP_INDICES = frozenset(range(0, 4095))
+_LAG_INDICES = frozenset(range(1, 200))
+_INDICES = {_IFGROUP: _IFGROUP_INDICES, _LAG: _LAG_INDICES}
+_REG = {_IFGROUP: _IFGROUP_RE, _LAG: _LAG_RE}
 
 
 class _CFABManager(object):
@@ -104,6 +117,29 @@ class _CFABManager(object):
         self._username = username
         self._password = password
         self._reconnect()
+
+    def get_candidate_config(self, prefix=None):
+        """Get running-config of the switch."""
+
+        terminal = self._execute("show terminal")
+        match = _PAGER_ENABLE_RE.search(terminal)
+        if match:
+            self._execute("terminal pager disable")
+        res = self._get_candidate_config_no_pager_control(prefix)
+        if match:
+            self._execute("terminal pager enable")
+        return res
+
+    def _get_candidate_config_no_pager_control(self, prefix=None):
+        """Get running-config of the switch without pager control."""
+
+        current = self._get_mode()
+        if current not in (_MODE_ADMIN, _MODE_CONFIG, _MODE_CONFIG_IF):
+            self._reconnect()
+        cmd = "show candidate-config"
+        if prefix:
+            cmd = " ".join([cmd, prefix])
+        return self._execute(cmd)
 
     def get_running_config(self, prefix=None):
         """Get running-config of the switch."""
@@ -212,6 +248,7 @@ class _CFABManager(object):
             self._telnet = None
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Login failed to switch"))
+                LOG.exception(_LE("prompt = %s"), prompt)
 
         LOG.debug("Connect success to address %(address)s:%(telnet_port)d",
                   dict(address=self._address, telnet_port=TELNET_PORT))
@@ -333,10 +370,303 @@ class CFABdriver(object):
                 self._pprofile_prefix.find("?") >= 0):
             raise ValueError(_("pprofile_prefix contains illegal character."))
 
+    def _create_ifgroup(self, ifgroup_id, ports, lag_id=None, commit=False):
+        """Create ifgroup."""
+        common_def = "ifgroup {if_id} {port_type} "
+        if lag_id:
+            port_type = _LAG
+            com = common_def + "{domain} {lag}"
+            cmds = [com.format(if_id=ifgroup_id, port_type=port_type,
+                               domain=_get_domain_id(ports), lag=lag_id)]
+        else:
+            port_type = "ether"
+            com = common_def + "{ports}"
+            cmds = [com.format(if_id=ifgroup_id, port_type=port_type,
+                               ports=ports)]
+        self.mgr.configure(cmds, commit=commit)
+
+    def _setup_interfaces(self, ports, definitions, commit=False):
+        """Add definitions for specified interfaces(ports)."""
+
+        commands = []
+        # interface range {ports}
+        commands.append("interface range {ports}".format(ports=ports))
+        # type endpoint and cfab port-mode external
+        for key in sorted(definitions):
+            commands.append("{k} {v}".format(k=key, v=definitions[key]))
+        self.mgr.configure(commands, commit=commit)
+
+    def _setup_vfab_vlan(self, vfab_id, vlan_id, ifgroup_id, config,
+                         port_type=_EP, vlan_type='untag', commit=False):
+
+        # TODO(yushiro) Insert validate method that judge vlan definition
+        #               already exists or not.
+        ifgroups = _get_ifgroups_of_vfab_vlan(vfab_id, vlan_id, config)
+        if _is_ifgroup_included(ifgroup_id, ifgroups):
+            LOG.debug("ifgroup %(if_id)s has already configured in %(ifgs)s",
+                      dict(if_id=ifgroup_id, ifgs=ifgroups))
+        elif ifgroups is None:
+            ifgroups = str(ifgroup_id)
+        else:
+            ifgroups += "," + str(ifgroup_id)
+
+        cmds = [
+            "vfab {vfab} vlan {vlan} {port_type} {vlan_type} {ifgroup}".format(
+                vfab=vfab_id, vlan=vlan_id, port_type=port_type,
+                vlan_type=vlan_type, ifgroup=ifgroups)]
+        self.mgr.configure(cmds, commit=commit)
+
+    def _setup_vlan(self, vfab_id, vlan_id, ports):
+
+        config = self.mgr.get_candidate_config()
+        ifgroup_id = _search_ifgroup_index(ports, config)
+        if ifgroup_id is None:
+            ifgroup_id = _get_available_index(_IFGROUP, config)
+            if ifgroup_id is None:
+                raise ml2_exc.MechanismDriverError(method="_setup_vlan")
+            self._create_ifgroup(ifgroup_id, ports)
+        self._setup_interfaces(ports, {'type': _EP, _PORT_MODE: 'external'})
+        self._setup_vfab_vlan(vfab_id, vlan_id, ifgroup_id, config,
+                              commit=True)
+
+    def _setup_vlan_with_lag(self, vfab_id, vlan_id, ports):
+
+        config = self.mgr.get_candidate_config()
+        lag_id = self._setup_lag(ports, config)
+        ifgroup_id = _search_ifgroup_index(ports, config, lag_id=lag_id)
+        if ifgroup_id is None:
+            ifgroup_id = _get_available_index(_IFGROUP, config)
+            if ifgroup_id is None:
+                raise ml2_exc.MechanismDriverError(
+                          method="_setup_vlan_with_lag")
+            self._create_ifgroup(ifgroup_id, ports, lag_id=lag_id)
+        defs = {'type': "%(p_type)s %(lag)s" % {'p_type': _LAG, 'lag': lag_id}}
+        self._setup_interfaces(ports, defs)
+        self._setup_vfab_vlan(vfab_id, vlan_id, ifgroup_id, config,
+                              commit=True)
+
+    def _setup_lag(self, ports, config):
+        """Setup LAG configuration.
+
+        @param self  CFABdriver's instance
+        @param ports  a string of the ports which is separated by ','
+        @param config  a string of candidate-config for C-Fabric.
+        @return lag_id(int)
+        """
+
+        lag_id = _get_available_index(_LAG, config)
+        if not lag_id:
+            raise ml2_exc.MechanismDriverError(method="_setup_lag")
+        # TODO(yushiro) LAG mode 'static', 'active' or 'passive'
+        #               Currently, only support 'active'
+        mode_opts = {'type': _EP, _PORT_MODE: 'external', 'mode': 'active'}
+        self._configure_lag_mode(_get_domain_id(ports), lag_id, mode_opts)
+        return lag_id
+
+    def _configure_lag_mode(self, domain_id, lag_id, mode_opts, commit=False):
+        """Add LAG definitions.
+
+        @param self  CFABdriver's instance
+        @param domain_id  the string of domain_id to which the port belongs
+        @param lag_id  the string of LAG definiton ID
+        @param mode_opts  the string of LAG mode options
+        @param commit  the boolean whether executes commit or not
+        @return None
+        """
+
+        commands = []
+        lag = "linkaggregation {domain_id} {lag_id}".format(
+                   domain_id=domain_id, lag_id=lag_id)
+        for key in sorted(mode_opts):
+            commands.append("{lag} {k} {v}".format(lag=lag, k=key,
+                                                   v=mode_opts[key]))
+        self.mgr.configure(commands, commit=commit)
+
+    def _clear_vlan(self, vfab_id, vlan_id, ports, config, port_type=_EP,
+                    vlan_type='untag', lag_id=None, commit=False):
+        """Clear VLAN definition with specified ports.
+
+        @param self  CFABdriver's instance
+        @param vfab_id  the string of VFAB ID
+        @param vlan_id  the string of VLAN ID
+        @param ports  a string of the ports which is separated by ','
+        @param config a string of a candidate-config
+        @return None
+        """
+
+        # (yushiro): ifgroup won't delete because it can not determine
+        #            whether ifgroup is created by plugin or not.
+        ifgroup_id = _search_ifgroup_index(ports, config, lag_id=lag_id)
+        is_delete = False
+        # ifgroup_id exists
+        if ifgroup_id is not None:
+            ifgroups = _get_ifgroups_of_vfab_vlan(vfab_id, vlan_id, config)
+            eliminated = fj_util.eliminate_val(ifgroups, ifgroup_id)
+            # VLAN is configured to only this ifgroup_id
+            if not eliminated:
+                is_delete = True
+        else:
+            LOG.warn("ifgroup for %s has already deleted." % ports)
+            return None
+
+        common_def = "vfab {vfab} vlan {vlan} {port_type} {vlan_type}"
+        # Delete VFAB VLAN definition
+        if is_delete:
+            command = "no" + " " + common_def
+            cmds = [command.format(vfab=vfab_id, vlan=vlan_id,
+                                   port_type=port_type, vlan_type=vlan_type)]
+        # Reject ifgroup_id from VFAB VLAN definition
+        else:
+            command = common_def + " " + "{ifgroup}"
+            cmds = [command.format(vfab=vfab_id, vlan=vlan_id,
+                                   port_type=port_type, vlan_type=vlan_type,
+                                   ifgroup=eliminated)]
+        self.mgr.configure(cmds, commit=commit)
+
+    def _clear_interfaces(self, ports, ether=False, commit=False):
+        """Clear VLAN definition with specified ports.
+
+        @param self  CFABdriver's instance
+        @param ports  a string of the ports which is separated by ','
+        @param ether a boolean to judge ether port or not
+        @param commit a boolean to judge use "commit" or not
+        @return None
+        """
+
+        cmds = ["interface range {ports}".format(ports=ports)]
+        cmds.append("no type")
+        if ether:
+            cmds.append("no cfab port-mode")
+        self.mgr.configure(cmds, commit=commit)
+
+    def _clear_lag(self, vfab_id, lag_id, ports, config, commit=False):
+        """Clear linkaggregation definition with specified ports.
+
+        @param self  CFABdriver's instance
+        @param vfab_id a string of VFAB ID
+        @param lag_id a string of LAG ID
+        @param ports a string of the ports which is separated by ','
+        @param config a string of candidate-config
+        @return None
+        """
+
+        prefix = 'no linkaggregation {domain_id} {lag_id}'.format(
+                     domain_id=_get_domain_id(ports), lag_id=lag_id)
+        cmds = []
+        cmds.append('{prefix} {p_mode}'.format(prefix=prefix,
+                                               p_mode=_PORT_MODE))
+        cmds.append('{prefix} mode active'.format(prefix=prefix))
+        cmds.append('{prefix} type'.format(prefix=prefix))
+        self.mgr.configure(cmds, commit=commit)
+
+    @utils.synchronized(_LOCK_NAME)
+    def setup_vlan(self, address, username, password,
+                   vfab_id, vlan_id, ports):
+        """Setup untagged VLAN with specified ports.
+
+        @param self CFABdriver's instance
+        @param address the string of C-Fabric IP address
+        @param username the string of C-Fabric username
+        @param password the string of C-Fabric password
+        @param vfab_id the string of VFAB ID
+        @param vlan_id the string of VLAN ID
+        @param ports string of the ports which is separated by ','
+        @return None
+        """
+        try:
+            self.mgr.connect(address, username, password)
+            self._setup_vlan(vfab_id, vlan_id, ports)
+        except (EOFError, EnvironmentError, select.error,
+                ml2_exc.MechanismDriverError):
+            with excutils.save_and_reraise_exception():
+                LOG.exception(_LE("CLI error"))
+
+    def setup_vlan_with_lag(self, address, username, password,
+                            vfab_id, vlan_id, ports):
+        """Setup untagged VLAN and linkaggregation.
+
+        @param self CFABdriver's instance
+        @param address the string of C-Fabric IP address
+        @param username the string of C-Fabric username
+        @param password the string of C-Fabric password
+        @param vfab_id the string of VFAB ID
+        @param vlan_id the string of VLAN ID
+        @param ports  string of the ports which is separated by ','
+        @return None
+        """
+        try:
+            self.mgr.connect(address, username, password)
+            self._setup_vlan_with_lag(vfab_id, vlan_id, ports)
+        except (EOFError, EnvironmentError, select.error,
+                ml2_exc.MechanismDriverError):
+            with excutils.save_and_reraise_exception():
+                LOG.exception(_LE("CLI error"))
+
+    @utils.synchronized(_LOCK_NAME)
+    def clear_vlan(self, address, username, password,
+                   vfab_id, vlan_id, ports):
+        """Clear untagged VLAN.
+
+        @param self  CFABdriver's instance
+        @param address  the string of C-Fabric IP address
+        @param username  the string of C-Fabric username
+        @param password  the string of C-Fabric password
+        @param vfab_id  the string of VFAB ID
+        @param vlan_id  the string of VLAN ID
+        @param ports   string of the ports which is separated by ','
+        @return None
+        """
+        try:
+            self.mgr.connect(address, username, password)
+            config = self.mgr.get_candidate_config()
+            self._clear_interfaces(ports, ether=True)
+            self._clear_vlan(vfab_id, vlan_id, ports, config, commit=True)
+        except (EOFError, EnvironmentError, select.error,
+                ml2_exc.MechanismDriverError):
+            with excutils.save_and_reraise_exception():
+                LOG.exception(_LE("CLI error"))
+
+    @utils.synchronized(_LOCK_NAME)
+    def clear_vlan_with_lag(self, address, username, password,
+                            vfab_id, vlan_id, ports):
+        """Clear untagged VLAN with linkaggregation.
+
+        @param self  CFABdriver's instance
+        @param address  the string of C-Fabric IP address
+        @param username  the string of C-Fabric username
+        @param password  the string of C-Fabric password
+        @param vfab_id  the string of VFAB ID
+        @param vlan_id  the string of VLAN ID
+        @param ports   string of the ports which is separated by ','
+        @return None
+        """
+
+        try:
+            self.mgr.connect(address, username, password)
+            config = self.mgr.get_candidate_config()
+            lag_id = _get_associated_lag_ids(ports, config)
+            self._clear_interfaces(ports)
+            self._clear_vlan(vfab_id, vlan_id, ports, config, lag_id=lag_id)
+            self._clear_lag(vfab_id, lag_id, ports, config, commit=True)
+        except (EOFError, EnvironmentError, select.error,
+                ml2_exc.MechanismDriverError):
+            with excutils.save_and_reraise_exception():
+                LOG.exception(_LE("CLI error"))
+
     @utils.synchronized(_LOCK_NAME)
     def associate_mac_to_network(self, address, username, password,
                                  vfab_id, net_id, mac):
-        """Associates a MAC address to virtual network."""
+        """Associates a MAC address to virtual network.
+
+        @param self  CFABdriver's instance
+        @param address  the string of C-Fabric IP address
+        @param username  the string of C-Fabric username
+        @param password  the string of C-Fabric password
+        @param vfab_id  the string of VFAB ID
+        @param net_id  the string of VLAN ID(segmentation_id for network)
+        @param mac the string of MAC address
+        @return None
+        """
 
         try:
             self.mgr.connect(address, username, password)
@@ -349,7 +679,17 @@ class CFABdriver(object):
     @utils.synchronized(_LOCK_NAME)
     def dissociate_mac_from_network(self, address, username, password,
                                     vfab_id, net_id, mac):
-        """Dissociates a MAC address from virtual network."""
+        """Dissociates a MAC address from virtual network.
+
+        @param self  CFABdriver's instance
+        @param address  the string of C-Fabric IP address
+        @param username  the string of C-Fabric username
+        @param password  the string of C-Fabric password
+        @param vfab_id  the string of VFAB ID
+        @param net_id  the string of VLAN ID(segmentation_id for network)
+        @param mac the string of MAC address
+        @return None
+        """
 
         try:
             self.mgr.connect(address, username, password)
@@ -506,6 +846,21 @@ def _search_vfab_pprofile(vfab_id, mac_address, running_config):
         return None, None
 
 
+def _search_ifgroup_index(ports, candidate_config, lag_id=None):
+    """Search ifgroup id with specified ports. Returns ifgroup id if found."""
+
+    reg = r"^ifgroup\s+(\d+)\s+ether\s+{ports}$".format(ports=ports)
+    if lag_id:
+        domain_id = _get_domain_id(ports)
+        reg = r"^ifgroup\s+(\d+)\s+{if_type}\s+{domain_id}\s+{lag_id}$".format(
+                  if_type=_LAG, domain_id=domain_id, lag_id=lag_id)
+    match = re.search(reg, candidate_config, re.MULTILINE)
+    if match:
+        LOG.info("Found ifgroup_id:%s", match.group(1))
+        return int(match.group(1))
+    return None
+
+
 def _get_vfab_pprofile_index(vfab_id, pprofile, mac_address, running_config):
     """Gets the index for vfab pprofile."""
 
@@ -520,6 +875,61 @@ def _get_vfab_pprofile_index(vfab_id, pprofile, mac_address, running_config):
     return index
 
 
+def _get_ifgroups_of_vfab_vlan(vfab_id, vlan_id, config, vlan_type='untag'):
+    """Gets ifgroup definitions for specified vfab vlan.
+
+        @param vfab_id  the string of VFAB ID
+        @param vlan_id  the string of VLAN ID
+        @param config the string of candidate-config
+        @param vlan_type 'untag(default)' or 'tag'.
+        @return the string of ifgroups otherwise None
+    """
+    match = re.search(
+        _VFAB_VLAN.format(v=vfab_id, vlan=vlan_id, vlan_type=vlan_type),
+        config, re.MULTILINE)
+    if match:
+        LOG.info("Found ifgroups for vfab vlan:%s", match.group(1))
+        return match.group(1)
+    else:
+        LOG.info("ifgroups not found for vfab vlan")
+        return None
+
+
+def _get_available_index(target, config):
+    """Gets an available index for specified target resource."""
+
+    indices = _INDICES[target]
+    reg = _REG[target]
+    available = indices - set([int(x) for x in re.findall(reg, config,
+                                                          re.MULTILINE)])
+    if len(available) > 0:
+        return sorted(available)[0]
+    else:
+        LOG.error(_LE("No unused %(target) index."), dict(target=target))
+        return None
+
+
+def _get_associated_lag_ids(ports, config):
+    """Get lag_ids which is associated to the ports."""
+
+    ids = []
+    interfaces = ports.split(",")
+    for port in interfaces:
+        match = re.search(
+            r'^interface\s+{port}$\n((?:\s+.+\n)'
+            r'*(\s+type\s+{port_type}\s+(\d+))(?:\s+.+\n)*)\s+exit$'.format(
+                port=port, port_type='linkaggregation'), config, re.MULTILINE)
+        if match:
+            ids.append(match.group(3))
+    lag_ids = list(set(ids))
+    LOG.info("Found LAG ID: %s" % lag_ids)
+    if len(lag_ids) > 1:
+        LOG.warning(
+            _LW("Each port(%(ports)) has different LAG ids(%(lag_ids))"),
+            dict(ports=ports, lag_ids=lag_ids))
+    return lag_ids[0]
+
+
 def _get_available_vfab_pprofile_index(vfab_id, running_config):
     """Gets an available index for vfab pprofile."""
 
@@ -532,3 +942,25 @@ def _get_available_vfab_pprofile_index(vfab_id, running_config):
         return sorted(available)[0]
     else:
         return None
+
+
+def _get_domain_id(physical_ports):
+    """Get CFAB domain_id from port."""
+
+    # TODO(yushiro) Consider how to get domain_id
+    return physical_ports[0]
+
+
+def _is_ifgroup_included(ifgroup_id, ifgroups):
+    """Judge a specified ifgorup is included into ifgroups or not."""
+
+    if ifgroups is None:
+        return False
+    if str(ifgroup_id) in ifgroups:
+        return True
+    match = _IFGROUP_BOUNDARY.match(ifgroups)
+    if match:
+        for ifg in match:
+            if (int(ifg[0]) <= ifgroup_id and ifgroup_id <= int(ifg[1])):
+                return True
+    return False
