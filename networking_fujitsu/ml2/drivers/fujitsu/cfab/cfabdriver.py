@@ -506,7 +506,7 @@ class CFABdriver(object):
             if not eliminated:
                 is_delete = True
         else:
-            LOG.warn("ifgroup for %s has already deleted." % ports)
+            LOG.warning("ifgroup for %s has already deleted." % ports)
             return None
 
         common_def = "vfab {vfab} vlan {vlan} {port_type} {vlan_type}"

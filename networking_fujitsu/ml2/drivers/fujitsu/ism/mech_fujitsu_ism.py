@@ -51,7 +51,7 @@ class FujitsuIsmDriver(driver_api.MechanismDriver):
 
         port = context.current
         if not fj_util.is_baremetal_deploy(port):
-            LOG.warn("This plugin is doing nothing before ironic-neutron\
+            LOG.warning("This plugin is doing nothing before ironic-neutron\
                       integration will be merged.")
             return
         net_type, seg_id = fj_util.get_network_segments(port.network)
@@ -78,7 +78,7 @@ class FujitsuIsmDriver(driver_api.MechanismDriver):
 
         port = context.current
         if not fj_util.is_baremetal_deploy(port):
-            LOG.warn("This plugin is doing nothing before ironic-neutron\
+            LOG.warning("This plugin is doing nothing before ironic-neutron\
                       integration will be merged.")
             return
 
@@ -104,7 +104,7 @@ class FujitsuIsmDriver(driver_api.MechanismDriver):
 
         port = context.current
         if not fj_util.is_baremetal_deploy(port):
-            LOG.warn("This plugin is doing nothing before ironic-neutron\
+            LOG.warning("This plugin is doing nothing before ironic-neutron\
                       integration will be merged.")
             return
         net_type, seg_id = fj_util.get_network_segments(port.network)
