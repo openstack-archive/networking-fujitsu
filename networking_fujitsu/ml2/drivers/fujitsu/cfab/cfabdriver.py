@@ -34,22 +34,18 @@ try:
 except ImportError:
     from neutron.openstack.common import excutils
 
-from neutron.common import utils
-try:
-    from neutron.i18n import _LE
-    from neutron.i18n import _LW
-except ImportError:
-    try:
-        from neutron.openstack.common._i18n import _LE
-        from neutron.openstack.common._i18n import _LW
-    except ImportError:
-        from neutron.openstack.common.gettextutils import _LE
-        from neutron.openstack.common.gettextutils import _LW
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
+from neutron.common import utils
 from neutron.plugins.ml2.common import exceptions as ml2_exc
+import oslo_i18n
 
 
 LOG = logging.getLogger(__name__)
+_translators = oslo_i18n.TranslatorFactory(domain="fujitsu_cfab")
+_LI = _translators.log_info
+_LW = _translators.log_warning
+_LE = _translators.log_error
+_LC = _translators.log_critical
 TELNET_PORT = 23
 
 _EP = 'endpoint'
@@ -80,7 +76,7 @@ _VFAB_PPROFILE_RE = re.compile(
     r"^vfab\s+(default|\d+)\s+pprofile\s+(\d+)\s+"
     r"vsiid\s+(?:mac|uuid)\s+\S+\s+(\S+)", re.MULTILINE)
 _IFGROUP_RE = r"^ifgroup\s+(\d+)\s+(?:ether|linkaggregation)\s+"
-_LAG_RE = r"^linkaggregation\s+(\d+)\s(?:\d)\s+"
+_LAG_RE = r"^linkaggregation\s+(?:\d+)\s(\d+)\s+"
 _VFAB_VLAN = r'^vfab\s+{v}\s+vlan\s+{vlan}\s+endpoint\s+{vlan_type}\s+(\d.*)'
 _IFGROUP_BOUNDARY = re.compile(r'(\d+)-(\d+)')
 _PPROFILE_INDICES = frozenset(range(0, 4096))
@@ -455,7 +451,7 @@ class CFABdriver(object):
         """
 
         lag_id = _get_available_index(_LAG, config)
-        if not lag_id:
+        if lag_id is None:
             raise ml2_exc.MechanismDriverError(method="_setup_lag")
         # TODO(yushiro) LAG mode 'static', 'active' or 'passive'
         #               Currently, only support 'active'
@@ -856,7 +852,7 @@ def _search_ifgroup_index(ports, candidate_config, lag_id=None):
                   if_type=_LAG, domain_id=domain_id, lag_id=lag_id)
     match = re.search(reg, candidate_config, re.MULTILINE)
     if match:
-        LOG.info("Found ifgroup_id:%s", match.group(1))
+        LOG.info("Found and reuse ifgroup_id:%s", match.group(1))
         return int(match.group(1))
     return None
 
@@ -905,7 +901,7 @@ def _get_available_index(target, config):
     if len(available) > 0:
         return sorted(available)[0]
     else:
-        LOG.error(_LE("No unused %(target) index."), dict(target=target))
+        LOG.error(_LE("No unused %s index."), target)
         return None
 
 

@@ -26,23 +26,20 @@ try:
     from oslo_utils import importutils
 except ImportError:
     from neutron.openstack.common import importutils
-try:
-    from neutron.i18n import _LE
-    from neutron.i18n import _LI
-except ImportError:
-    try:
-        from neutron.openstack.common._i18n import _LE
-        from neutron.openstack.common._i18n import _LI
-    except ImportError:
-        from neutron.openstack.common.gettextutils import _LE
-        from neutron.openstack.common.gettextutils import _LI
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
 from neutron.common import constants as const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import driver_api
+import oslo_i18n
+
 
 LOG = logging.getLogger(__name__)
+_translators = oslo_i18n.TranslatorFactory(domain="fj")
+_LI = _translators.log_info
+_LW = _translators.log_warning
+_LE = _translators.log_error
+_LC = _translators.log_critical
 FUJITSU_DRIVER = 'networking_fujitsu.ml2.drivers.fujitsu.'
 CFAB_DRIVER = FUJITSU_DRIVER + 'cfab.cfabdriver.CFABdriver'
 

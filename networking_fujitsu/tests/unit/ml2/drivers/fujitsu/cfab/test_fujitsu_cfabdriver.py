@@ -731,6 +731,32 @@ vfab 1 vlan 8 endpoint untag 0
         self.assert_configured(exp_single(ports=ports, ifgroup_id="1",
                                           ifg="0,1"))
 
+    def test_ifgroup_ether_is_exhauted(self):
+        mgr = self.driver.mgr
+        candidate = ""
+        for i in range(0, 4096):
+            candidate += 'ifgroup {if_id} ether 1/1/0/{port}'.format(
+                             if_id=i, port=(i + 1))
+            candidate += '\n'
+        mgr.get_candidate_config.return_value = candidate
+        ports = "1/1/1/1"
+        print(candidate)
+        self.assertRaises(ml2_exc.MechanismDriverError,
+                          self.driver.setup_vlan,
+                          "addr", "user", "pass", "1", 8, ports)
+
+    def test_lag_id_is_exhauted(self):
+        mgr = self.driver.mgr
+        candidate = ""
+        for i in range(1, 200):
+            candidate += 'linkaggregation 1 {lag}'.format(lag=i)
+            candidate += '\n'
+        mgr.get_candidate_config.return_value = candidate
+        ports = "1/1/0/1,1/1/0/2"
+        self.assertRaises(ml2_exc.MechanismDriverError,
+                          self.driver.setup_vlan_with_lag,
+                          "addr", "user", "pass", "1", 8, ports)
+
     def test_setup_vlan_with_lag_no_preconfig_exist(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = ""
@@ -744,6 +770,7 @@ vfab 1 vlan 8 endpoint untag 0
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
 ifgroup 0 linkaggregation 1 1
+ifgroup 1 linkaggregation 1 2
 interface 1/1/0/3
     type linkaggregation 1
     lldp mode enable
@@ -752,17 +779,29 @@ interface 1/1/0/4
     type linkaggregation 1
     lldp mode enable
     exit
+interface 1/1/0/5
+    type linkaggregation 2
+    lldp mode enable
+    exit
+interface 1/1/0/6
+    type linkaggregation 2
+    lldp mode enable
+    exit
 linkaggregation 1 1 cfab port-mode external
 linkaggregation 1 1 mode active
 linkaggregation 1 1 type endpoint
+linkaggregation 1 2 cfab port-mode external
+linkaggregation 1 2 mode active
+linkaggregation 1 2 type endpoint
 vfab 1 vlan 8 endpoint untag 0
+vfab 1 vlan 16 endpoint untag 1
         """
         ports = "1/1/0/1,1/1/0/2"
         self.driver.setup_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
         mgr.connect.assert_called_once_with("addr", "user", "pass")
         mgr.get_candidate_config.assert_called_once_with()
-        self.assert_configured(exp_lag(lag_id="2", ifgroup_id="1",
-                                       ifg="0,1"))
+        self.assert_configured(exp_lag(lag_id="3", ifgroup_id="2",
+                                       ifg="0,2"))
 
     def test_clear_vlan_completely(self):
         mgr = self.driver.mgr
