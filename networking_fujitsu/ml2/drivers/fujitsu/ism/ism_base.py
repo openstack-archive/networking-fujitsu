@@ -110,8 +110,8 @@ class IsmBase(object):
                 LOG.debug("ISM res_body: %s" % res_body)
                 return res_headers, json.loads(res_body)
             else:
-                LOG.warn("ISM res_headers: %s" % res_headers)
-                LOG.warn("ISM res_body: %s" % res_body)
+                LOG.warning("ISM res_headers: %s" % res_headers)
+                LOG.warning("ISM res_body: %s" % res_body)
                 raise FujitsuIsmException(res_body)
         except Exception as er:
             LOG.exception("Unknown ISM error. detail=%s" % er)
