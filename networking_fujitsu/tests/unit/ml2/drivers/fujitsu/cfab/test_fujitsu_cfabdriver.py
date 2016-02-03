@@ -746,7 +746,7 @@ interface 1/1/0/1
 vfab 1 vlan 8 endpoint untag 0-6
         """
         ports = "1/1/0/1"
-        ignore = {'ifgroup': True}
+        ignore = ['ifgroup']
         self.driver.setup_vlan("addr", "user", "pass", "1", 8, ports)
         mgr.connect.assert_called_once_with("addr", "user", "pass")
         mgr.get_candidate_config.assert_called_once_with()
@@ -824,6 +824,42 @@ vfab 1 vlan 16 endpoint untag 1
         mgr.get_candidate_config.assert_called_once_with()
         self.assert_configured(exp_lag(lag_id="3", ifgroup_id="2",
                                        ifg="0,2"))
+
+    def test_setup_vlan_with_lag_reuse_ifgroup(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+ifgroup 1 linkaggregation 1 2
+ifgroup 2 linkaggregation 1 3
+interface 1/1/0/1
+    lldp mode enable
+    exit
+interface 1/1/0/2
+    lldp mode enable
+    exit
+interface 1/1/0/3
+    type linkaggregation 2
+    lldp mode enable
+    exit
+interface 1/1/0/4
+    type linkaggregation 2
+    lldp mode enable
+    exit
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 mode active
+linkaggregation 1 1 type endpoint
+linkaggregation 1 2 cfab port-mode external
+linkaggregation 1 2 mode active
+linkaggregation 1 2 type endpoint
+vfab 1 vlan 16 endpoint untag 1
+        """
+        ports = "1/1/0/1,1/1/0/2"
+        self.driver.setup_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        ignore = ['ifgroup']
+        self.assert_configured(exp_lag(lag_id="3", ifgroup_id="2",
+                                       ifg="2", ignore=ignore))
 
     def test_clear_vlan_completely(self):
         mgr = self.driver.mgr
@@ -923,9 +959,43 @@ vfab 1 vlan 8 endpoint untag 0,1
         mgr.get_candidate_config.assert_called_once_with()
         self.assert_configured(exp_mod_lag(ifg="1"))
 
+    def test_clear_vlan_with_lag_illegal_lag_id_not_found(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+ifgroup 1 linkaggregation 1 2
+interface 1/1/0/1
+    lldp mode enable
+    exit
+interface 1/1/0/2
+    lldp mode enable
+    exit
+interface 1/1/0/3
+    type linkaggregation 2
+    lldp mode enable
+    exit
+interface 1/1/0/4
+    type linkaggregation 2
+    lldp mode enable
+    exit
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 mode active
+linkaggregation 1 1 type endpoint
+linkaggregation 1 2 cfab port-mode external
+linkaggregation 1 2 mode active
+linkaggregation 1 2 type endpoint
+vfab 1 vlan 8 endpoint untag 0
+        """
+        ports = "1/1/0/1,1/1/0/2"
+        self.driver.clear_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        ignore = ['vfab', 'linkaggregation']
+        self.assert_configured(exp_mod_lag(ignore=ignore))
+
 
 def exp_single(vfab_id="1", vlanid=8, ifgroup_id="0",
-               ports="1/1/0/1", ifg=None, ignore={}):
+               ports="1/1/0/1", ifg=None, ignore=[]):
     ifg = ifgroup_id if ifg is None else ifg
     ret = []
     if 'ifgroup' not in ignore:
@@ -938,26 +1008,29 @@ def exp_single(vfab_id="1", vlanid=8, ifgroup_id="0",
     return ret
 
 
-def exp_lag(vfab_id="1", vlanid=8, ifgroup_id="0",
-            ports="1/1/0/1,1/1/0/2", lag_id="1", domain_id="1", ifg=None):
+def exp_lag(vfab_id="1", vlanid=8, ifgroup_id="0", ports="1/1/0/1,1/1/0/2",
+            lag_id="1", domain_id="1", ifg=None, ignore=[]):
     ifg = ifgroup_id if ifg is None else ifg
-    return ['linkaggregation {dom} {lag} cfab port-mode external'.format(
-                lag=lag_id, dom=domain_id),
-            'linkaggregation {dom} {lag} mode active'.format(
-                lag=lag_id, dom=domain_id),
-            'linkaggregation {dom} {lag} type endpoint'.format(
-                lag=lag_id, dom=domain_id),
-            'ifgroup {if_id} linkaggregation {dom} {lag}'.format(
-                if_id=ifgroup_id, dom=domain_id, lag=lag_id),
-            'interface range {ports}'.format(ports=ports),
-            'type linkaggregation {lag}'.format(lag=lag_id),
-            "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
-                vfab=vfab_id, vid=vlanid, ifg=ifg)]
+    ret = []
+    lagdef = 'linkaggregation {dom} {lag}'.format(lag=lag_id, dom=domain_id)
+    if 'linkaggregation' not in ignore:
+        ret.append(lagdef + ' cfab port-mode external')
+        ret.append(lagdef + ' mode active')
+        ret.append(lagdef + ' type endpoint')
+    if 'ifgroup' not in ignore:
+        ret.append('ifgroup {if_id} '.format(if_id=ifgroup_id) + lagdef)
+    if 'interface' not in ignore:
+        ret.append('interface range {ports}'.format(ports=ports))
+        ret.append('type linkaggregation {lag}'.format(lag=lag_id))
+    if 'vfab' not in ignore:
+        ret.append("vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
+            vfab=vfab_id, vid=vlanid, ifg=ifg))
+    return ret
 
 
 # Remove VFAB VLAN definition completely
-def exp_cl_single(vfab_id="1", vlanid=8, ifgroup_id="0",
-                  ports="1/1/0/1", ifg="0"):
+def exp_cl_single(vfab_id="1", vlanid=8, ifgroup_id="0", ports="1/1/0/1",
+                  ifg="0"):
     ifg = ifgroup_id if ifg is None else ifg
     return ["interface range {ports}".format(ports=ports),
             "no type",
@@ -979,29 +1052,38 @@ def exp_mod_single(vfab_id="1", vlanid=8, ifgroup_id="0", ifg="0",
 
 # Remove VFAB VLAN definition completely in case of LAG
 def exp_cl_lag(vfab_id="1", vlanid=8, lag_id="1", domain_id="1",
-               ports="1/1/0/1,1/1/0/2"):
-    return ["interface range {ports}".format(ports=ports),
-            "no type",
-            "no vfab {vfab} vlan {vid} endpoint untag".format(
-                vfab=vfab_id, vid=vlanid),
-            'no linkaggregation {dom} {lag} cfab port-mode'.format(
-                lag=lag_id, dom=domain_id),
-            'no linkaggregation {dom} {lag} mode active'.format(
-                lag=lag_id, dom=domain_id),
-            'no linkaggregation {dom} {lag} type'.format(
-                lag=lag_id, dom=domain_id)]
+               ports="1/1/0/1,1/1/0/2", ignore=[]):
+    ret = []
+    if 'interface' not in ignore:
+        ret.append("interface range {ports}".format(ports=ports))
+        ret.append("no type")
+    if 'vfab' not in ignore:
+        ret.append("no vfab {vfab} vlan {vid} endpoint untag".format(
+            vfab=vfab_id, vid=vlanid))
+    if 'linkaggregation' not in ignore:
+        no_lagdef = 'no linkaggregation {dom} {lag}'.format(lag=lag_id,
+                                                            dom=domain_id)
+        ret.append(no_lagdef + ' cfab port-mode')
+        ret.append(no_lagdef + ' mode')
+        ret.append(no_lagdef + ' type')
+    return ret
 
 
 # Modify(eliminate) own VFAB VLAN definition in case of LAG
 def exp_mod_lag(vfab_id="1", vlanid=8, lag_id="1", domain_id="1",
-                ifg="0", ports="1/1/0/1,1/1/0/2"):
-    return ["interface range {ports}".format(ports=ports),
-            "no type",
-            "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
-                vfab=vfab_id, vid=vlanid, ifg=ifg),
-            'no linkaggregation {dom} {lag} cfab port-mode'.format(
-                lag=lag_id, dom=domain_id),
-            'no linkaggregation {dom} {lag} mode active'.format(
-                lag=lag_id, dom=domain_id),
-            'no linkaggregation {dom} {lag} type'.format(
-                lag=lag_id, dom=domain_id)]
+                ifg="0", ports="1/1/0/1,1/1/0/2", ignore=[]):
+    ret = []
+    if 'interface' not in ignore:
+        ret.append("interface range {ports}".format(ports=ports))
+        ret.append('no type')
+    if 'vfab' not in ignore:
+        ret.append("vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
+            vfab=vfab_id, vid=vlanid, ifg=ifg))
+    if 'linkaggregation' not in ignore:
+        no_lagdef = 'no linkaggregation {dom} {lag}'.format(lag=lag_id,
+                                                            dom=domain_id)
+        ret.append(no_lagdef + ' cfab port-mode')
+        ret.append(no_lagdef + ' mode')
+        ret.append(no_lagdef + ' type')
+    print('ret=%s' % ret)
+    return ret

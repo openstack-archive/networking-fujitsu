@@ -436,7 +436,7 @@ class CFABdriver(object):
                 raise ml2_exc.MechanismDriverError(
                           method="_setup_vlan_with_lag")
             self._create_ifgroup(ifgroup_id, ports, lag_id=lag_id)
-        defs = {'type': "%(p_type)s %(lag)s" % {'p_type': _LAG, 'lag': lag_id}}
+        defs = {'type': "{p_type} {lag_id}".format(p_type=_LAG, lag_id=lag_id)}
         self._setup_interfaces(ports, defs)
         self._setup_vfab_vlan(vfab_id, vlan_id, ifgroup_id, config,
                               commit=True)
@@ -502,7 +502,8 @@ class CFABdriver(object):
             if not eliminated:
                 is_delete = True
         else:
-            LOG.warning("ifgroup for %s has already deleted." % ports)
+            LOG.warning(_LW("ifgroup for %s has already deleted."
+                            "Skip clear_vlan."), ports)
             return None
 
         common_def = "vfab {vfab} vlan {vlan} {port_type} {vlan_type}"
@@ -547,11 +548,11 @@ class CFABdriver(object):
         """
 
         prefix = 'no linkaggregation {domain_id} {lag_id}'.format(
-                     domain_id=_get_domain_id(ports), lag_id=lag_id)
+                 domain_id=_get_domain_id(ports), lag_id=lag_id)
         cmds = []
         cmds.append('{prefix} {p_mode}'.format(prefix=prefix,
                                                p_mode=_PORT_MODE))
-        cmds.append('{prefix} mode active'.format(prefix=prefix))
+        cmds.append('{prefix} mode'.format(prefix=prefix))
         cmds.append('{prefix} type'.format(prefix=prefix))
         self.mgr.configure(cmds, commit=commit)
 
@@ -641,9 +642,14 @@ class CFABdriver(object):
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
             lag_id = _get_associated_lag_ids(ports, config)
-            self._clear_interfaces(ports)
-            self._clear_vlan(vfab_id, vlan_id, ports, config, lag_id=lag_id)
-            self._clear_lag(vfab_id, lag_id, ports, config, commit=True)
+            if lag_id:
+                self._clear_interfaces(ports)
+                self._clear_vlan(vfab_id, vlan_id, ports, config,
+                                 lag_id=lag_id)
+                self._clear_lag(vfab_id, lag_id, ports, config, commit=True)
+            else:
+                self._clear_interfaces(ports, commit=True)
+                LOG.warning(_LW('Skip clear_vlan and clear_lag.'))
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
@@ -918,11 +924,15 @@ def _get_associated_lag_ids(ports, config):
         if match:
             ids.append(match.group(3))
     lag_ids = list(set(ids))
-    LOG.info("Found LAG ID: %s" % lag_ids)
+    if not lag_ids:
+        LOG.warning(_LW("Specified port%(ifs) doesn't have a 'type %(ptype)."),
+            dict(ifs=interfaces, ptype=_LAG))
+        return None
     if len(lag_ids) > 1:
         LOG.warning(
-            _LW("Each port(%(ports)) has different LAG ids(%(lag_ids))"),
+            _LW("Each port%(ports) has different LAG ids(%(lag_ids))"),
             dict(ports=ports, lag_ids=lag_ids))
+    LOG.info(_LI("Associated LAG ID:%s"), lag_ids)
     return lag_ids[0]
 
 
