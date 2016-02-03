@@ -731,6 +731,29 @@ vfab 1 vlan 8 endpoint untag 0
         self.assert_configured(exp_single(ports=ports, ifgroup_id="1",
                                           ifg="0,1"))
 
+    def test_ifgroup_for_vfab_vlan_exists_and_includes_boundary(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+ifgroup 1 ether 1/1/0/2
+ifgroup 2 ether 1/1/0/3
+ifgroup 3 ether 1/1/0/4
+ifgroup 4 ether 1/1/0/5
+ifgroup 5 ether 1/1/0/6
+ifgroup 6 ether 1/1/0/7
+interface 1/1/0/1
+    exit
+vfab 1 vlan 8 endpoint untag 0-6
+        """
+        ports = "1/1/0/1"
+        ignore = {'ifgroup': True}
+        self.driver.setup_vlan("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_single(ports=ports,
+                                          ifg="0-6",
+                                          ignore=ignore))
+
     def test_ifgroup_ether_is_exhauted(self):
         mgr = self.driver.mgr
         candidate = ""
@@ -740,7 +763,6 @@ vfab 1 vlan 8 endpoint untag 0
             candidate += '\n'
         mgr.get_candidate_config.return_value = candidate
         ports = "1/1/1/1"
-        print(candidate)
         self.assertRaises(ml2_exc.MechanismDriverError,
                           self.driver.setup_vlan,
                           "addr", "user", "pass", "1", 8, ports)
@@ -903,14 +925,17 @@ vfab 1 vlan 8 endpoint untag 0,1
 
 
 def exp_single(vfab_id="1", vlanid=8, ifgroup_id="0",
-               ports="1/1/0/1", ifg=None):
+               ports="1/1/0/1", ifg=None, ignore={}):
     ifg = ifgroup_id if ifg is None else ifg
-    return ["ifgroup {if_id} ether {p}".format(if_id=ifgroup_id, p=ports),
-            "interface range {p}".format(p=ports),
-            "cfab port-mode external",
-            "type endpoint",
-            "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
-                vfab=vfab_id, vid=vlanid, ifg=ifg)]
+    ret = []
+    if 'ifgroup' not in ignore:
+        ret.append("ifgroup {ifid} ether {p}".format(ifid=ifgroup_id, p=ports))
+    ret.append("interface range {p}".format(p=ports))
+    ret.append("cfab port-mode external")
+    ret.append("type endpoint")
+    ret.append("vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
+                   vfab=vfab_id, vid=vlanid, ifg=ifg))
+    return ret
 
 
 def exp_lag(vfab_id="1", vlanid=8, ifgroup_id="0",
