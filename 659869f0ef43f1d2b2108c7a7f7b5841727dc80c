@@ -1,0 +1,8 @@
+Code-Review+2: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Workflow+1: Lujin Luo <luo.lujin@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 03 Feb 2016 04:05:11 +0000
+Reviewed-on: https://review.openstack.org/275481
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
