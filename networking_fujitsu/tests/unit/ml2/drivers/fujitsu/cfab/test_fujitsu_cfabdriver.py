@@ -923,6 +923,38 @@ vfab 1 vlan 8 endpoint untag 0,1
         mgr.get_candidate_config.assert_called_once_with()
         self.assert_configured(exp_mod_lag(ifg="1"))
 
+    def test_clear_vlan_with_lag_illegal_lag_id_not_found(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+interface 1/1/0/1
+    lldp mode enable
+    exit
+interface 1/1/0/2
+    lldp mode enable
+    exit
+interface 1/1/0/3
+    type linkaggregation 2
+    lldp mode enable
+    exit
+interface 1/1/0/4
+    type linkaggregation 2
+    lldp mode enable
+    exit
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 mode active
+linkaggregation 1 1 type endpoint
+linkaggregation 1 2 cfab port-mode external
+linkaggregation 1 2 mode active
+linkaggregation 1 2 type endpoint
+vfab 1 vlan 8 endpoint untag 0
+        """
+        ports = "1/1/0/1,1/1/0/2"
+        self.driver.clear_vlan_with_lag("addr", "user", "pass", "1", 8, ports)
+        mgr.connect.assert_called_once_with("addr", "user", "pass")
+        mgr.get_candidate_config.assert_called_once_with()
+        self.assert_configured(exp_mod_lag(ifg="1"))
+
 
 def exp_single(vfab_id="1", vlanid=8, ifgroup_id="0",
                ports="1/1/0/1", ifg=None, ignore={}):

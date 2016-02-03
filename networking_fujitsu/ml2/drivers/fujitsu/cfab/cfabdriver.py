@@ -502,7 +502,8 @@ class CFABdriver(object):
             if not eliminated:
                 is_delete = True
         else:
-            LOG.warning("ifgroup for %s has already deleted." % ports)
+            LOG.warning(_LW("ifgroup for %s has already deleted."
+                            "Skip clear_vlan."), ports)
             return None
 
         common_def = "vfab {vfab} vlan {vlan} {port_type} {vlan_type}"
@@ -546,12 +547,16 @@ class CFABdriver(object):
         @return None
         """
 
+        if lag_id is None:
+            LOG.warning(_LW('Cannot determine LAG ID. Skip clear_lag.'))
+            return
+
         prefix = 'no linkaggregation {domain_id} {lag_id}'.format(
                      domain_id=_get_domain_id(ports), lag_id=lag_id)
         cmds = []
         cmds.append('{prefix} {p_mode}'.format(prefix=prefix,
                                                p_mode=_PORT_MODE))
-        cmds.append('{prefix} mode active'.format(prefix=prefix))
+        cmds.append('{prefix} mode'.format(prefix=prefix))
         cmds.append('{prefix} type'.format(prefix=prefix))
         self.mgr.configure(cmds, commit=commit)
 
@@ -918,11 +923,15 @@ def _get_associated_lag_ids(ports, config):
         if match:
             ids.append(match.group(3))
     lag_ids = list(set(ids))
-    LOG.info("Found LAG ID: %s" % lag_ids)
+    if not lag_ids:
+        LOG.warning(_LW("Associated LAG ID for port(%s) not found."),
+            interfaces)
+        return None
     if len(lag_ids) > 1:
         LOG.warning(
             _LW("Each port(%(ports)) has different LAG ids(%(lag_ids))"),
             dict(ports=ports, lag_ids=lag_ids))
+    LOG.info(_LI("Found associated LAG ID:%s"), lag_ids)
     return lag_ids[0]
 
 
