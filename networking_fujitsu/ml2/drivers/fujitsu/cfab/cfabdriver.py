@@ -954,7 +954,7 @@ def _is_ifgroup_included(ifgroup_id, ifgroups):
         return False
     if str(ifgroup_id) in ifgroups:
         return True
-    match = _IFGROUP_BOUNDARY.match(ifgroups)
+    match = _IFGROUP_BOUNDARY.findall(ifgroups)
     if match:
         for ifg in match:
             if (int(ifg[0]) <= ifgroup_id and ifgroup_id <= int(ifg[1])):
