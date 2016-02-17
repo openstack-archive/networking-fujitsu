@@ -412,9 +412,8 @@ class CFABdriver(object):
                 vlan_type=vlan_type, ifgroup=ifgroups)]
         self.mgr.configure(cmds, commit=commit)
 
-    def _setup_vlan(self, vfab_id, vlan_id, ports):
+    def _setup_vlan(self, vfab_id, vlan_id, ports, config, commit=False):
 
-        config = self.mgr.get_candidate_config()
         ifgroup_id = _search_ifgroup_index(ports, config)
         if ifgroup_id is None:
             ifgroup_id = _get_available_index(_IFGROUP, config)
@@ -423,11 +422,10 @@ class CFABdriver(object):
             self._create_ifgroup(ifgroup_id, ports)
         self._setup_interfaces(ports, {'type': _EP, _PORT_MODE: 'external'})
         self._setup_vfab_vlan(vfab_id, vlan_id, ifgroup_id, config,
-                              commit=True)
+                              commit=commit)
 
-    def _setup_vlan_with_lag(self, vfab_id, vlan_id, ports):
+    def _setup_vlan_with_lag(self, vfab_id, vlan_id, ports, config):
 
-        config = self.mgr.get_candidate_config()
         lag_id = self._setup_lag(ports, config)
         ifgroup_id = _search_ifgroup_index(ports, config, lag_id=lag_id)
         if ifgroup_id is None:
@@ -521,11 +519,11 @@ class CFABdriver(object):
         self.mgr.configure(cmds, commit=commit)
 
     def _clear_interfaces(self, ports, ether=False, commit=False):
-        """Clear VLAN definition with specified ports.
+        """Clear port type definitions with specified interfaces.
 
         @param self  CFABdriver's instance
         @param ports  a string of the ports which is separated by ','
-        @param ether a boolean to judge ether port or not
+        @param ether a boolean to judge ether port or linkaggregation
         @param commit a boolean to judge use "commit" or not
         @return None
         """
@@ -572,7 +570,9 @@ class CFABdriver(object):
         """
         try:
             self.mgr.connect(address, username, password)
-            self._setup_vlan(vfab_id, vlan_id, ports)
+            config = self.mgr.get_candidate_config()
+            self._cleanup_exist_lag_vlan(vfab_id, vlan_id, ports, config)
+            self._setup_vlan(vfab_id, vlan_id, ports, config, commit=True)
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
@@ -594,7 +594,9 @@ class CFABdriver(object):
         """
         try:
             self.mgr.connect(address, username, password)
-            self._setup_vlan_with_lag(vfab_id, vlan_id, ports)
+            config = self.mgr.get_candidate_config()
+            self._cleanup_exist_lag_vlan(vfab_id, vlan_id, ports, config)
+            self._setup_vlan_with_lag(vfab_id, vlan_id, ports, config)
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
@@ -624,6 +626,29 @@ class CFABdriver(object):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
+    def _cleanup_exist_lag_vlan(self, vfab_id, vlan_id, ports, config,
+                                commit=False, do_clear_vlan=False):
+        """Cleanup existing LAG and VLAN definitions.
+
+        @param self  CFABdriver's instance
+        @param vfab_id  the string of VFAB ID
+        @param vlan_id  the string of VLAN ID
+        @param ports   string of the ports which is separated by ','
+        @param config  string of candidate-config
+        @param commit  the boolean whether executes commit or not
+        @param do_clear_vlan the boolean whether execute clear_vlan or not
+        @return None
+        """
+
+        lag_id = _get_associated_lag_id(ports, config)
+        if not lag_id:
+            LOG.info(_LI('Skip clear_vlan and clear_lag.'))
+            return None
+        if do_clear_vlan:
+            self._clear_vlan(vfab_id, vlan_id, ports, config, lag_id=lag_id)
+        LOG.info(_LI('Found LAG%s definiton. Clear it.'), lag_id)
+        self._clear_lag(vfab_id, lag_id, ports, config, commit=commit)
+
     @utils.synchronized(_LOCK_NAME)
     def clear_vlan_with_lag(self, address, username, password,
                             vfab_id, vlan_id, ports):
@@ -642,15 +667,9 @@ class CFABdriver(object):
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
-            lag_id = _get_associated_lag_ids(ports, config)
-            if lag_id:
-                self._clear_interfaces(ports)
-                self._clear_vlan(vfab_id, vlan_id, ports, config,
-                                 lag_id=lag_id)
-                self._clear_lag(vfab_id, lag_id, ports, config, commit=True)
-            else:
-                self._clear_interfaces(ports, commit=True)
-                LOG.warning(_LW('Skip clear_vlan and clear_lag.'))
+            self._cleanup_exist_lag_vlan(vfab_id, vlan_id, ports,
+                                         config, do_clear_vlan=True)
+            self._clear_interfaces(ports, commit=True)
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
@@ -859,7 +878,7 @@ def _search_ifgroup_index(ports, candidate_config, lag_id=None):
                   if_type=_LAG, domain_id=domain_id, lag_id=lag_id)
     match = re.search(reg, candidate_config, re.MULTILINE)
     if match:
-        LOG.info("Found and reuse ifgroup_id:%s", match.group(1))
+        LOG.info(_LI('Found and reuse ifgroup_id:%s'), match.group(1))
         return int(match.group(1))
     return None
 
@@ -891,10 +910,10 @@ def _get_ifgroups_of_vfab_vlan(vfab_id, vlan_id, config, vlan_type='untag'):
         _VFAB_VLAN.format(v=vfab_id, vlan=vlan_id, vlan_type=vlan_type),
         config, re.MULTILINE)
     if match:
-        LOG.info("Found ifgroups for vfab vlan:%s", match.group(1))
+        LOG.info(_LI('Found ifgroups for vfab vlan:%s'), match.group(1))
         return match.group(1)
     else:
-        LOG.info("ifgroups not found for vfab vlan")
+        LOG.info(_LI('ifgroups not found for vfab vlan'))
         return None
 
 
@@ -912,8 +931,8 @@ def _get_available_index(target, config):
         return None
 
 
-def _get_associated_lag_ids(ports, config):
-    """Get lag_ids which is associated to the ports."""
+def _get_associated_lag_id(ports, config):
+    """Get lag_id which is associated to the ports."""
 
     ids = []
     interfaces = ports.split(",")
@@ -934,7 +953,8 @@ def _get_associated_lag_ids(ports, config):
         LOG.warning(
             _LW("Each port%(ports)s has different LAG ids(%(lag_ids)s)"),
             dict(ports=ports, lag_ids=lag_ids))
-    LOG.info(_LI("Associated LAG ID:%s"), lag_ids)
+    LOG.debug(_LI("Associated LAG%(lag_ids)s with interfaces:%(ports)s"),
+        dict(lag_ids=lag_ids, ports=ports))
     return lag_ids[0]
 
 
