@@ -20,6 +20,7 @@ Neutron network life-cycle management.
 
 import re
 import select
+import time
 
 import eventlet
 telnetlib = eventlet.import_patched('telnetlib')
@@ -55,11 +56,13 @@ _LAG = 'linkaggregation'
 _LOCK_NAME = 'fujitsu'
 _TIMEOUT = 30
 _TIMEOUT_LOGIN = 5
+_WAIT_FOR_BUSY = 3.0
 _CRLF_RE = re.compile(r"\r\n", re.MULTILINE)
 _PROMPT_LOGIN = "Login: "
 _PROMPT_PASS = "Password: "
 _PROMPT_ADMIN = "# "
 _PROMPT_CONFIG = "(config)# "
+_PROMPT_BUSY = "The system is busy. Please login after waiting for a while."
 _PROMPTS_RE = re.compile(
     r"(((\(config(-if)?\))?#)|((?<!<ERROR)>)|((Login|Password):)) $")
 _ADMIN_PROMPTS_RE = re.compile(r"((\(config(-if)?\))?#) $")
@@ -240,11 +243,18 @@ class _CFABManager(object):
             prompt = self._telnet.read_until(_PROMPT_ADMIN, _TIMEOUT_LOGIN)
             prompt.index(_PROMPT_ADMIN)
         except (EOFError, EnvironmentError, ValueError):
-            self._telnet.close()
-            self._telnet = None
-            with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("Login failed to switch"))
-                LOG.exception(_LE("prompt = %s"), prompt)
+            if _PROMPT_BUSY in prompt:
+                # Wait 3 seconds
+                LOG.warning(_LW("Switch is busy. Wait(%ssec) and reconnect."),
+                    _WAIT_FOR_BUSY)
+                time.sleep(_WAIT_FOR_BUSY)
+                self._reconnect()
+                return
+            else:
+                self._telnet.close()
+                self._telnet = None
+                with excutils.save_and_reraise_exception():
+                    LOG.exception(_LE("Login failed to switch.(%s)"), prompt)
 
         LOG.debug("Connect success to address %(address)s:%(telnet_port)s",
                   dict(address=self._address, telnet_port=TELNET_PORT))
