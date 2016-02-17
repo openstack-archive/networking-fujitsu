@@ -390,6 +390,7 @@ class CFABdriver(object):
         # type endpoint and cfab port-mode external
         for key in sorted(definitions):
             commands.append("{k} {v}".format(k=key, v=definitions[key]))
+        commands.append("exit")
         self.mgr.configure(commands, commit=commit)
 
     def _setup_vfab_vlan(self, vfab_id, vlan_id, ifgroup_id, config,
@@ -534,6 +535,7 @@ class CFABdriver(object):
         cmds.append("no type")
         if ether:
             cmds.append("no cfab port-mode")
+        cmds.append("exit")
         self.mgr.configure(cmds, commit=commit)
 
     def _clear_lag(self, vfab_id, lag_id, ports, config, commit=False):

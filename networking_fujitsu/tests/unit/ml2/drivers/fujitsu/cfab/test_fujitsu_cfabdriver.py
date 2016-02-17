@@ -1003,6 +1003,7 @@ def exp_single(vfab_id="1", vlanid=8, ifgroup_id="0",
     ret.append("interface range {p}".format(p=ports))
     ret.append("cfab port-mode external")
     ret.append("type endpoint")
+    ret.append('exit')
     ret.append("vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
                    vfab=vfab_id, vid=vlanid, ifg=ifg))
     return ret
@@ -1022,6 +1023,7 @@ def exp_lag(vfab_id="1", vlanid=8, ifgroup_id="0", ports="1/1/0/1,1/1/0/2",
     if 'interface' not in ignore:
         ret.append('interface range {ports}'.format(ports=ports))
         ret.append('type linkaggregation {lag}'.format(lag=lag_id))
+        ret.append('exit')
     if 'vfab' not in ignore:
         ret.append("vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
             vfab=vfab_id, vid=vlanid, ifg=ifg))
@@ -1035,6 +1037,7 @@ def exp_cl_single(vfab_id="1", vlanid=8, ifgroup_id="0", ports="1/1/0/1",
     return ["interface range {ports}".format(ports=ports),
             "no type",
             "no cfab port-mode",
+            "exit",
             "no vfab {vfab} vlan {vid} endpoint untag".format(vfab=vfab_id,
                                                               vid=vlanid)]
 
@@ -1046,6 +1049,7 @@ def exp_mod_single(vfab_id="1", vlanid=8, ifgroup_id="0", ifg="0",
     return ["interface range {ports}".format(ports=ports),
             "no type",
             "no cfab port-mode",
+            "exit",
             "vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
                 vfab=vfab_id, vid=vlanid, ifg=ifg)]
 
@@ -1057,6 +1061,7 @@ def exp_cl_lag(vfab_id="1", vlanid=8, lag_id="1", domain_id="1",
     if 'interface' not in ignore:
         ret.append("interface range {ports}".format(ports=ports))
         ret.append("no type")
+        ret.append('exit')
     if 'vfab' not in ignore:
         ret.append("no vfab {vfab} vlan {vid} endpoint untag".format(
             vfab=vfab_id, vid=vlanid))
@@ -1076,6 +1081,7 @@ def exp_mod_lag(vfab_id="1", vlanid=8, lag_id="1", domain_id="1",
     if 'interface' not in ignore:
         ret.append("interface range {ports}".format(ports=ports))
         ret.append('no type')
+        ret.append('exit')
     if 'vfab' not in ignore:
         ret.append("vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
             vfab=vfab_id, vid=vlanid, ifg=ifg))
