@@ -428,6 +428,10 @@ class CFABdriver(object):
     def _setup_vlan_with_lag(self, vfab_id, vlan_id, ports):
 
         config = self.mgr.get_candidate_config()
+        lag_ids = _get_associated_lag_ids(ports, config)
+        if lag_ids:
+            LOG.info("Found LAG%s definiton. Clear it.", lag_ids)
+            self._clear_lag(vfab_id, lag_ids, ports, config)
         lag_id = self._setup_lag(ports, config)
         ifgroup_id = _search_ifgroup_index(ports, config, lag_id=lag_id)
         if ifgroup_id is None:
