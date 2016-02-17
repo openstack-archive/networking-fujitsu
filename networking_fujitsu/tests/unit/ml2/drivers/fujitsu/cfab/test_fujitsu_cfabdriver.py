@@ -18,6 +18,7 @@ import os
 import re
 import socket
 import testtools
+import time
 
 from itertools import chain
 from networking_fujitsu.ml2.drivers.fujitsu.cfab import cfabdriver
@@ -71,6 +72,35 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
             self.assertRaises(
                 socket.error,
                 self.manager.connect, "address", "username", "password")
+
+    def test_connect_busy_and_retry(self):
+
+        with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
+            tel = telnet.return_value
+            busy = cfabdriver._PROMPT_BUSY
+            tel.read_until.side_effect = [busy,
+                                          cfabdriver._PROMPT_LOGIN,
+                                          cfabdriver._PROMPT_PASS,
+                                          cfabdriver._PROMPT_ADMIN]
+            time.sleep = mock.MagicMock()
+            time.sleep.side_effect = None
+
+            self.manager.connect("address", "username", "password")
+            time.sleep.assert_called_once_with(cfabdriver._WAIT_FOR_BUSY)
+
+    def test_connect_busy_and_reached_maxium_retry(self):
+
+        with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
+            tel = telnet.return_value
+            tel.read_until.return_value = cfabdriver._PROMPT_BUSY
+            time.sleep = mock.MagicMock()
+            time.sleep.side_effect = None
+
+            self.assertRaises(
+                ValueError,
+                self.manager.connect, "address", "username", "password")
+            retry_count = cfabdriver._TIMEOUT / cfabdriver._WAIT_FOR_BUSY
+            self.assertEqual(retry_count, time.sleep.call_count)
 
 
 class BaseTestMockedCFABManagerConnected(BaseTestMockedCFABManager):
