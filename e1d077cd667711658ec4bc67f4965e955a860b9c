@@ -1,0 +1,9 @@
+Code-Review+2: Shiina, Hironori <shiina.hironori@jp.fujitsu.com>
+Code-Review+2: Naohiro Tamura <naohirot.openstack@gmail.com>
+Workflow+1: Naohiro Tamura <naohirot.openstack@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 22 Feb 2016 04:38:15 +0000
+Reviewed-on: https://review.openstack.org/281074
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
