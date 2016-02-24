@@ -409,12 +409,12 @@ class CFABdriver(object):
         commands.append("exit")
         self.mgr.configure(commands, commit=commit)
 
-    def _setup_vfab_vlan(self, vfab_id, vlan_id, ifgroup_id, config,
+    def _setup_vfab_vlan(self, vfab_id, vlanid, ifgroup_id, config,
                          port_type=_EP, vlan_type='untag', commit=False):
 
         # TODO(yushiro) Insert validate method that judge vlan definition
         #               already exists or not.
-        ifgroups = _get_ifgroups_of_vfab_vlan(vfab_id, vlan_id, config)
+        ifgroups = _get_ifgroups_of_vfab_vlan(vfab_id, vlanid, config)
         if _is_ifgroup_included(ifgroup_id, ifgroups):
             LOG.debug("ifgroup %(if_id)s has already configured in %(ifgs)s",
                       dict(if_id=ifgroup_id, ifgs=ifgroups))
@@ -425,11 +425,11 @@ class CFABdriver(object):
 
         cmds = [
             "vfab {vfab} vlan {vlan} {port_type} {vlan_type} {ifgroup}".format(
-                vfab=vfab_id, vlan=vlan_id, port_type=port_type,
+                vfab=vfab_id, vlan=vlanid, port_type=port_type,
                 vlan_type=vlan_type, ifgroup=ifgroups)]
         self.mgr.configure(cmds, commit=commit)
 
-    def _setup_vlan(self, vfab_id, vlan_id, ports, config, commit=False):
+    def _setup_vlan(self, vfab_id, vlanid, ports, config, commit=False):
 
         ifgroup_id = _search_ifgroup_index(ports, config)
         if ifgroup_id is None:
@@ -438,10 +438,12 @@ class CFABdriver(object):
                 raise ml2_exc.MechanismDriverError(method="_setup_vlan")
             self._create_ifgroup(ifgroup_id, ports)
         self._setup_interfaces(ports, {'type': _EP, _PORT_MODE: 'external'})
-        self._setup_vfab_vlan(vfab_id, vlan_id, ifgroup_id, config,
+        self._setup_vfab_vlan(vfab_id, vlanid, ifgroup_id, config,
                               commit=commit)
 
-    def _setup_vlan_with_lag(self, vfab_id, vlan_id, ports, config):
+    def _setup_vlan_with_lag(self, vfab_id, vlanid, ports, config,
+                             commit=False):
+        """Setup VLAN and LAG configuration."""
 
         lag_id = self._setup_lag(ports, config)
         ifgroup_id = _search_ifgroup_index(ports, config, lag_id=lag_id)
@@ -453,8 +455,8 @@ class CFABdriver(object):
             self._create_ifgroup(ifgroup_id, ports, lag_id=lag_id)
         defs = {'type': "{p_type} {lag_id}".format(p_type=_LAG, lag_id=lag_id)}
         self._setup_interfaces(ports, defs)
-        self._setup_vfab_vlan(vfab_id, vlan_id, ifgroup_id, config,
-                              commit=True)
+        self._setup_vfab_vlan(vfab_id, vlanid, ifgroup_id, config,
+                              commit=commit)
 
     def _setup_lag(self, ports, config):
         """Setup LAG configuration.
@@ -493,13 +495,13 @@ class CFABdriver(object):
                                                    v=mode_opts[key]))
         self.mgr.configure(commands, commit=commit)
 
-    def _clear_vlan(self, vfab_id, vlan_id, ports, config, port_type=_EP,
+    def _clear_vlan(self, vfab_id, vlanid, ports, config, port_type=_EP,
                     vlan_type='untag', lag_id=None, commit=False):
         """Clear VLAN definition with specified ports.
 
         @param self  CFABdriver's instance
         @param vfab_id  the string of VFAB ID
-        @param vlan_id  the string of VLAN ID
+        @param vlanid  the string of VLAN ID
         @param ports  a string of the ports which is separated by ','
         @param config a string of a candidate-config
         @return None
@@ -511,7 +513,7 @@ class CFABdriver(object):
         is_delete = False
         # ifgroup_id exists
         if ifgroup_id is not None:
-            ifgroups = _get_ifgroups_of_vfab_vlan(vfab_id, vlan_id, config)
+            ifgroups = _get_ifgroups_of_vfab_vlan(vfab_id, vlanid, config)
             eliminated = fj_util.eliminate_val(ifgroups, ifgroup_id)
             # VLAN is configured to only this ifgroup_id
             if not eliminated:
@@ -525,17 +527,17 @@ class CFABdriver(object):
         # Delete VFAB VLAN definition
         if is_delete:
             command = "no" + " " + common_def
-            cmds = [command.format(vfab=vfab_id, vlan=vlan_id,
+            cmds = [command.format(vfab=vfab_id, vlan=vlanid,
                                    port_type=port_type, vlan_type=vlan_type)]
         # Reject ifgroup_id from VFAB VLAN definition
         else:
             command = common_def + " " + "{ifgroup}"
-            cmds = [command.format(vfab=vfab_id, vlan=vlan_id,
+            cmds = [command.format(vfab=vfab_id, vlan=vlanid,
                                    port_type=port_type, vlan_type=vlan_type,
                                    ifgroup=eliminated)]
         self.mgr.configure(cmds, commit=commit)
 
-    def _clear_interfaces(self, ports, ether=False, commit=False):
+    def _clear_interfaces(self, ports, commit=False):
         """Clear port type definitions with specified interfaces.
 
         @param self  CFABdriver's instance
@@ -547,8 +549,7 @@ class CFABdriver(object):
 
         cmds = ["interface range {ports}".format(ports=ports)]
         cmds.append("no type")
-        if ether:
-            cmds.append("no cfab port-mode")
+        cmds.append("no cfab port-mode")
         cmds.append("exit")
         self.mgr.configure(cmds, commit=commit)
 
@@ -574,7 +575,7 @@ class CFABdriver(object):
 
     @utils.synchronized(_LOCK_NAME)
     def setup_vlan(self, address, username, password,
-                   vfab_id, vlan_id, ports):
+                   vfab_id, vlanid, ports, mac):
         """Setup untagged VLAN with specified ports.
 
         @param self CFABdriver's instance
@@ -582,15 +583,16 @@ class CFABdriver(object):
         @param username the string of C-Fabric username
         @param password the string of C-Fabric password
         @param vfab_id the string of VFAB ID
-        @param vlan_id the string of VLAN ID
+        @param vlanid the string of VLAN ID
         @param ports string of the ports which is separated by ','
+        @param mac  string of the MAC address
         @return None
         """
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
-            self._cleanup_exist_lag_vlan(vfab_id, vlan_id, ports, config)
-            self._setup_vlan(vfab_id, vlan_id, ports, config, commit=True)
+            self._cleanup_definitions(vfab_id, vlanid, ports, config, mac)
+            self._setup_vlan(vfab_id, vlanid, ports, config, commit=True)
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
@@ -598,7 +600,7 @@ class CFABdriver(object):
 
     @utils.synchronized(_LOCK_NAME)
     def setup_vlan_with_lag(self, address, username, password,
-                            vfab_id, vlan_id, ports):
+                            vfab_id, vlanid, ports, mac):
         """Setup untagged VLAN and linkaggregation.
 
         @param self CFABdriver's instance
@@ -606,15 +608,17 @@ class CFABdriver(object):
         @param username the string of C-Fabric username
         @param password the string of C-Fabric password
         @param vfab_id the string of VFAB ID
-        @param vlan_id the string of VLAN ID
+        @param vlanid the string of VLAN ID
         @param ports  string of the ports which is separated by ','
+        @param mac  string of the MAC address
         @return None
         """
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
-            self._cleanup_exist_lag_vlan(vfab_id, vlan_id, ports, config)
-            self._setup_vlan_with_lag(vfab_id, vlan_id, ports, config)
+            self._cleanup_definitions(vfab_id, vlanid, ports, config, mac)
+            self._setup_vlan_with_lag(vfab_id, vlanid, ports, config,
+                                      commit=True)
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
@@ -622,7 +626,7 @@ class CFABdriver(object):
 
     @utils.synchronized(_LOCK_NAME)
     def clear_vlan(self, address, username, password,
-                   vfab_id, vlan_id, ports):
+                   vfab_id, vlanid, ports, mac):
         """Clear untagged VLAN.
 
         @param self  CFABdriver's instance
@@ -630,46 +634,53 @@ class CFABdriver(object):
         @param username  the string of C-Fabric username
         @param password  the string of C-Fabric password
         @param vfab_id  the string of VFAB ID
-        @param vlan_id  the string of VLAN ID
+        @param vlanid  the string of VLAN ID
         @param ports   string of the ports which is separated by ','
+        @param mac  string of the MAC address
         @return None
         """
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
-            self._clear_interfaces(ports, ether=True)
-            self._clear_vlan(vfab_id, vlan_id, ports, config, commit=True)
+            self._dissociate_mac_from_port_profile(vfab_id, vlanid, mac,
+                                                   config=config,
+                                                   do_not_commit=True)
+            self._clear_interfaces(ports)
+            self._clear_vlan(vfab_id, vlanid, ports, config, commit=True)
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
-    def _cleanup_exist_lag_vlan(self, vfab_id, vlan_id, ports, config,
-                                commit=False, do_clear_vlan=False):
-        """Cleanup existing LAG and VLAN definitions.
+    def _cleanup_definitions(self, vfab_id, vlanid, ports, config, mac,
+                             commit=False):
+        """Cleanup existing LAG/VLAN/interface definitions.
 
         @param self  CFABdriver's instance
         @param vfab_id  the string of VFAB ID
-        @param vlan_id  the string of VLAN ID
+        @param vlanid  the string of VLAN ID
         @param ports   string of the ports which is separated by ','
         @param config  string of candidate-config
+        @param mac  string of the MAC address
         @param commit  the boolean whether executes commit or not
-        @param do_clear_vlan the boolean whether execute clear_vlan or not
         @return None
         """
 
+        self._dissociate_mac_from_port_profile(vfab_id, vlanid, mac,
+                                               config=config,
+                                               do_not_commit=True)
+        self._clear_interfaces(ports)
         lag_id = _get_associated_lag_id(ports, config)
         if not lag_id:
-            LOG.info(_LI('Skip clear_vlan and clear_lag.'))
+            LOG.info(_LI('Skip clearing VLAN and LAG.'))
             return None
-        if do_clear_vlan:
-            self._clear_vlan(vfab_id, vlan_id, ports, config, lag_id=lag_id)
-        LOG.info(_LI('Found LAG%s definiton. Clear it.'), lag_id)
+        LOG.info(_LI('Found LAG%s definiton and clear.'), lag_id)
+        self._clear_vlan(vfab_id, vlanid, ports, config, lag_id=lag_id)
         self._clear_lag(vfab_id, lag_id, ports, config, commit=commit)
 
     @utils.synchronized(_LOCK_NAME)
     def clear_vlan_with_lag(self, address, username, password,
-                            vfab_id, vlan_id, ports):
+                            vfab_id, vlanid, ports, mac):
         """Clear untagged VLAN with linkaggregation.
 
         @param self  CFABdriver's instance
@@ -677,17 +688,17 @@ class CFABdriver(object):
         @param username  the string of C-Fabric username
         @param password  the string of C-Fabric password
         @param vfab_id  the string of VFAB ID
-        @param vlan_id  the string of VLAN ID
+        @param vlanid  the string of VLAN ID
         @param ports   string of the ports which is separated by ','
+        @param mac  string of the MAC address
         @return None
         """
 
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
-            self._cleanup_exist_lag_vlan(vfab_id, vlan_id, ports,
-                                         config, do_clear_vlan=True)
-            self._clear_interfaces(ports, commit=True)
+            self._cleanup_definitions(vfab_id, vlanid, ports,
+                                      config, mac, commit=True)
         except (EOFError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
             with excutils.save_and_reraise_exception():
@@ -739,66 +750,68 @@ class CFABdriver(object):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
-    def _create_port_profile(self, vlan_id, mac_address, running_config=None,
+    def _create_port_profile(self, vlanid, mac_address, running_config=None,
                              commit=True):
         """Creates a port profile."""
 
         if running_config is None:
             running_config = self.mgr.get_running_config()
         if self._share_pprofile:
-            pprofile = self._get_pprofile(vlan_id, mac_address, running_config)
+            pprofile = self._get_pprofile(vlanid, mac_address, running_config)
             if pprofile is None:
                 pprofile = self._get_new_pprofile(
-                    vlan_id, mac_address, running_config)
-                self._configure_pprofile(pprofile, vlan_id, commit)
+                    vlanid, mac_address, running_config)
+                self._configure_pprofile(pprofile, vlanid, commit)
         else:
             pprofile = self._get_new_pprofile(
-                vlan_id, mac_address, running_config)
+                vlanid, mac_address, running_config)
             match = re.search(
                 r"^pprofile\s+{pid}\s+vlan\s+tag\s+([0-9,-]+)".format(
                     pid=re.escape(pprofile)), running_config, re.MULTILINE)
             if match:
-                if match.group(1) != str(vlan_id):
+                if match.group(1) != str(vlanid):
                     LOG.warning(
                         _LW('Override "pprofile %(pid)s vlan tag %(vids)s" '
-                            'to "vlan tag %(vlan_id)s"'),
+                            'to "vlan tag %(vlanid)s"'),
                         dict(pid=pprofile, vids=match.group(1),
-                             vlan_id=vlan_id))
-                    self._configure_pprofile(pprofile, vlan_id, commit)
+                             vlanid=vlanid))
+                    self._configure_pprofile(pprofile, vlanid, commit)
             else:
-                self._configure_pprofile(pprofile, vlan_id, commit)
+                self._configure_pprofile(pprofile, vlanid, commit)
         return pprofile
 
-    def _configure_pprofile(self, profile, vlan_id, commit=True):
+    def _configure_pprofile(self, profile, vlanid, commit=True):
         """Configures pprofile."""
 
         self.mgr.configure(
             ["pprofile {pid} vlan tag {vid}".format(
-                pid=profile, vid=vlan_id)], commit=commit)
+                pid=profile, vid=vlanid)], commit=commit)
 
-    def _get_pprofile(self, vlan_id, mac_address, running_config):
+    def _get_pprofile(self, vlanid, mac_address, running_config):
         """Gets the name of existing pprofile."""
 
         if self._share_pprofile:
             pprofile = None
             match = re.search(
                 r"^pprofile\s+({prefix}\S+)\s+vlan\s+tag\s+{vid}$".format(
-                    prefix=re.escape(self._pprofile_prefix), vid=vlan_id),
+                    prefix=re.escape(self._pprofile_prefix), vid=vlanid),
                 running_config, re.MULTILINE)
             if match:
                 pprofile = match.group(1)
         else:
             pprofile = self._get_new_pprofile(
-                vlan_id, mac_address, running_config)
+                vlanid, mac_address, running_config)
+            LOG.warning(_LW("pprofile=%s"), pprofile)
+            LOG.warning(_LW("running_config=%s"), running_config)
             match = re.search(
                 r"^pprofile\s+{pid}\s+vlan\s+tag\s+{vid}$".format(
-                    pid=re.escape(pprofile), vid=vlan_id),
-                running_config, re.MULTILINE)
+                    pid=re.escape(pprofile), vid=vlanid),
+                    running_config, re.MULTILINE)
             if not match:
                 pprofile = None
         return pprofile
 
-    def _get_new_pprofile(self, vlan_id, mac_address, running_config):
+    def _get_new_pprofile(self, vlanid, mac_address, running_config):
         """Gets a name of new pprofile for the MAC address or the vlan id."""
 
         if self._share_pprofile:
@@ -806,20 +819,20 @@ class CFABdriver(object):
                 r"^pprofile\s+(\S+)\s+", running_config, re.MULTILINE)
             while True:
                 pprofile = self._pprofile_name.format(
-                    prefix=self._pprofile_prefix, pid=vlan_id)
+                    prefix=self._pprofile_prefix, pid=vlanid)
                 if pprofile not in used:
                     return pprofile
-                vlan_id += 1
+                vlanid += 1
         else:
             return self._pprofile_name.format(
                 prefix=self._pprofile_prefix, pid=mac_address)
 
-    def _associate_mac_to_port_profile(self, vfab_id, vlan_id, mac_address):
+    def _associate_mac_to_port_profile(self, vfab_id, vlanid, mac_address):
         """Associates a MAC address to a port profile."""
 
         running_config = self.mgr.get_running_config()
         pprofile = self._create_port_profile(
-            vlan_id, mac_address, running_config, commit=False)
+            vlanid, mac_address, running_config, commit=False)
         index, profile_name = _search_vfab_pprofile(
             vfab_id, mac_address, running_config)
         if index is None:
@@ -844,32 +857,35 @@ class CFABdriver(object):
              "{pid}".format(
                  vfab_id=vfab_id, index=index, mac=mac_address, pid=pprofile)])
 
-    def _dissociate_mac_from_port_profile(self, vfab_id, vlan_id, mac_address):
+    def _dissociate_mac_from_port_profile(self, vfab_id, vlanid, mac_address,
+                                          config=None, do_not_commit=False):
         """Dissociates a MAC address from a port profile."""
 
-        running_config = self.mgr.get_running_config()
-        pprofile = self._get_pprofile(vlan_id, mac_address, running_config)
+        config = config if config else self.mgr.get_running_config()
+        pprofile = self._get_pprofile(vlanid, mac_address, config)
         if pprofile is None:
             return
         index = _get_vfab_pprofile_index(
-            vfab_id, pprofile, mac_address, running_config)
+            vfab_id, pprofile, mac_address, config)
         if index is not None:
             delete_port_profile = True
-            for m in _VFAB_PPROFILE_RE.finditer(running_config):
+            for m in _VFAB_PPROFILE_RE.finditer(config):
                 if m.group(3) == pprofile and not (
                         m.group(1) == vfab_id and m.group(2) == index):
                     delete_port_profile = False
                     break
+            commit = False if do_not_commit else (not delete_port_profile)
             self.mgr.configure(
                 ["no vfab {vfab_id} pprofile {index}".format(
-                    vfab_id=vfab_id, index=index)],
-                commit=not delete_port_profile)
+                    vfab_id=vfab_id, index=index)], commit=commit)
             if delete_port_profile:
-                self.mgr.configure(["no pprofile {pid}".format(pid=pprofile)])
+                commit = False if do_not_commit else delete_port_profile
+                self.mgr.configure(["no pprofile {pid}".format(pid=pprofile)],
+                    commit=commit)
         else:
             LOG.warning(
                 _LW("No corresponding vfab pprofile for %(vid)s, %(mac)s"),
-                dict(vid=vlan_id, mac=mac_address))
+                dict(vid=vlanid, mac=mac_address))
 
 
 def _search_vfab_pprofile(vfab_id, mac_address, running_config):
@@ -915,17 +931,17 @@ def _get_vfab_pprofile_index(vfab_id, pprofile, mac_address, running_config):
     return index
 
 
-def _get_ifgroups_of_vfab_vlan(vfab_id, vlan_id, config, vlan_type='untag'):
+def _get_ifgroups_of_vfab_vlan(vfab_id, vlanid, config, vlan_type='untag'):
     """Gets ifgroup definitions for specified vfab vlan.
 
         @param vfab_id  the string of VFAB ID
-        @param vlan_id  the string of VLAN ID
+        @param vlanid  the string of VLAN ID
         @param config the string of candidate-config
         @param vlan_type 'untag(default)' or 'tag'.
         @return the string of ifgroups otherwise None
     """
     match = re.search(
-        _VFAB_VLAN.format(v=vfab_id, vlan=vlan_id, vlan_type=vlan_type),
+        _VFAB_VLAN.format(v=vfab_id, vlan=vlanid, vlan_type=vlan_type),
         config, re.MULTILINE)
     if match:
         LOG.info(_LI('Found ifgroups for vfab vlan:%s'), match.group(1))
