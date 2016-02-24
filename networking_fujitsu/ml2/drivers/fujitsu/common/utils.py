@@ -35,13 +35,14 @@ def eliminate_val(definition, target):
     @param definition a string of range definition separated with ","
            ex. "1,2,3" or "1-5"
     @param target an integer of the target to eliminate
-    @return eliminated a string of eliminated value
+    @return eliminated a string of eliminated value separated with ","
     """
     if definition is None:
-        return []
+        return
     targets = definition.split(',')
     rejected = targets
     val = str(target)
+    found = False
     LOG.info(_LI("Before rejected:%s"), targets)
     for t in targets:
         m = RANGE_DEFINITION.match(t)
@@ -57,8 +58,8 @@ def eliminate_val(definition, target):
                         rejected.append(high)
                     else:
                         rejected.append(str(int(val) + 1) + "-" + high)
-                        LOG.info(_LI("Rejected result:%s"), rejected)
-                        return ','.join(rejected)
+                        found = True
+                        break
                 # matches the highest one
                 else:
                     # Ex. definition is "1-2" and target is "2"
@@ -66,8 +67,8 @@ def eliminate_val(definition, target):
                         rejected.append(low)
                     else:
                         rejected.append(low + "-" + str(int(val) - 1))
-                    LOG.info(_LI("Rejected result:%s"), rejected)
-                    return ','.join(rejected)
+                    found = True
+                    break
             # matches between lower one and higher one
             elif (int(low) < int(val) and int(val) < int(high)):
                 rejected.remove(t)
@@ -88,13 +89,16 @@ def eliminate_val(definition, target):
                 else:
                     rejected.append(low + "-" + str(int(val) - 1))
                     rejected.append(str(int(val) + 1) + "-" + high)
-                LOG.info(_LI("Rejected result:%s"), rejected)
-                return ','.join(rejected)
+                found = True
+                break
         elif val == t:
             rejected.remove(t)
-            LOG.info(_LI('Rejected result:%s'), rejected)
-            return ','.join(rejected)
-    LOG.info(_LI('target for eliminate doesn\'t exist.'))
+            found = True
+            break
+    if found:
+        LOG.info(_LI('Rejected result:%s'), rejected)
+    else:
+        LOG.info(_LI('target for eliminate doesn\'t exist.'))
     return ','.join(rejected)
 
 
