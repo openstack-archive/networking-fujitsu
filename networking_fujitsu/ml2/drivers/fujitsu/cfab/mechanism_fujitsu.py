@@ -186,7 +186,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
             segment = segments[0]
             fj_util._validate_network(mech_context.network)
             vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
-            vlan_id = segment[driver_api.SEGMENTATION_ID]
+            vlanid = segment[driver_api.SEGMENTATION_ID]
 
             interface_mac = port['mac_address']
 
@@ -195,7 +195,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                                                       self._switch['username'],
                                                       self._switch['password'],
                                                       vfab_id,
-                                                      vlan_id,
+                                                      vlanid,
                                                       interface_mac)
             except Exception:
                 LOG.exception(
@@ -230,7 +230,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                 self.clear_vlan(params)
             except Exception:
                 LOG.exception(_LE("Fujitsu Mechanism: "
-                                  "failed to clear vlan%s"), params['vlan_id'])
+                                  "failed to clear vlan%s"), params['vlanid'])
                 raise ml2_exc.MechanismDriverError(method=method)
         else:
             port = mech_context.current
@@ -243,8 +243,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
             segment = segments[0]
             fj_util._validate_network(mech_context.network)
             vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
-            vlan_id = segment[driver_api.SEGMENTATION_ID]
-
+            vlanid = segment[driver_api.SEGMENTATION_ID]
             interface_mac = port['mac_address']
 
             try:
@@ -253,7 +252,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                     self._switch['username'],
                     self._switch['password'],
                     vfab_id,
-                    vlan_id,
+                    vlanid,
                     interface_mac)
             except Exception:
                 LOG.exception(
@@ -314,10 +313,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
         @return  None
         """
 
-        physical_ports = ','.join(p['port_id'] for p in
-                             params['local_link_information'])
         target = 'setup_vlan_with_lag' if params['lag'] else 'setup_vlan'
-
         try:
             setup_method = getattr(self._driver, target)
         except AttributeError:
@@ -335,12 +331,13 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                 params['username'],
                 params['password'],
                 params['vfab_id'],
-                params['vlan_id'],
-                physical_ports
+                params['vlanid'],
+                params['ports'],
+                params['mac'],
             )
         except Exception:
             LOG.exception(_LE("Fujitsu Mechanism: "
-                              "failed to setup vlan %s"), params['vlan_id'])
+                              "failed to setup vlan %s"), params['vlanid'])
             raise ml2_exc.MechanismDriverError(method='setup_vlan')
 
     @log_helpers.log_method_call
@@ -359,8 +356,6 @@ class FujitsuMechanism(driver_api.MechanismDriver):
         """
 
         target = 'clear_vlan_with_lag'
-        physical_ports = ','.join(p['port_id'] for p in
-                             params['local_link_information'])
         call_target = target if params['lag'] else 'clear_vlan'
         try:
             clear_method = getattr(self._driver, call_target)
@@ -379,12 +374,13 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                 params['username'],
                 params['password'],
                 params['vfab_id'],
-                params['vlan_id'],
-                physical_ports
+                params['vlanid'],
+                params['ports'],
+                params['mac'],
                 )
         except Exception:
             LOG.exception(_LE("Fujitsu Mechanism: "
-                              "failed to clear vlan %s"), params['vlan_id'])
+                              "failed to clear vlan %s"), params['vlanid'])
             raise ml2_exc.MechanismDriverError(method="clear_vlan")
 
     @log_helpers.log_method_call
@@ -411,15 +407,18 @@ class FujitsuMechanism(driver_api.MechanismDriver):
         # currently supports only one segment per network
         segment = mech_context.network.network_segments[0]
         vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
-        vlan_id = segment[driver_api.SEGMENTATION_ID]
+        vlanid = segment[driver_api.SEGMENTATION_ID]
+        port_id = port['port_id']
         local_link_information = fj_util.get_physical_connectivity(port)
+        physical_ports = ','.join(port_id for p in local_link_information)
         return {
                    "address": self._switch['address'],
                    "username": self._switch['username'],
                    "password": self._switch['password'],
-                   "local_link_information": local_link_information,
+                   "ports": physical_ports,
                    "vfab_id": vfab_id,
-                   "vlan_id": vlan_id,
+                   "vlanid": vlanid,
+                   "mac": port['mac_address'],
                    "lag": fj_util.is_lag(local_link_information)
                }
 
