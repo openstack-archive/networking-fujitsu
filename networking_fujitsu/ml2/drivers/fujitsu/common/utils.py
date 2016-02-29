@@ -178,4 +178,4 @@ def _validate_network(network):
     if (segment[driver_api.NETWORK_TYPE] == 'vlan' and vlan_id):
         return
     LOG.error(_LE("Fujitsu Mechanism: only network type vlan is supported"))
-    raise ml2_exc.MechanismDriverError(method="_validate_network_type")
+    raise ml2_exc.MechanismDriverError(method="_validate_network")
