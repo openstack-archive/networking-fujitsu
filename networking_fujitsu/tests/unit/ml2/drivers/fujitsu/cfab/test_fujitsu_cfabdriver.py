@@ -16,6 +16,7 @@
 import mock
 import os
 import re
+import select
 import socket
 import testtools
 import time
@@ -731,6 +732,15 @@ class TestCFABdriverSetupVlan(BaseTestCFABdriver):
         cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
         super(TestCFABdriverSetupVlan, self).setUp()
 
+    def test_raises(self):
+        mgr = self.driver.mgr
+        cfab = self.driver
+        mgr.get_candidate_config.side_effect = ml2_exc.MechanismDriverError(
+                                                   method='setup_vlan')
+        self.assertRaises(ml2_exc.MechanismDriverError,
+                          cfab.setup_vlan, 'a', 'u', 'p', '1', 8,
+                          self.ports, self.mac)
+
     def test_no_preconfig_exist(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = "no_preconfig"
@@ -972,6 +982,26 @@ ifgroup 0 linkaggregation 1 1-4
             + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
+    def test_exists_lag_without_interface(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+interface 1/1/0/1
+    exit
+interface 1/1/0/2
+    exit
+linkaggregation 1 1 type endpoint
+linkaggregation 1 1 mode active
+linkaggregation 1 1 cfab port-mode external
+        """
+        self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('interface', 'delete') \
+            + cfab_cmd('ifgroup', 'add', ifg='1') \
+            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+        self.assert_configured(expect)
+
     def test_exist_definition_type_is_lag(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
@@ -1040,6 +1070,15 @@ class TestCFABdriverSetupVlanWithLAG(BaseTestCFABdriver):
     def setUp(self):
         cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
         super(TestCFABdriverSetupVlanWithLAG, self).setUp()
+        self.ports = "1/1/0/1,1/1/0/2"
+
+    def test_raises(self):
+        mgr = self.driver.mgr
+        cfab = self.driver
+        mgr.get_candidate_config.side_effect = EnvironmentError
+        self.assertRaises(EnvironmentError,
+                          cfab.setup_vlan_with_lag, 'a', 'u', 'p', '1', 8,
+                          self.ports, self.mac)
 
     def test_ifgroup_ether_is_exhauted(self):
         mgr = self.driver.mgr
@@ -1118,6 +1157,33 @@ vfab 1 vlan 16 endpoint untag 1
             + cfab_cmd('vlan', 'add', ifg='0,2')
         self.assert_configured(expect)
 
+    def test_exists_ether_vlan_definition(self):
+        cfab = self.driver
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1,1/1/0/2
+interface 1/1/0/1
+    type endponit
+    cfab port-mode external
+    lldp mode enable
+    exit
+interface 1/1/0/2
+    type endponit
+    cfab port-mode external
+    lldp mode enable
+    exit
+vfab 1 vlan 8 endpoint untag 0
+        """
+        cfab.setup_vlan_with_lag("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('interface', 'delete', ports=self.ports) \
+            + cfab_cmd('lag', 'add', lag_id='1') \
+            + cfab_cmd('ifgroup', 'add', ifg='1', lag=True) \
+            + cfab_cmd('interface', 'add', ports=self.ports, lag=True) \
+            + cfab_cmd('vlan', 'add', ifg='0,1')
+        self.assert_configured(expect)
+
     def test_reuse_ifgroup(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
@@ -1180,6 +1246,32 @@ vfab 1 vlan 100 endpoint untag 0
             + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
+    def test_exist_ifgroup_with_lag_range_and_out_of_range(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1-2
+interface 1/1/0/1
+    exit
+interface 1/1/0/2
+    exit
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 mode active
+linkaggregation 1 1 type endpoint
+linkaggregation 1 2 cfab port-mode external
+linkaggregation 1 2 mode active
+linkaggregation 1 2 type endpoint
+        """
+        self.driver.setup_vlan_with_lag("a", "u", "p", "1", 8,
+                                        self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        expect = cfab_cmd('interface', 'delete', ports=self.ports) \
+            + cfab_cmd('lag', 'add', lag_id='3') \
+            + cfab_cmd('ifgroup', 'add', ifg='1', lag_id='3', lag=True) \
+            + cfab_cmd('interface', 'add', lag_id='3',
+                       ports=self.ports, lag=True) \
+            + cfab_cmd('vlan', 'add', ifg='1')
+        self.assert_configured(expect)
+
     def test_already_configured_lag_and_vlan(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
@@ -1217,6 +1309,25 @@ class TestCFABdriverClearVlan(BaseTestCFABdriver):
         cfg.CONF.set_override('share_pprofile', True, "fujitsu_cfab")
         cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
         super(TestCFABdriverClearVlan, self).setUp()
+
+    def test_raises(self):
+        mgr = self.driver.mgr
+        cfab = self.driver
+        mgr.get_candidate_config.side_effect = EOFError
+        self.assertRaises(EOFError,
+                          cfab.clear_vlan, 'a', 'u', 'p', '1', 8,
+                          self.ports, self.mac)
+
+    def test_ifgroup_ether_is_exhauted(self):
+        mgr = self.driver.mgr
+        candidate = ""
+        for i in range(0, 4096):
+            candidate += 'ifgroup {if_id} ether 1/1/0/{port}\n'.format(
+                             if_id=i, port=(i + 1))
+        mgr.get_candidate_config.return_value = candidate
+        ret = self.driver.clear_vlan("a", "u", "p", "1", 8,
+                                     self.ports, self.mac)
+        self.assertEqual(None, ret)
 
     def test_clear_with_no_command(self):
         mgr = self.driver.mgr
@@ -1321,6 +1432,39 @@ interface 1/1/0/1
         expect = cfab_cmd('interface', 'delete')
         self.assert_configured(expect)
 
+    def test_exists_different_vlan(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+interface 1/1/0/1
+    cfab port-mode external
+    type endpoint
+    exit
+vfab 1 vlan 100 endpoint untag 0
+        """
+        self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('interface', 'delete')
+        self.assert_configured(expect)
+
+    def test_exists_different_vlan_with_range(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+ifgroup 0 ether 1/1/0/2
+interface 1/1/0/1
+    cfab port-mode external
+    type endpoint
+    exit
+vfab 1 vlan 100 endpoint untag 0,1
+        """
+        self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('interface', 'delete')
+        self.assert_configured(expect)
+
     def test_exists_lag(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
@@ -1332,6 +1476,23 @@ linkaggregation 1 1 mode active
 linkaggregation 1 1 cfab port-mode external
 linkaggregation 1 1 type endpoint
 vfab 1 vlan 8 endpoint untag 0
+        """
+        self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('interface', 'delete')
+        self.assert_configured(expect)
+
+    def test_exists_lag_without_vlan(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 linkaggregation 1 1
+interface 1/1/0/1
+    type linkaggregation 1
+    exit
+linkaggregation 1 1 mode active
+linkaggregation 1 1 cfab port-mode external
+linkaggregation 1 1 type endpoint
         """
         self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
@@ -1356,6 +1517,26 @@ vfab 1 vlan 8 endpoint untag 0
         expect = cfab_cmd('interface', 'delete')
         self.assert_configured(expect)
 
+    def test_illegal_exists_port_range(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1,1/1/0/2
+interface 1/1/0/1
+    cfab port-mode external
+    type endpoint
+    exit
+interface 1/1/0/2
+    cfab port-mode external
+    type endpoint
+    exit
+vfab 1 vlan 8 endpoint untag 0
+        """
+        self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('interface', 'delete')
+        self.assert_configured(expect)
+
 
 class TestCFABdriverClearVlanWithLAG(BaseTestCFABdriver):
     """Test Fujitsu C-Fabric mechanism driver for VLAN configuration.
@@ -1365,6 +1546,27 @@ class TestCFABdriverClearVlanWithLAG(BaseTestCFABdriver):
         cfg.CONF.set_override('share_pprofile', True, "fujitsu_cfab")
         cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
         super(TestCFABdriverClearVlanWithLAG, self).setUp()
+        self.ports = "1/1/0/1,1/1/0/2"
+
+    def test_raises(self):
+        mgr = self.driver.mgr
+        cfab = self.driver
+        mgr.get_candidate_config.side_effect = select.error
+        self.assertRaises(select.error,
+                          cfab.clear_vlan_with_lag, 'a', 'u', 'p', '1', 8,
+                          self.ports, self.mac)
+
+    def test_ifgroup_ether_is_exhauted(self):
+        cfab = self.driver
+        mgr = self.driver.mgr
+        candidate = ""
+        for i in range(0, 4096):
+            candidate += 'ifgroup {if_id} ether 1/1/0/{port}\n'.format(
+                             if_id=i, port=(i + 1))
+        mgr.get_candidate_config.return_value = candidate
+        ret = cfab.clear_vlan_with_lag("a", "u", "p", "1", 8,
+                                       self.ports, self.mac)
+        self.assertEqual(None, ret)
 
     def test_clear_with_no_command(self):
         cfab = self.driver
@@ -1508,7 +1710,7 @@ interface 1/1/0/1
         cfab.clear_vlan_with_lag("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
-        expect = cfab_cmd('interface', 'delete')
+        expect = cfab_cmd('interface', 'delete', ports=self.ports)
         self.assert_configured(expect)
 
     def test_exists_ether_vlan(self):
@@ -1530,7 +1732,7 @@ vfab 1 vlan 8 endpoint untag 0-1
         cfab.clear_vlan_with_lag("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
-        expect = cfab_cmd('interface', 'delete')
+        expect = cfab_cmd('interface', 'delete', ports=self.ports)
         self.assert_configured(expect)
 
 
