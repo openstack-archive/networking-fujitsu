@@ -1,7 +1,7 @@
 [run]
 branch = True
 source = networking_fujitsu
-omit = networking_fujitsu/openstack/*
+omit = networking_fujitsu/tests/*,networking_fujitsu/openstack/*
 
 [report]
 ignore_errors = True
