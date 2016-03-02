@@ -1012,7 +1012,7 @@ def _get_associated_lag_id(ports, config):
             dict(ports=ports, lag_ids=lag_ids))
     LOG.debug(_LI("Associated LAG%(lag_ids)s with interfaces:%(ports)s"),
         dict(lag_ids=lag_ids, ports=ports))
-    return lag_ids[0]
+    return sorted(lag_ids)[0]
 
 
 def _get_available_vfab_pprofile_index(vfab_id, running_config):

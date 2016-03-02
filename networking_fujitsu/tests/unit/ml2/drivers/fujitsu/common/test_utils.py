@@ -61,6 +61,18 @@ class TestEliminateVal(FujitsuCommonUtilsTestCase):
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("2-10", result)
 
+    def test_found_range_of_highest_next_to_lowest(self):
+        definition = "1-2"
+        target = "2"
+        result = fj_util.eliminate_val(definition, target)
+        self.assertEqual("1", result)
+
+    def test_found_range_of_lowest_next_to_highest(self):
+        definition = "1-2"
+        target = "1"
+        result = fj_util.eliminate_val(definition, target)
+        self.assertEqual("2", result)
+
     def test_found_range_of_high(self):
         definition = "1-10"
         target = "10"
@@ -102,6 +114,12 @@ class TestEliminateVal(FujitsuCommonUtilsTestCase):
         target = "100"
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("10,11", result)
+
+    def test_no_matched_with_boundary(self):
+        definition = "1-10"
+        target = "100"
+        result = fj_util.eliminate_val(definition, target)
+        self.assertEqual("1-10", result)
 
 
 class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
