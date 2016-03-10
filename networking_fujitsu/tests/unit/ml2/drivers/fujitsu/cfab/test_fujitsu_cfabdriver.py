@@ -766,6 +766,7 @@ vfab 1 vlan 8 endpoint untag 0
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete', ports=self.ports) \
+            + cfab_cmd('vlan', 'delete') \
             + cfab_cmd('interface', 'add', ports=self.ports) \
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
@@ -785,6 +786,7 @@ vfab 1 vlan 8 endpoint untag 0
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete', ports=self.ports) \
+            + cfab_cmd('vlan', 'delete') \
             + cfab_cmd('interface', 'add', ports=self.ports) \
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
@@ -803,15 +805,16 @@ vfab 1 vlan 8 endpoint untag 0-2
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
+            + cfab_cmd('vlan', 'replace', ifg='1-2') \
             + cfab_cmd('interface', 'add') \
-            + cfab_cmd('vlan', 'add', ifg='0-2')
+            + cfab_cmd('vlan', 'add', ifg='1-2,0')
         self.assert_configured(expect)
 
     def test_already_configured_vlan_and_includes_between_boundary(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
-ifgroup 1 ether 1/1/0/1
 ifgroup 0 ether 1/1/0/2
+ifgroup 1 ether 1/1/0/1
 ifgroup 2 ether 1/1/0/3
 interface 1/1/0/1
     exit
@@ -821,8 +824,9 @@ vfab 1 vlan 8 endpoint untag 0-2
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
+            + cfab_cmd('vlan', 'replace', ifg='0,2') \
             + cfab_cmd('interface', 'add') \
-            + cfab_cmd('vlan', 'add', ifg='0-2')
+            + cfab_cmd('vlan', 'add', ifg='0,2,1')
         self.assert_configured(expect)
 
     def test_already_configured_vlan_and_not_included_in_boundary(self):
@@ -856,6 +860,7 @@ vfab 1 vlan 100 endpoint untag 0
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
+            + cfab_cmd('vlan', 'delete', vlanid=100) \
             + cfab_cmd('interface', 'add') \
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
@@ -876,6 +881,7 @@ vfab 1 vlan 100 endpoint untag 0
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
+            + cfab_cmd('vlan', 'delete', vlanid=100) \
             + cfab_cmd('interface', 'add') \
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
@@ -893,7 +899,8 @@ interface 1/1/0/1
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
-            + cfab_cmd('ifgroup', 'add') + cfab_cmd('interface', 'add') \
+            + cfab_cmd('ifgroup', 'add') \
+            + cfab_cmd('interface', 'add') \
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
 
@@ -910,7 +917,8 @@ interface 1/1/0/2
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
-            + cfab_cmd('ifgroup', 'add') + cfab_cmd('interface', 'add') \
+            + cfab_cmd('ifgroup', 'add') \
+            + cfab_cmd('interface', 'add') \
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
 
@@ -926,7 +934,8 @@ interface 1/1/0/1
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('lag', 'delete') \
-            + cfab_cmd('ifgroup', 'add') + cfab_cmd('interface', 'add') \
+            + cfab_cmd('ifgroup', 'add') \
+            + cfab_cmd('interface', 'add') \
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
 
@@ -938,7 +947,8 @@ interface 1/1/0/1
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='1') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_exist_ifgroup_and_reuse(self):
@@ -948,7 +958,8 @@ interface 1/1/0/1
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
 
     def test_exist_ifgroup_with_port_range(self):
@@ -961,7 +972,8 @@ ifgroup 0 ether 1/1/0/1-1/1/0/5
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='1') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_exist_ifgroup_with_port_range_and_out_of_range(self):
@@ -974,7 +986,8 @@ ifgroup 0 ether 1/1/0/2-1/1/0/5
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='1') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_exist_ifgroup_with_lag(self):
@@ -985,7 +998,8 @@ ifgroup 0 ether 1/1/0/2-1/1/0/5
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='1') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_exist_ifgroup_with_lag_range(self):
@@ -998,7 +1012,8 @@ ifgroup 0 linkaggregation 1 1-4
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='1') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_exists_lag_without_interface(self):
@@ -1018,7 +1033,8 @@ linkaggregation 1 1 cfab port-mode external
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='1') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_exist_definition_type_is_lag(self):
@@ -1041,7 +1057,8 @@ linkaggregation 1 1 cfab port-mode external
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('lag', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='1') \
-            + cfab_cmd('interface', 'add') + cfab_cmd('vlan', 'add', ifg='1')
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_exist_lag_and_vlan_definition(self):
@@ -1230,10 +1247,11 @@ vfab 1 vlan 8 endpoint untag 0
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete', ports=self.ports) \
+            + cfab_cmd('vlan', 'delete') \
             + cfab_cmd('lag', 'add', lag_id='1') \
             + cfab_cmd('ifgroup', 'add', ifg='1', lag=True) \
             + cfab_cmd('interface', 'add', ports=self.ports, lag=True) \
-            + cfab_cmd('vlan', 'add', ifg='0,1')
+            + cfab_cmd('vlan', 'add', ifg='1')
         self.assert_configured(expect)
 
     def test_reuse_ifgroup(self):
@@ -1290,6 +1308,7 @@ vfab 1 vlan 100 endpoint untag 0
                                         self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         expect = cfab_cmd('interface', 'delete', ports=self.ports) \
+            + cfab_cmd('vlan', 'delete', vlanid=100) \
             + cfab_cmd('lag', 'delete') \
             + cfab_cmd('lag', 'add', lag_id='2') \
             + cfab_cmd('ifgroup', 'add', ifg='1', lag_id='2', lag=True) \
@@ -1525,24 +1544,47 @@ vfab 1 vlan 100 endpoint untag 0
         self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
-        expect = cfab_cmd('interface', 'delete')
+        expect = cfab_cmd('vlan', 'delete', vlanid=100) \
+            + cfab_cmd('interface', 'delete')
+        self.assert_configured(expect)
+
+    def test_exists_different_vlans(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+interface 1/1/0/1
+    cfab port-mode external
+    type endpoint
+    exit
+vfab 1 vlan 100 endpoint untag 0
+vfab 1 vlan 200 endpoint untag 0
+vfab 1 vlan 300 endpoint untag 0
+        """
+        self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('vlan', 'delete', vlanid=100) \
+            + cfab_cmd('vlan', 'delete', vlanid=200) \
+            + cfab_cmd('vlan', 'delete', vlanid=300) \
+            + cfab_cmd('interface', 'delete')
         self.assert_configured(expect)
 
     def test_exists_different_vlan_with_range(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
 ifgroup 0 ether 1/1/0/1
-ifgroup 0 ether 1/1/0/2
+ifgroup 1 ether 1/1/0/2
 interface 1/1/0/1
     cfab port-mode external
     type endpoint
     exit
-vfab 1 vlan 100 endpoint untag 0,1
+vfab 1 vlan 100 endpoint untag 0-1
         """
         self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
-        expect = cfab_cmd('interface', 'delete')
+        expect = cfab_cmd('vlan', 'replace', vlanid=100, ifg=1) \
+            + cfab_cmd('interface', 'delete')
         self.assert_configured(expect)
 
     def test_exists_lag(self):
@@ -1842,6 +1884,7 @@ def cfab_cmd(target, op, vfab_id='1', vlanid=8, pp_name='test-1', ppid='0',
             ret.append('no type')
             ret.append("no cfab port-mode")
         ret.append('exit')
+
     elif target is 'lag':
         lag = 'linkaggregation {dom} {lag}'.format(lag=lag_id, dom=domain_id)
         if op is 'add' or op is 'replace':
@@ -1852,6 +1895,7 @@ def cfab_cmd(target, op, vfab_id='1', vlanid=8, pp_name='test-1', ppid='0',
             ret.append('no ' + lag + ' cfab port-mode')
             ret.append('no ' + lag + ' mode')
             ret.append('no ' + lag + ' type')
+
     elif target is 'vlan':
         if op is 'add' or op is 'replace':
             ret.append("vfab {vfab} vlan {vid} endpoint untag {ifg}".format(
@@ -1859,6 +1903,7 @@ def cfab_cmd(target, op, vfab_id='1', vlanid=8, pp_name='test-1', ppid='0',
         if op is 'delete':
             ret.append("no vfab {vfab} vlan {vid} endpoint untag".format(
                 vfab=vfab_id, vid=vlanid))
+
     elif target is 'ifgroup':
         if op is 'add':
             if lag:
@@ -1866,9 +1911,11 @@ def cfab_cmd(target, op, vfab_id='1', vlanid=8, pp_name='test-1', ppid='0',
                     ifg=ifg, dom=domain_id, lag=lag_id))
             else:
                 ret.append('ifgroup {ifg} ether {p}'.format(ifg=ifg, p=ports))
+
     elif target is 'assoc':
         if op is 'delete':
             ret.append("no pprofile {pp_name}".format(pp_name=pp_name))
+
     elif target is 'pp_assoc':
         if op is 'delete':
             ret.append("no vfab {vfab} pprofile {ppid}".format(

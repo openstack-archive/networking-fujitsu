@@ -166,17 +166,6 @@ class TestFujitsuMechDriverBaremetalPortsV2(TestFujitsuMechDriverV2):
         self.setup_net_and_port(phy_port='mlag')
 
     def test_update_with_single_NIC(self):
-        #cfab = fujitsumechanism.FujitsuMechanism
-        #net, original = self.setup_net_and_port(method="update")
-        #port = {'port':{'binding:host_id': uuidutils.generate_uuid()}}
-        #ctx = driver_context.PortContext(mock.Mock(),
-        #                                 mock.Mock(),
-        #                                 port,
-        #                                 net,
-        #                                 mock.Mock(),
-        #                                 None,
-        #                                 original_port=original)
-        #cfab.update_port_postcommit(ctx)
         self.setup_net_and_port(method="update")
 
     def test_update_with_lag(self):
