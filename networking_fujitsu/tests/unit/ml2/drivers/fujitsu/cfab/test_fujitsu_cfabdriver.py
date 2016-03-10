@@ -1290,6 +1290,7 @@ vfab 1 vlan 100 endpoint untag 0
                                         self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         expect = cfab_cmd('interface', 'delete', ports=self.ports) \
+            + cfab_cmd('vlan', 'delete', vlanid=100) \
             + cfab_cmd('lag', 'delete') \
             + cfab_cmd('lag', 'add', lag_id='2') \
             + cfab_cmd('ifgroup', 'add', ifg='1', lag_id='2', lag=True) \
@@ -1525,24 +1526,47 @@ vfab 1 vlan 100 endpoint untag 0
         self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
-        expect = cfab_cmd('interface', 'delete')
+        expect = cfab_cmd('vlan', 'delete', vlanid=100) \
+            + cfab_cmd('interface', 'delete')
+        self.assert_configured(expect)
+
+    def test_exists_different_vlans(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+interface 1/1/0/1
+    cfab port-mode external
+    type endpoint
+    exit
+vfab 1 vlan 100 endpoint untag 0
+vfab 1 vlan 200 endpoint untag 0
+vfab 1 vlan 300 endpoint untag 0
+        """
+        self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('vlan', 'delete', vlanid=100) \
+            + cfab_cmd('vlan', 'delete', vlanid=200) \
+            + cfab_cmd('vlan', 'delete', vlanid=300) \
+            + cfab_cmd('interface', 'delete')
         self.assert_configured(expect)
 
     def test_exists_different_vlan_with_range(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
 ifgroup 0 ether 1/1/0/1
-ifgroup 0 ether 1/1/0/2
+ifgroup 1 ether 1/1/0/2
 interface 1/1/0/1
     cfab port-mode external
     type endpoint
     exit
-vfab 1 vlan 100 endpoint untag 0,1
+vfab 1 vlan 100 endpoint untag 0-1
         """
         self.driver.clear_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
         mgr.get_candidate_config.assert_called_once_with()
-        expect = cfab_cmd('interface', 'delete')
+        expect = cfab_cmd('vlan', 'replace', vlanid=100, ifg=1) \
+            + cfab_cmd('interface', 'delete')
         self.assert_configured(expect)
 
     def test_exists_lag(self):
