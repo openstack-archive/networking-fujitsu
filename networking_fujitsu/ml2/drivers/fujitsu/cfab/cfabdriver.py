@@ -1,4 +1,4 @@
-# Copyright 2015 FUJITSU LIMITED
+# Copyright 2015-2016 FUJITSU LIMITED
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -36,18 +36,15 @@ try:
 except ImportError:
     from neutron.openstack.common import excutils
 
+from networking_fujitsu.i18n import _LE
+from networking_fujitsu.i18n import _LI
+from networking_fujitsu.i18n import _LW
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
 from neutron.common import utils
 from neutron.plugins.ml2.common import exceptions as ml2_exc
-import oslo_i18n
 
 
 LOG = logging.getLogger(__name__)
-_translators = oslo_i18n.TranslatorFactory(domain="fujitsu_cfab")
-_LI = _translators.log_info
-_LW = _translators.log_warning
-_LE = _translators.log_error
-_LC = _translators.log_critical
 TELNET_PORT = 23
 
 _EP = 'endpoint'
