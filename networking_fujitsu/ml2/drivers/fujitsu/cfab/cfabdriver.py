@@ -1,4 +1,4 @@
-# Copyright 2015 FUJITSU LIMITED
+# Copyright 2015-2016 FUJITSU LIMITED
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -34,17 +34,9 @@ try:
 except ImportError:
     from neutron.openstack.common import excutils
 
+from networking_fujitsu.i18n import _LE
+from networking_fujitsu.i18n import _LW
 from neutron.common import utils
-try:
-    from neutron.i18n import _LE
-    from neutron.i18n import _LW
-except ImportError:
-    try:
-        from neutron.openstack.common._i18n import _LE
-        from neutron.openstack.common._i18n import _LW
-    except ImportError:
-        from neutron.openstack.common.gettextutils import _LE
-        from neutron.openstack.common.gettextutils import _LW
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 
 
