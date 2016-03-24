@@ -1,4 +1,4 @@
-# Copyright 2015 FUJITSU LIMITED
+# Copyright 2015-2016 FUJITSU LIMITED
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -25,18 +25,12 @@ try:
     from oslo_utils import importutils
 except ImportError:
     from neutron.openstack.common import importutils
-try:
-    from neutron.i18n import _LE
-    from neutron.i18n import _LI
-except ImportError:
-    try:
-        from neutron.openstack.common._i18n import _LE
-        from neutron.openstack.common._i18n import _LI
-    except ImportError:
-        from neutron.openstack.common.gettextutils import _LE
-        from neutron.openstack.common.gettextutils import _LI
+
+from networking_fujitsu.i18n import _LE
+from networking_fujitsu.i18n import _LI
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import driver_api
+
 
 LOG = logging.getLogger(__name__)
 FUJITSU_DRIVER = 'networking_fujitsu.ml2.drivers.fujitsu.'
