@@ -1,4 +1,4 @@
-# Copyright 2015 FUJITSU LIMITED
+# Copyright 2015-2016 FUJITSU LIMITED
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,10 @@
 # implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from networking_fujitsu.i18n import _LE
+from networking_fujitsu.i18n import _LI
 from neutron.extensions import portbindings
-from neutron.i18n import _LE
-from neutron.i18n import _LI
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import driver_api
