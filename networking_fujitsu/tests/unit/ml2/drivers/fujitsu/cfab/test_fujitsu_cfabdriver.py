@@ -886,6 +886,28 @@ vfab 1 vlan 100 endpoint untag 0
             + cfab_cmd('vlan', 'add')
         self.assert_configured(expect)
 
+    def test_exists_other_vlan_definition_with_different_ifgroup(self):
+        mgr = self.driver.mgr
+        mgr.get_candidate_config.return_value = """
+ifgroup 0 ether 1/1/0/1
+ifgroup 100 ether 1/1/0/1
+interface 1/1/0/1
+    type endponit
+    cfab port-mode external
+    lldp mode enable
+    exit
+vfab 1 vlan 100 endpoint untag 100
+        """
+
+        self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
+        mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.get_candidate_config.assert_called_once_with()
+        expect = cfab_cmd('interface', 'delete') \
+            + cfab_cmd('vlan', 'delete', vlanid=100) \
+            + cfab_cmd('interface', 'add') \
+            + cfab_cmd('vlan', 'add')
+        self.assert_configured(expect)
+
     def test_exists_interface_def_for_target_port(self):
         mgr = self.driver.mgr
         mgr.get_candidate_config.return_value = """
@@ -1856,6 +1878,23 @@ vfab 1 vlan 8 endpoint untag 0-1
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete', ports=self.ports)
         self.assert_configured(expect)
+
+
+class TestCFABdriverPrivateMethods(BaseTestCFABdriver):
+    """Test Fujitsu C-Fabric mechanism driver with private methods.
+
+       This class is for illegal case tests.
+    """
+
+    def setUp(self):
+        cfg.CONF.set_override('share_pprofile', True, "fujitsu_cfab")
+        cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
+        super(TestCFABdriverPrivateMethods, self).setUp()
+
+    def test_is_ifgroup_included_between_range(self):
+        ifgroup_id = 2
+        ifgroups = '1-3'
+        self.assertTrue(cfabdriver._is_ifgroup_included(ifgroup_id, ifgroups))
 
 
 def cfab_cmd(target, op, vfab_id='1', vlanid=8, pp_name='test-1', ppid='0',
