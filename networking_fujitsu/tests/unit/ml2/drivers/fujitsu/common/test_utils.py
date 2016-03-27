@@ -39,87 +39,99 @@ class TestEliminateVal(FujitsuCommonUtilsTestCase):
 
     def test_definition_is_None(self):
         definition = None
-        target = "1"
+        target = [1]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual(None, result)
 
     def test_found_the_lowest(self):
         definition = "1,2,3"
-        target = "1"
+        target = [1]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("2,3", result)
 
     def test_found_the_highest(self):
         definition = "1,2,3"
-        target = "3"
+        target = [3]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("1,2", result)
 
     def test_found_range_of_low(self):
         definition = "1-10"
-        target = "1"
+        target = [1]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("2-10", result)
 
     def test_found_range_of_highest_next_to_lowest(self):
         definition = "1-2"
-        target = "2"
+        target = [2]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("1", result)
 
     def test_found_range_of_lowest_next_to_highest(self):
         definition = "1-2"
-        target = "1"
+        target = [1]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("2", result)
 
     def test_found_range_of_high(self):
         definition = "1-10"
-        target = "10"
+        target = [10]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("1-9", result)
 
     def test_found_between_ranges(self):
         definition = "1-10"
-        target = "5"
+        target = [5]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("1-4,6-10", result)
 
     def test_found_between_ranges_next_to_the_lowest(self):
         definition = "1-10"
-        target = "2"
+        target = [2]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("1,3-10", result)
 
     def test_found_between_ranges_next_to_the_highest(self):
         definition = "1-10"
-        target = "9"
+        target = [9]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("10,1-8", result)
 
     def test_found_between_ranges_next_to_the_lowest_and_highest(self):
         definition = "1-3"
-        target = "2"
+        target = [2]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("1,3", result)
 
     def test_matches_only_one(self):
         definition = "100"
-        target = "100"
+        target = [100]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("", result)
 
     def test_no_matched(self):
         definition = "10,11"
-        target = "100"
+        target = [100]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("10,11", result)
 
     def test_no_matched_with_boundary(self):
         definition = "1-10"
-        target = "100"
+        target = [100]
         result = fj_util.eliminate_val(definition, target)
         self.assertEqual("1-10", result)
+
+    def test_specify_target_with_list_and_include_1(self):
+        definition = "1-5"
+        target = [1, 10]
+        result = fj_util.eliminate_val(definition, target)
+        self.assertEqual("2-5", result)
+
+    def test_specify_target_with_list_and_include_2(self):
+        definition = "1-5"
+        target = [1, 2]
+        result = fj_util.eliminate_val(definition, target)
+        self.assertEqual("3-5", result)
 
 
 class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):

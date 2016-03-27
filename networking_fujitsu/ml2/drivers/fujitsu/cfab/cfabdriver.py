@@ -36,8 +36,8 @@ try:
 except ImportError:
     from neutron.openstack.common import excutils
 
+from networking_fujitsu.i18n import _
 from networking_fujitsu.i18n import _LE
-from networking_fujitsu.i18n import _LI
 from networking_fujitsu.i18n import _LW
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
 from neutron.common import utils
@@ -432,8 +432,8 @@ class CFABdriver(object):
         if modified and ifg is '':
             ifgroups = None
         if _is_ifgroup_included(ifgroup_id, ifgroups):
-            LOG.debug("ifgroup %(if_id)s has already configured in %(ifgs)s",
-                      dict(if_id=ifgroup_id, ifgs=ifgroups))
+            LOG.debug(_("ifgroup %(if_id)s has already configured"
+                        "in %(ifgs)s"), dict(if_id=ifgroup_id, ifgs=ifgroups))
         elif ifgroups is None:
             ifgroups = str(ifgroup_id)
         else:
@@ -449,12 +449,14 @@ class CFABdriver(object):
                     commit=False):
         """Setup untagged VLAN configuration."""
 
-        ifgroup_id = _search_ifgroup_index(ports, config)
-        if ifgroup_id is None:
+        indices = search_ifgroup_indices(ports, config)
+        if not indices:
             ifgroup_id = _get_available_index(_IFGROUP, config)
             if ifgroup_id is None:
                 raise ml2_exc.MechanismDriverError(method="_setup_vlan")
             self._create_ifgroup(ifgroup_id, ports)
+        else:
+            ifgroup_id = indices[0]
         self._setup_interfaces(ports, {'type': _EP, _PORT_MODE: 'external'})
         self._setup_vfab_vlan(vfab_id, vlanid, ifgroup_id, config, ifg=ifg,
                               commit=commit)
@@ -464,13 +466,15 @@ class CFABdriver(object):
         """Setup untagged VLAN and LAG configuration."""
 
         lag_id = self._setup_lag(ports, config)
-        ifgroup_id = _search_ifgroup_index(ports, config, lag_id=lag_id)
-        if ifgroup_id is None:
+        indices = search_ifgroup_indices(ports, config, lag_id=lag_id)
+        if not indices:
             ifgroup_id = _get_available_index(_IFGROUP, config)
             if ifgroup_id is None:
                 raise ml2_exc.MechanismDriverError(
                           method="_setup_vlan_with_lag")
             self._create_ifgroup(ifgroup_id, ports, lag_id=lag_id)
+        else:
+            ifgroup_id = indices[0]
         defs = {'type': "{p_type} {lag_id}".format(p_type=_LAG, lag_id=lag_id)}
         self._setup_interfaces(ports, defs)
         self._setup_vfab_vlan(vfab_id, vlanid, ifgroup_id, config, ifg=ifg,
@@ -526,27 +530,26 @@ class CFABdriver(object):
 
         # (yushiro): ifgroup won't delete because it can not determine
         #            whether ifgroup is created by plugin or not.
-        ifgroup_id = _search_ifgroup_index(ports, config, lag_id=lag_id)
+        indices = search_ifgroup_indices(ports, config, lag_id=lag_id)
         vlan_ifgs = _get_all_vfab_vlans_and_ifgroups(vfab_id, config,
                                                      vlan_type='untag')
         updated_vlan_ifgs = copy.deepcopy(vlan_ifgs)
         cmds = []
         for vlanid in sorted(vlan_ifgs.keys()):
-            vlanid = str(vlanid)
-            ifgroups = vlan_ifgs[vlanid]
+            vlan = str(vlanid)
             is_delete = False
-            # Target ifgroup_id exists but vfab vlan definition does not exist
+            # Target ifgroup_ids exists but vfab vlan definition does not exist
             # or ifgroup_id doesn't exist but vfab vlan definition exists.
-            if None in [ifgroup_id, ifgroups]:
-                LOG.debug("ifgroup with %(p)s for VLAN(%(v)s)has already"
-                          "deleted. Skip clear_vlan.", dict(p=ports, v=vlanid))
+            if None in [vlan_ifgs[vlan]] or not indices:
+                LOG.debug(_("ifgroup with %(p)s for VLAN(%(v)s)has already"
+                            "deleted. Skip clear_vlan."), dict(p=ports,
+                                                               v=vlanid))
                 continue
-            eliminated = fj_util.eliminate_val(ifgroups, ifgroup_id)
-            updated_vlan_ifgs[vlanid] = eliminated
+            eliminated = fj_util.eliminate_val(vlan_ifgs[vlan], indices)
+            updated_vlan_ifgs[vlan] = eliminated
             # VLAN is configured with the only ifgroup_id
             if not eliminated:
                 is_delete = True
-                LOG.debug("Clear with no command for VLAN(%s)" % vlanid)
 
             common_def = "vfab {vfab} vlan {vlan} {port_type} {vlan_type}"
             # Delete VFAB VLAN definition
@@ -557,7 +560,6 @@ class CFABdriver(object):
                                            vlan_type=vlan_type))
             # Reject ifgroup_id from VFAB VLAN definition
             else:
-                LOG.debug("Reject ifgroup for VLAN(%s)" % vlanid)
                 command = common_def + " " + "{ifgroup}"
                 cmds.append(command.format(vfab=vfab_id, vlan=vlanid,
                                            port_type=port_type,
@@ -705,11 +707,11 @@ class CFABdriver(object):
         commit_interface = True if (commit and not lag_id) else False
         self._clear_interfaces(ports, commit=commit_interface)
         if commit_interface:
-            LOG.debug('Skip clearing VLAN and LAG.')
+            LOG.debug(_('Skip clearing VLAN and LAG.'))
             return None
         modified = self._clear_vlans(vfab_id, ports, config, lag_id=lag_id)
         if lag_id:
-            LOG.debug('Found LAG%s definiton and clear.' % lag_id)
+            LOG.debug(_('Found LAG%s definiton and clear.'), lag_id)
             self._clear_lag(vfab_id, lag_id, ports, config, commit=commit)
         return modified.get(str(vlanid), None)
 
@@ -935,19 +937,21 @@ def _search_vfab_pprofile(vfab_id, mac_address, running_config):
         return None, None
 
 
-def _search_ifgroup_index(ports, candidate_config, lag_id=None):
-    """Search ifgroup id with specified ports. Returns ifgroup id if found."""
+def search_ifgroup_indices(ports, candidate_config, lag_id=None):
+    """Search ifgroup ids with specified ports."""
 
     reg = r"^ifgroup\s+(\d+)\s+ether\s+{ports}$".format(ports=ports)
     if lag_id:
         domain_id = _get_domain_id(ports)
         reg = r"^ifgroup\s+(\d+)\s+{if_type}\s+{domain_id}\s+{lag_id}$".format(
                   if_type=_LAG, domain_id=domain_id, lag_id=lag_id)
-    match = re.search(reg, candidate_config, re.MULTILINE)
+    match = re.findall(reg, candidate_config, re.MULTILINE)
     if match:
-        LOG.debug('Found and reuse ifgroup_id:%s' % match.group(1))
-        return int(match.group(1))
-    return None
+        ifgroup_indices = sorted([int(m) for m in match])
+        LOG.debug(_('Found ifgroup for port(%(p)s):%(ifg)s'),
+            dict(p=ports, ifg=ifgroup_indices))
+        return ifgroup_indices
+    return []
 
 
 def _get_vfab_pprofile_index(vfab_id, pprofile, mac_address, running_config):
@@ -977,10 +981,8 @@ def _get_ifgroups_of_vfab_vlan(vfab_id, vlanid, config, vlan_type='untag'):
         _VFAB_VLAN.format(v=vfab_id, vlan=vlanid, vlan_type=vlan_type),
         config, re.MULTILINE)
     if match:
-        LOG.debug('Found ifgroups for vfab vlan:%s' % match.group(1))
         return match.group(1)
     else:
-        LOG.debug('ifgroups not found for vfab vlan')
         return None
 
 
@@ -996,9 +998,10 @@ def _get_all_vfab_vlans_and_ifgroups(vfab_id, config, vlan_type='untag'):
                        config, re.MULTILINE)
     result = dict(match)
     if result:
-        LOG.debug('VFAB(%s){VLANID: ifgroups}:%s' % (vfab_id, result))
+        LOG.debug(_('VFAB(%(vfab)s){VLANID: ifgroups}:%(result)s'),
+            dict(vfab=vfab_id, res=result))
     else:
-        LOG.debug('VLAN and ifgroups not found.')
+        LOG.debug(_('VLAN and ifgroups not found.'))
     return result
 
 
@@ -1029,15 +1032,12 @@ def _get_associated_lag_id(ports, config):
             ids.append(match.group(3))
     lag_ids = list(set(ids))
     if not lag_ids:
-        LOG.warning(
-            _LW("Specified port%(ifs)s doesn't have a 'type %(ptype)s'."),
-            dict(ifs=interfaces, ptype=_LAG))
         return None
     if len(lag_ids) > 1:
         LOG.warning(
             _LW("Each port%(ports)s has different LAG ids(%(lag_ids)s)"),
             dict(ports=ports, lag_ids=lag_ids))
-    LOG.debug(_LI("Associated LAG%(lag_ids)s with interfaces:%(ports)s"),
+    LOG.debug(_("Associated LAG%(lag_ids)s with interfaces:%(ports)s"),
         dict(lag_ids=lag_ids, ports=ports))
     return sorted(lag_ids)[0]
 
