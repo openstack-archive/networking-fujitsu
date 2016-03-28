@@ -38,13 +38,11 @@ def eliminate_val(source, reject):
         return
     values = [str(i) for i in reject]
     rejected = source.split(',')
-    LOG.debug(_("Before rejected:%s"), source)
     found = False
     for val in values:
         for target in rejected:
             m = RANGE_DEFINITION.match(target)
             if m:
-                print("range-def:high%s low:%s" % (m.group(2), m.group(1)))
                 low = m.group(1)
                 high = m.group(2)
                 if val in target:
@@ -94,9 +92,7 @@ def eliminate_val(source, reject):
                 rejected.remove(target)
                 found = True
                 break
-    if found:
-        LOG.debug(_('After rejected:%s'), rejected)
-    else:
+    if not found:
         LOG.debug(_('Reject target doesn\'t exist.'))
     return ','.join(rejected)
 

@@ -225,11 +225,11 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                     interface_mac)
                 raise ml2_exc.MechanismDriverError(method=method)
 
-        LOG.info(
-            _LI("delete port (postcommit): port_id=%(port_id)s "
-                "network_id=%(network_id)s tenant_id=%(tenant_id)s"),
-            {'port_id': port_id,
-             'network_id': network_id, 'tenant_id': tenant_id})
+            LOG.info(
+                _LI("delete port (postcommit): port_id=%(port_id)s "
+                    "network_id=%(network_id)s tenant_id=%(tenant_id)s"),
+                {'port_id': port_id,
+                 'network_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
     def setup_vlan(self, params):
