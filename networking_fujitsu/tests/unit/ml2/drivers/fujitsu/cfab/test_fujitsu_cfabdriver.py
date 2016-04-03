@@ -74,7 +74,17 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
                 socket.error,
                 self.manager.connect, "address", "username", "password")
 
-    def test_connect_busy_and_retry(self):
+    def test_reconnect_raise_exceptions(self):
+
+        with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
+            for er in [EOFError, EnvironmentError, ValueError]:
+                tel = telnet.return_value
+                tel.read_until.side_effect = er
+                self.assertRaises(er, self.manager.connect,
+                                  "address", "username", "password")
+                self.assertEqual(0, self.manager._retry_count)
+
+    def test_reconnect_busy_and_retry(self):
 
         with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
             tel = telnet.return_value
@@ -87,9 +97,10 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
             time.sleep.side_effect = None
 
             self.manager.connect("address", "username", "password")
+            self.assertEqual(0, self.manager._retry_count)
             time.sleep.assert_called_once_with(cfabdriver._WAIT_FOR_BUSY)
 
-    def test_connect_busy_and_reached_maxium_retry(self):
+    def test_reconnect_busy_and_reached_maxium_retry(self):
 
         with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
             tel = telnet.return_value
@@ -102,6 +113,7 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
                 self.manager.connect, "address", "username", "password")
             retry_count = cfabdriver._TIMEOUT / cfabdriver._WAIT_FOR_BUSY
             self.assertEqual(retry_count, time.sleep.call_count)
+            self.assertEqual(0, self.manager._retry_count)
 
 
 class BaseTestMockedCFABManagerConnected(BaseTestMockedCFABManager):

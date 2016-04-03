@@ -231,7 +231,6 @@ class _CFABManager(object):
 
         # Close the old connection
         self._close_session()
-
         # Open new TELNET connection
         try:
             self._telnet = telnetlib.Telnet(
@@ -240,6 +239,7 @@ class _CFABManager(object):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Connect failed to switch"))
         try:
+            prompt = ""
             prompt = self._telnet.read_until(_PROMPT_LOGIN, _TIMEOUT_LOGIN)
             prompt.index(_PROMPT_LOGIN)
             self._telnet.write(self._username + "\n")
@@ -259,13 +259,16 @@ class _CFABManager(object):
                     self._reconnect()
                     return
                 with excutils.save_and_reraise_exception():
+                    self._retry_count = 0
                     LOG.exception(_LE("Number of retry times has reached."))
             else:
                 self._telnet.close()
                 self._telnet = None
+                self._retry_count = 0
                 with excutils.save_and_reraise_exception():
                     LOG.exception(_LE("Login failed to switch.(%s)"), prompt)
 
+        self._retry_count = 0
         LOG.debug("Connect success to address %(address)s:%(telnet_port)s",
                   dict(address=self._address, telnet_port=TELNET_PORT))
 
