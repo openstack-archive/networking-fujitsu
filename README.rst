@@ -89,12 +89,12 @@ section of configuration files (such as ml2_conf_fujitsu.ini).
 
 ``physical_networks``
   List of <physical_network>:<vfab_id> tuples specifying physical
-  network names and corresponding vfab IDs. All possible physical
+  network names and corresponding VFAB IDs. All possible physical
   network names must be specified in this parameter. If a physical
   network name not specified in this parameter is used, a runtime
-  exception will be raised. It is valid to use same vfab ID for
+  exception will be raised. It is valid to use same VFAB ID for
   different physical networks as long as VLAN IDs are exclusive.
-  Please note that vfabs must be created and configured in C-Fabric
+  Please note that VFABs must be created and configured in C-Fabric
   beforehand.
 
   Example::
@@ -138,6 +138,9 @@ section of configuration files (such as ml2_conf_fujitsu.ini).
 C-Fabric Configuration
 ----------------------
 
+Common
+^^^^^^
+
 As well as the standard configuration of C-Fabric, the following
 configurations are needed for the mechanism driver.
 
@@ -155,9 +158,9 @@ configurations are needed for the mechanism driver.
    versions of C-Fabric firmware.  Therefore, please create the subnet
    with enable_dhcp is FALSE before ampp dhcp function is supported.
 
-2. Create and configure vfabs.
+2. Create and configure VFABs.
 
-   It is necessary to create and configure the vfab beforehand. It is
+   It is necessary to create and configure the VFAB beforehand. It is
    recommended that the ports connected to the network nodes are
    configured as VLAN through mode.
 
@@ -174,3 +177,22 @@ configurations are needed for the mechanism driver.
 
    Please note that ``vfab through`` commands are only available on
    C-Fabric firmware V02.30 and later.
+
+Baremetal provisioning
+^^^^^^^^^^^^^^^^^^^^^^
+
+C-Fabric plugin also supports baremetal tenant network isolation.
+This feature is available on firmware V02.40 and later. In order to
+use this feature, the following pre-configuration is necessary:
+
+1. Configure ``network mode`` for VFAB which is specified as
+   ``physical_networks``.
+
+   Example::
+
+      vfab 1 mode network
+
+.. NOTE::
+
+  While baremetal provisioning is running, PLEASE DO NOT EDIT C-Fabric
+  configuration directory.
