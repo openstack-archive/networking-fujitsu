@@ -1,0 +1,9 @@
+Code-Review+2: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Code-Review+2: Shiina, Hironori <shiina.hironori@jp.fujitsu.com>
+Workflow+1: Shiina, Hironori <shiina.hironori@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 05 Apr 2016 02:01:16 +0000
+Reviewed-on: https://review.openstack.org/300959
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
