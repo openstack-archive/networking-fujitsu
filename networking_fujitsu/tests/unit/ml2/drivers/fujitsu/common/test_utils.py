@@ -18,7 +18,6 @@ import copy
 import mock
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
 from neutron.extensions import portbindings
-from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.tests import base
 #from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 
@@ -138,20 +137,21 @@ class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
     """Test class for get_network_segments and _validate_network"""
 
     def test_normal_case(self):
-        expect_vlan_id = 100
         network_type, vlan_id = fj_util.get_network_segments(self.net)
-        self.assertEqual(network_type, "vlan")
-        self.assertEqual(vlan_id, expect_vlan_id)
+        self.assertEqual("vlan", network_type)
+        self.assertEqual(100, vlan_id)
 
     def test_segmentation_id_is_nothing(self):
         self.net.network_segments[0]["segmentation_id"] = None
-        self.assertRaises(ml2_exc.MechanismDriverError,
-                          fj_util.get_network_segments, self.net)
+        network_type, vlan_id = fj_util.get_network_segments(self.net)
+        self.assertEqual('vlan', network_type)
+        self.assertEqual(None, vlan_id)
 
     def test_network_type_is_not_vlan(self):
         self.net.network_segments[0]["network_type"] = "vxlan"
-        self.assertRaises(ml2_exc.MechanismDriverError,
-                          fj_util.get_network_segments, self.net)
+        network_type, vlan_id = fj_util.get_network_segments(self.net)
+        self.assertEqual('vxlan', network_type)
+        self.assertEqual(100, vlan_id)
 
 
 class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
@@ -172,33 +172,33 @@ class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
         self.port['binding:profile']['local_link_information'] = self.lli
         expect = self.lli
         local_link_info = fj_util.get_physical_connectivity(self.port)
-        self.assertEqual(local_link_info, expect)
+        self.assertEqual(expect, local_link_info)
 
-    def test_local_link_info_is_undefined_and_raise(self):
+    def test_local_link_info_is_undefined(self):
         del self.port['binding:profile']['local_link_information']
-        self.assertRaises(ml2_exc.MechanismDriverError,
-                          fj_util.get_physical_connectivity, self.port)
+        local_link_info = fj_util.get_physical_connectivity(self.port)
+        self.assertEqual({}, local_link_info)
 
-    def test_local_link_info_is_empty_and_raise(self):
+    def test_local_link_info_is_empty(self):
         self.port['binding:profile']['local_link_information'] = []
-        self.assertRaises(ml2_exc.MechanismDriverError,
-                          fj_util.get_physical_connectivity, self.port)
+        local_link_info = fj_util.get_physical_connectivity(self.port)
+        self.assertEqual({}, local_link_info)
 
-    def test_some_key_in_local_link_info_is_missing_and_raise(self):
+    def test_some_key_in_local_link_info_is_missing(self):
         for missing in self.lli[1]:
             tmp = copy.copy(self.lli[1])
             del tmp[missing]
             self.port['binding:profile']['local_link_information'] = [tmp]
-            self.assertRaises(ml2_exc.MechanismDriverError,
-                              fj_util.get_physical_connectivity, self.port)
+            local_link_info = fj_util.get_physical_connectivity(self.port)
+            self.assertEqual({}, local_link_info)
 
-    def test_some_value_in_local_link_info_is_missing_and_raise(self):
+    def test_some_value_in_local_link_info_is_missing(self):
         for missing in self.lli[0]:
             tmp = copy.copy(self.lli[0])
             tmp[missing] = ""
             self.port['binding:profile']['local_link_information'] = [tmp]
-            self.assertRaises(ml2_exc.MechanismDriverError,
-                              fj_util.get_physical_connectivity, self.port)
+            local_link_info = fj_util.get_physical_connectivity(self.port)
+            self.assertEqual({}, local_link_info)
 
 
 class TestIsBaremetalDeploy(FujitsuCommonUtilsTestCase):
