@@ -14,15 +14,15 @@
 # limitations under the License.
 
 from networking_fujitsu.i18n import _
-from networking_fujitsu.i18n import _LE
+from networking_fujitsu.i18n import _LW
 from neutron.extensions import portbindings
-from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import driver_api
 from oslo_log import log as logging
 import re
 
 LOG = logging.getLogger(__name__)
 RANGE_DEFINITION = re.compile(r'(\d+)-(\d+)')
+_SUPPORTED_NET_TYPES = ['vlan']
 
 
 def eliminate_val(source, reject):
@@ -105,7 +105,6 @@ def get_network_segments(network):
             segmentation_id a integer of segmentation_id
     """
 
-    _validate_network(network)
     segment = network.network_segments[0]
     network_type = segment[driver_api.NETWORK_TYPE]
     segmentation_id = segment[driver_api.SEGMENTATION_ID]
@@ -131,11 +130,11 @@ def get_physical_connectivity(port):
             is_all_specified = False
     if is_all_specified:
         return lli
-    LOG.error(_LE("Some physical network param is missing:%s"), lli)
-    raise ml2_exc.MechanismDriverError(method="get_physical_connectivity")
+    LOG.warning(_LW("Some physical network param is missing:%s"), lli)
+    return {}
 
 
-def is_baremetal_deploy(port):
+def is_baremetal(port):
     """Judge a specified port is for baremetal or not.
 
     @param port a port object
@@ -157,18 +156,3 @@ def is_lag(local_link_information):
     """
 
     return True if len(local_link_information) > 1 else False
-
-
-def _validate_network(network):
-    """Validate network parameter(network_type and segmentation_id).
-
-    @param a network object
-    @return None if both network_type and segmentation_id are included
-    """
-
-    segment = network.network_segments[0]
-    vlan_id = segment[driver_api.SEGMENTATION_ID]
-    if (segment[driver_api.NETWORK_TYPE] == 'vlan' and vlan_id):
-        return
-    LOG.error(_LE("Fujitsu Mechanism: only network type vlan is supported"))
-    raise ml2_exc.MechanismDriverError(method="_validate_network")
