@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from networking_fujitsu.i18n import _LE
+from networking_fujitsu.i18n import _LW
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
 from neutron.plugins.common import constants as p_const
-from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import driver_api
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
@@ -24,6 +23,7 @@ from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 ISM_DRIVER = 'networking_fujitsu.ml2.drivers.fujitsu.ism.ism_base'
+_SUPPORTED_NET_TYPES = ['vlan']
 
 
 class FujitsuIsmDriver(driver_api.MechanismDriver):
@@ -51,77 +51,43 @@ class FujitsuIsmDriver(driver_api.MechanismDriver):
         """Call ISM API to set VLAN configuration."""
 
         port = context.current
-        if not fj_util.is_baremetal_deploy(port):
-            LOG.warning("This plugin is doing nothing before ironic-neutron\
-                      integration will be merged.")
+        if not fj_util.is_baremetal(port):
+            LOG.warning("This plugin is under developing and "
+                        "not doing at all.")
             return
-        net_type, seg_id = fj_util.get_network_segments(port.network)
-        phy_connections = fj_util.get_physical_connectivity(port)
-
-        # TODO(yushiro) Call LAG setup function of ISM
-
-        for phy_con in phy_connections:
-            try:
-                ism = FujitsuIsmDriver.create_ism_base(net_type, seg_id)
-                current = ism.get_current_config(phy_con)
-                req_param = ism.generate_req_param_for_port(current)
-                ism.setup_for_port(req_param, phy_con)
-            except Exception as er:
-                LOG.exception(
-                    _LE("failed to setup %(net_type)s. detail=%(er)s"),
-                    {'net_type': net_type, 'er': er})
-                raise ml2_exc.MechanismDriverError(method="%s" % __name__)
-        return
 
     @log_helpers.log_method_call
     def update_port_postcommit(self, context):
         """Call ISM API to set VLAN configuration."""
 
         port = context.current
-        if not fj_util.is_baremetal_deploy(port):
-            LOG.warning("This plugin is doing nothing before ironic-neutron\
-                      integration will be merged.")
+        if not fj_util.is_baremetal(port):
+            LOG.warning("This plugin is under developing and "
+                        "not doing at all.")
             return
-
-        net_type, seg_id = fj_util.get_network_segments(port.network)
-        phy_connections = fj_util.get_physical_connectivity(port)
-
-        for phy_con in phy_connections:
-            try:
-                ism = FujitsuIsmDriver.create_ism_base(net_type, seg_id)
-                current = ism.get_current_config(phy_con)
-                req_param = ism.generate_req_param_for_port(current)
-                ism.setup_for_port(req_param, phy_con)
-            except Exception as er:
-                LOG.exception(
-                    _LE("failed to setup %(net_type)s. detail=%(er)s"),
-                    {'net_type': net_type, 'er': er})
-                raise ml2_exc.MechanismDriverError(method="%s" % __name__)
-        return
 
     @log_helpers.log_method_call
     def delete_port_postcommit(self, context):
         """Call ISM API to reset VLAN configuration."""
 
         port = context.current
-        if not fj_util.is_baremetal_deploy(port):
-            LOG.warning("This plugin is doing nothing before ironic-neutron\
-                      integration will be merged.")
+        if not fj_util.is_baremetal(port):
+            LOG.warning("This plugin is under developing and "
+                        "not doing at all.")
             return
-        net_type, seg_id = fj_util.get_network_segments(port.network)
-        phy_connections = fj_util.get_physical_connectivity(port)
 
-        # TODO(yushiro) Call LAG un-setup function of ISM
+    def validate_network(network):
+        """Validate network parameter(network_type and segmentation_id).
 
-        for phy_con in phy_connections:
-            # TODO(yushiro): Consider try position
-            try:
-                ism = self.create_ism_base(net_type, '')
-                current = ism.get_current_config(phy_con)
-                req_param = ism.generate_req_param_for_port(current)
-                ism.setup_for_port(req_param, phy_con)
-            except Exception as er:
-                LOG.exception(
-                    _LE("failed to setup %(net_type)s. detail=%(er)s"),
-                    {'net_type': net_type, 'er': er})
-                raise ml2_exc.MechanismDriverError(method="%s" % __name__)
+        @param a network object
+        @return True if network_type is 'VLAN' and segmentation_id is included
+                otherwise False
+        """
+
+        segment = network.network_segments[0]
+        seg_id = segment[driver_api.SEGMENTATION_ID]
+        net_type = segment[driver_api.NETWORK_TYPE]
+        if (net_type in _SUPPORTED_NET_TYPES and seg_id):
+            return True
+        LOG.warning(_LW("Only network type vlan is supported."))
+        return False

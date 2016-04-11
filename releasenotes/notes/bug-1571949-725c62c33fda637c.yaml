@@ -1,0 +1,7 @@
+---
+fixes:
+  - In case of 'fujitsu_cfab', skips C-Fabric configuration
+    if following conditions match. 'network_type' is not
+    "vlan" or 'local_link_information' is not fully specified.
+    After this fix, AMPP configuration doesn't raise error
+    even if network_type is not 'vlan'.
