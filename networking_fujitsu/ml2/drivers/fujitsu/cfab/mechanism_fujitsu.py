@@ -28,6 +28,7 @@ except ImportError:
     from neutron.openstack.common import importutils
 from networking_fujitsu.i18n import _LE
 from networking_fujitsu.i18n import _LI
+from networking_fujitsu.i18n import _LW
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
 from neutron.common import constants as const
 from neutron.extensions import portbindings
@@ -42,6 +43,7 @@ CFAB_DRIVER = FUJITSU_DRIVER + 'cfab.cfabdriver.CFABdriver'
 VFAB_ID_DEFAULT = "default"
 VFAB_ID_MIN = 1
 VFAB_ID_MAX = 3000
+_SUPPORTED_NET_TYPES = ['vlan']
 
 ML2_FUJITSU_GROUP = "fujitsu_cfab"
 ML2_FUJITSU = [
@@ -142,7 +144,10 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                    Associate the assigned MAC address to the portprofile.
         """
 
-        if fj_util.is_baremetal_deploy(mech_context.current):
+        if fj_util.is_baremetal(mech_context.current):
+            return
+
+        if not is_supported(mech_context.network):
             return
 
         method = 'create_port_postcommit'
@@ -153,7 +158,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
         segments = mech_context.network.network_segments
         # currently supports only one segment per network
         segment = segments[0]
-        fj_util._validate_network(mech_context.network)
+
         vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
         vlanid = segment[driver_api.SEGMENTATION_ID]
 
@@ -189,24 +194,25 @@ class FujitsuMechanism(driver_api.MechanismDriver):
         """
 
         method = 'delete_port_postcommit'
-        if fj_util.is_baremetal_deploy(mech_context.current):
-            params = self.validate_physical_net_params(mech_context)
-            try:
-                self.clear_vlan(params)
-            except Exception:
-                LOG.exception(_LE("Fujitsu Mechanism: "
-                                  "failed to clear vlan%s"), params['vlanid'])
-                raise ml2_exc.MechanismDriverError(method=method)
+        port = mech_context.current
+        port_id = port['id']
+        network_id = port['network_id']
+        tenant_id = port['tenant_id']
+        if fj_util.is_baremetal(port):
+            if validate_baremetal_deploy(mech_context):
+                params = self.get_physical_net_params(mech_context)
+                try:
+                    self.clear_vlan(params)
+                except Exception:
+                    LOG.exception(_LE("Failed to clear vlan%s."),
+                        params['vlanid'])
+                    raise ml2_exc.MechanismDriverError(method=method)
+        elif not is_supported(mech_context.network):
+            pass
         else:
-            port = mech_context.current
-            port_id = port['id']
-            network_id = port['network_id']
-            tenant_id = port['tenant_id']
-
             segments = mech_context.network.network_segments
             # currently supports only one segment per network
             segment = segments[0]
-            fj_util._validate_network(mech_context.network)
             vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
             vlanid = segment[driver_api.SEGMENTATION_ID]
             interface_mac = port['mac_address']
@@ -224,12 +230,11 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                     _LE("Fujitsu Mechanism: failed to dissociate MAC %s") %
                     interface_mac)
                 raise ml2_exc.MechanismDriverError(method=method)
-
-            LOG.info(
-                _LI("delete port (postcommit): port_id=%(port_id)s "
-                    "network_id=%(network_id)s tenant_id=%(tenant_id)s"),
-                {'port_id': port_id,
-                 'network_id': network_id, 'tenant_id': tenant_id})
+        LOG.info(
+            _LI("delete port (postcommit): port_id=%(port_id)s "
+                "network_id=%(network_id)s tenant_id=%(tenant_id)s"),
+            {'port_id': port_id,
+             'network_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
     def setup_vlan(self, params):
@@ -242,7 +247,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
             This method calls 'setup_vlan' and setup only VLAN.
 
         @param  params  a dictionary of the return value for
-                        validate_physical_net_params
+                        get_physical_net_params
         @return  None
         """
 
@@ -283,7 +288,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
             This method calls 'clear_vlan' and clears only VLAN.
 
         @param  params A dictionary of the return value for
-                       validate_physical_net_params
+                       get_physical_net_params
         @return  None
         """
 
@@ -316,7 +321,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
             raise ml2_exc.MechanismDriverError(method="clear_vlan")
 
     @log_helpers.log_method_call
-    def validate_physical_net_params(self, mech_context):
+    def get_physical_net_params(self, mech_context):
         """Validate physical network parameters for baremetal deployment.
 
         Validates network & port params and returns dictionary.
@@ -334,14 +339,12 @@ class FujitsuMechanism(driver_api.MechanismDriver):
         """
 
         port = mech_context.current
-        fj_util._validate_network(mech_context.network)
-
         # currently supports only one segment per network
         segment = mech_context.network.network_segments[0]
         vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
         vlanid = segment[driver_api.SEGMENTATION_ID]
-        local_link_information = fj_util.get_physical_connectivity(port)
-        physical_ports = ','.join(p['port_id'] for p in local_link_information)
+        local_link_info = fj_util.get_physical_connectivity(port)
+        physical_ports = ','.join(p['port_id'] for p in local_link_info)
         return {
                    "address": self._switch['address'],
                    "username": self._switch['username'],
@@ -350,7 +353,7 @@ class FujitsuMechanism(driver_api.MechanismDriver):
                    "vfab_id": vfab_id,
                    "vlanid": vlanid,
                    "mac": port['mac_address'],
-                   "lag": fj_util.is_lag(local_link_information)
+                   "lag": fj_util.is_lag(local_link_info)
                }
 
     @log_helpers.log_method_call
@@ -358,16 +361,47 @@ class FujitsuMechanism(driver_api.MechanismDriver):
 
         port = context.current
         vnic_type = port['binding:vnic_type']
-
         LOG.debug("Attempting to bind port %(port)s with vnic_type "
                   "%(vnic_type)s on network %(network)s",
                   {'port': port['id'], 'vnic_type': vnic_type,
                    'network': context.network.current['id']})
 
-        if fj_util.is_baremetal_deploy(port):
+        if validate_baremetal_deploy(context):
+            params = self.get_physical_net_params(context)
             segments = context.segments_to_bind
-            params = self.validate_physical_net_params(context)
             self.setup_vlan(params)
             context.set_binding(segments[0][driver_api.ID],
                                 portbindings.VIF_TYPE_OTHER, {},
                                 status=const.PORT_STATUS_ACTIVE)
+
+
+def is_supported(network):
+    """Validate network parameter(network_type and segmentation_id).
+
+    @param a network object
+    @return True if network_type is 'VLAN' and segmentation_id is included
+            otherwise False
+    """
+
+    segment = network.network_segments[0]
+    seg_id = segment[driver_api.SEGMENTATION_ID]
+    net_type = segment[driver_api.NETWORK_TYPE]
+    if (net_type in _SUPPORTED_NET_TYPES and seg_id):
+        return True
+    LOG.warning(_LW("%s is not supported. Skip it."), net_type)
+    return False
+
+
+def validate_baremetal_deploy(mech_context):
+    """Validate baremetal deploy.
+
+    @param mech_context a context object
+    @return True if enable to baremetal deploy otherwise False
+    """
+
+    port = mech_context.current
+    network = mech_context.network
+    if (fj_util.is_baremetal(port) and
+       is_supported(network) and fj_util.get_physical_connectivity(port)):
+        return True
+    return False
