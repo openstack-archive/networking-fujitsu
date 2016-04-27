@@ -1,4 +1,4 @@
-# Copyright 2015 FUJITSU LIMITED
+# Copyright 2015-2016 FUJITSU LIMITED
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,9 +21,8 @@ try:
 except ImportError:
     from neutron.openstack.common import log as logging
 
-from networking_fujitsu.ml2.drivers.fujitsu.cfab\
-    import (mechanism_fujitsu as fujitsumechanism)
 from networking_fujitsu.ml2.drivers.fujitsu.cfab import cfabdriver
+from networking_fujitsu.ml2.drivers.fujitsu.cfab import mechanism_fujitsu
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
@@ -45,11 +44,18 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
     """
 
     _mechanism_drivers = ['fujitsu_cfab']
+    # test_create_router_port_and_fail_create_postcommit:
+    #     This one is mocked 'fake_driver' only. So, our plugin's instance
+    #     hasn't mocked and fail definitely. Therefore, skips this test.
+    _skip = ["test_create_router_port_and_fail_create_postcommit"]
 
     def setUp(self):
 
         ml2_config.cfg.CONF.set_override(
             'tenant_network_types', ['vlan'], 'ml2')
+
+        if self._testMethodName in self._skip:
+            self.skipTest("This test has already verified at neutron's test.")
 
         address = os.environ.get('OS_FUJITSU_CFAB_ADDRESS')
         if address:
@@ -77,7 +83,7 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
                 self._driver = mock.MagicMock()
                 self._physical_networks = {'physnet1': "1", 'physnet2': "2"}
 
-            with mock.patch.object(fujitsumechanism.FujitsuMechanism,
+            with mock.patch.object(mechanism_fujitsu.FujitsuMechanism,
                                    'initialize', new=mocked_initialize):
                 super(TestFujitsuMechDriverV2, self).setUp()
 
