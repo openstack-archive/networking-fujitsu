@@ -32,10 +32,17 @@ LOG = logging.getLogger(__name__)
 class FujitsuIsmDriverTestCase(test_ml2_plugin.Ml2PluginV2TestCase):
 
     _mechanism_drivers = ['fujitsu_ism']
+    # test_create_router_port_and_fail_create_postcommit:
+    #     This one is mocked 'fake_driver' only. So, our plugin's instance
+    #     hasn't mocked and fail definitely. Therefore, skips this test.
+    _skip = ["test_create_router_port_and_fail_create_postcommit"]
 
     def setUp(self):
-        super(FujitsuIsmDriverTestCase, self).setUp()
+
+        if self._testMethodName in self._skip:
+            self.skipTest("This test has already verified at neutron's test.")
         self._driver = mech_fujitsu_ism.FujitsuIsmDriver()
+        super(FujitsuIsmDriverTestCase, self).setUp()
 
     def tearDown(self):
         super(FujitsuIsmDriverTestCase, self).tearDown()
