@@ -14,3 +14,4 @@ testrepository>=0.0.18
 testscenarios>=0.4
 testtools>=1.4.0
 reno>=1.6.2 # Apache2
+testresources>=0.2.4 # Apache-2.0/BSD
