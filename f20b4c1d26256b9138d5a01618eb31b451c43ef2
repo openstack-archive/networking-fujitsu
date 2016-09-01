@@ -1,0 +1,9 @@
+Code-Review+2: Naohiro Tamura <naohirot.openstack@gmail.com>
+Code-Review+2: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Workflow+1: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 01 Sep 2016 11:54:45 +0000
+Reviewed-on: https://review.openstack.org/317846
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
