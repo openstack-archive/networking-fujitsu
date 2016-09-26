@@ -27,14 +27,8 @@ import eventlet
 telnetlib = eventlet.import_patched('telnetlib')
 
 from oslo_config import cfg
-try:
-    from oslo_log import log as logging
-except ImportError:
-    from neutron.openstack.common import log as logging
-try:
-    from oslo_utils import excutils
-except ImportError:
-    from neutron.openstack.common import excutils
+from oslo_log import log as logging
+from oslo_utils import excutils
 
 from networking_fujitsu.i18n import _
 from networking_fujitsu.i18n import _LE
