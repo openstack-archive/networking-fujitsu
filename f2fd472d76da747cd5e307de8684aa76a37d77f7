@@ -1,0 +1,9 @@
+Code-Review+2: Lujin Luo <luo.lujin@jp.fujitsu.com>
+Code-Review+2: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Workflow+1: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 27 Sep 2016 07:41:32 +0000
+Reviewed-on: https://review.openstack.org/377255
+Project: openstack/networking-fujitsu
+Branch: refs/heads/stable/mitaka
