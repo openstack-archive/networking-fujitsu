@@ -1,0 +1,9 @@
+Code-Review+2: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Code-Review+2: Hironori Shiina <shiina.hironori@jp.fujitsu.com>
+Workflow+1: Hironori Shiina <shiina.hironori@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 27 Sep 2016 04:38:05 +0000
+Reviewed-on: https://review.openstack.org/308143
+Project: openstack/networking-fujitsu
+Branch: refs/heads/stable/liberty
