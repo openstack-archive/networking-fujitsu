@@ -24,9 +24,6 @@ from mock import MagicMock
 from networking_fujitsu.ml2.drivers.fujitsu.ism import mech_fujitsu_ism
 from networking_fujitsu.tests.unit.ml2.drivers.fujitsu.ism import ism_common
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
-from oslo_log import log as logging
-
-LOG = logging.getLogger(__name__)
 
 
 class FujitsuIsmDriverTestCase(test_ml2_plugin.Ml2PluginV2TestCase):
