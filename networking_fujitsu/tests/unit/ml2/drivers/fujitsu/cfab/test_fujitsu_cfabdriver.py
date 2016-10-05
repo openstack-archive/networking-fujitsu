@@ -1421,7 +1421,7 @@ class TestCFABdriverClearVlan(BaseTestCFABdriver):
         mgr.get_candidate_config.return_value = candidate
         ret = self.driver.clear_vlan("a", "u", "p", "1", 8,
                                      self.ports, self.mac)
-        self.assertEqual(None, ret)
+        self.assertIsNone(ret)
 
     def test_clear_with_no_command(self):
         mgr = self.driver.mgr
@@ -1710,7 +1710,7 @@ class TestCFABdriverClearVlanWithLAG(BaseTestCFABdriver):
         mgr.get_candidate_config.return_value = candidate
         ret = cfab.clear_vlan_with_lag("a", "u", "p", "1", 8,
                                        self.ports, self.mac)
-        self.assertEqual(None, ret)
+        self.assertIsNone(ret)
 
     def test_clear_with_no_command(self):
         cfab = self.driver

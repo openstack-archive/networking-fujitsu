@@ -40,7 +40,7 @@ class TestEliminateVal(FujitsuCommonUtilsTestCase):
         definition = None
         target = [1]
         result = fj_util.eliminate_val(definition, target)
-        self.assertEqual(None, result)
+        self.assertIsNone(result)
 
     def test_found_the_lowest(self):
         definition = "1,2,3"
@@ -145,7 +145,7 @@ class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
         self.net.network_segments[0]["segmentation_id"] = None
         network_type, vlan_id = fj_util.get_network_segments(self.net)
         self.assertEqual('vlan', network_type)
-        self.assertEqual(None, vlan_id)
+        self.assertIsNone(vlan_id)
 
     def test_network_type_is_not_vlan(self):
         self.net.network_segments[0]["network_type"] = "vxlan"
