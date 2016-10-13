@@ -1,0 +1,9 @@
+Code-Review+2: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Code-Review+2: Hironori Shiina <shiina.hironori@jp.fujitsu.com>
+Workflow+1: Hironori Shiina <shiina.hironori@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 13 Oct 2016 08:43:54 +0000
+Reviewed-on: https://review.openstack.org/383246
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
