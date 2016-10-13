@@ -16,7 +16,6 @@
 import mock
 import os
 
-from oslo_log import log as logging
 from oslo_utils import uuidutils
 
 from networking_fujitsu.ml2.drivers.fujitsu.cfab import cfabdriver
@@ -24,7 +23,6 @@ from networking_fujitsu.ml2.drivers.fujitsu.cfab import mechanism_fujitsu
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
-LOG = logging.getLogger(__name__)
 LLI = {'single': [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "1/1/0/1",
           "switch_info": "CFX2000R"}],
        'lag': [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "1/1/0/2",
