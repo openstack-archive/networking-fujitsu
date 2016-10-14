@@ -18,18 +18,14 @@
 
 from oslo_config import cfg
 from oslo_log import helpers as log_helpers
-try:
-    from oslo_log import log as logging
-except ImportError:
-    from neutron.openstack.common import log as logging
-try:
-    from oslo_utils import importutils
-except ImportError:
-    from neutron.openstack.common import importutils
+from oslo_log import log as logging
+from oslo_utils import importutils
+
 from networking_fujitsu.i18n import _LE
 from networking_fujitsu.i18n import _LI
 from networking_fujitsu.i18n import _LW
 from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
+
 from neutron.common import constants as const
 from neutron.extensions import portbindings
 from neutron.plugins.ml2.common import exceptions as ml2_exc

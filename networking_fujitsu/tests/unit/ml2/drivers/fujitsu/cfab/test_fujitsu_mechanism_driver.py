@@ -12,15 +12,12 @@
 # implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
-from oslo_utils import uuidutils
 
 import mock
+import os
 
-try:
-    from oslo_log import log as logging
-except ImportError:
-    from neutron.openstack.common import log as logging
+from oslo_log import log as logging
+from oslo_utils import uuidutils
 
 from networking_fujitsu.ml2.drivers.fujitsu.cfab import cfabdriver
 from networking_fujitsu.ml2.drivers.fujitsu.cfab import mechanism_fujitsu
