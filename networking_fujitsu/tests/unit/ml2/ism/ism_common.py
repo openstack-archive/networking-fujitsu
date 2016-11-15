@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from mock import MagicMock
-from networking_fujitsu.ml2.drivers.fujitsu.ism import ism_base
+from networking_fujitsu.ml2.ism import ism_base
 from neutron.extensions import portbindings
 from oslo_utils import uuidutils
 import random

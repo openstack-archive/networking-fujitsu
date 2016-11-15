@@ -17,7 +17,7 @@ import copy
 import mock
 
 from collections import defaultdict
-from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
+from networking_fujitsu.ml2.common import utils as fj_util
 from neutron.extensions import portbindings
 from neutron.tests import base
 

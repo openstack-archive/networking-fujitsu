@@ -22,14 +22,14 @@ import testtools
 import time
 
 from itertools import chain
-from networking_fujitsu.ml2.drivers.fujitsu.cfab import cfabdriver
-from networking_fujitsu.ml2.drivers.fujitsu.cfab.mechanism_fujitsu import cfg
+from networking_fujitsu.ml2.cfab import cfabdriver
+from networking_fujitsu.ml2.cfab.mechanism_fujitsu import cfg
 from neutron.common import utils
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests import base
 
-FUJITSU_CFAB = "networking_fujitsu.ml2.drivers.fujitsu.cfab."
+FUJITSU_CFAB = "networking_fujitsu.ml2.cfab."
 _CFABDRIVER__CFABMANAGER = FUJITSU_CFAB + "cfabdriver._CFABManager"
 _TELNETLIB_TELNET = FUJITSU_CFAB + "cfabdriver.telnetlib.Telnet"
 _EXCLUDE_BRACKET_LINE_RE = re.compile(r"^[^[].*$", re.MULTILINE)

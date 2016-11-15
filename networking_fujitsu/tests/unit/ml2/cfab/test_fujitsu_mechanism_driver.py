@@ -18,8 +18,8 @@ import os
 
 from oslo_utils import uuidutils
 
-from networking_fujitsu.ml2.drivers.fujitsu.cfab import cfabdriver
-from networking_fujitsu.ml2.drivers.fujitsu.cfab import mechanism_fujitsu
+from networking_fujitsu.ml2.cfab import cfabdriver
+from networking_fujitsu.ml2.cfab import mechanism_fujitsu
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 

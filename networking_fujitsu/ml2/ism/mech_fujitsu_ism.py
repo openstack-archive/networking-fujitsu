@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from networking_fujitsu.i18n import _LW
-from networking_fujitsu.ml2.drivers.fujitsu.common import utils as fj_util
+from networking_fujitsu.ml2.common import utils as fj_util
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api
 from oslo_log import helpers as log_helpers
@@ -22,7 +22,7 @@ from oslo_log import log as logging
 
 
 LOG = logging.getLogger(__name__)
-ISM_DRIVER = 'networking_fujitsu.ml2.drivers.fujitsu.ism.ism_base'
+ISM_DRIVER = 'networking_fujitsu.ml2.ism.ism_base'
 _SUPPORTED_NET_TYPES = ['vlan']
 
 

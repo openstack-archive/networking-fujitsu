@@ -21,7 +21,7 @@ Tests for `networking_fujitsu` module.
 """
 
 from networking_fujitsu.tests import base
-# from networking_fujitsu.ml2.drivers.fujitsu.ism import ism_base
+# from networking_fujitsu.ml2.ism import ism_base
 
 
 class FujitsuIsmVlanBaseTestCase(base.TestCase):
