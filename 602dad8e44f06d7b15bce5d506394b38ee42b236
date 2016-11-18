@@ -1,0 +1,9 @@
+Code-Review+2: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Workflow+1: Takanori Miyagishi <miyagishi.t@jp.fujitsu.com>
+Code-Review+2: Takanori Miyagishi <miyagishi.t@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 18 Nov 2016 02:04:07 +0000
+Reviewed-on: https://review.openstack.org/395336
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
