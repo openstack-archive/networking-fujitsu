@@ -36,16 +36,16 @@ How to Install
 
     mechanism_drivers = openvswitch,fujitsu_cfab
 
-3. Modify ml2_conf_fujitsu.ini and make neutron-server to read it.
+3. Modify ml2_conf_fujitsu_cfab.ini and make neutron-server to read it.
 
    For RedHat, add the following options in ExecStart in
    /usr/lib/systemd/system/neutron-server.service::
 
-    --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini
+    --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu_cfab.ini
 
    For Ubuntu, add the following line to /etc/default/neutron-server::
 
-    NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini"
+    NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu_cfab.ini"
 
    and add the following line before 'exec start-stop-daemon ...' in
    /etc/init/neutron-server.conf::
@@ -60,7 +60,7 @@ Only VLAN network type is supported (ie. both ``type_drivers`` and
 should be ``vlan``).
 
 The following parameters can be specified in ``[fujitsu_cfab]``
-section of configuration files (such as ml2_conf_fujitsu.ini).
+section of configuration files (such as ml2_conf_fujitsu_cfab.ini).
 
 ``address``
   The IP address or the host name of the C-Fabric to connect to using
