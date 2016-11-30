@@ -41,11 +41,11 @@ How to Install
    For RedHat, add the following options in ExecStart in
    /usr/lib/systemd/system/neutron-server.service::
 
-    --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini
+    --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu_cfab.ini
 
    For Ubuntu, add the following line to /etc/default/neutron-server::
 
-    NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu.ini"
+    NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu_cfab.ini"
 
    and add the following line before 'exec start-stop-daemon ...' in
    /etc/init/neutron-server.conf::
