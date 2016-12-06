@@ -16,7 +16,6 @@ Following mechanism driver is available in this repository:
   to mechanism_drivers option in /etc/neutron/plugins/ml2/ml2_conf.ini.
 
 * Free software: Apache license
-* Documentation: http://docs.openstack.org/developer/networking-fujitsu
 * Source: http://git.openstack.org/cgit/openstack/networking-fujitsu
 * Bugs: http://bugs.launchpad.net/networking-fujitsu
 
