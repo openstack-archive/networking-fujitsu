@@ -41,6 +41,7 @@ class BaseTestMockedCFABManager(base.BaseTestCase):
     def setUp(self):
         super(BaseTestMockedCFABManager, self).setUp()
         self.manager = cfabdriver._CFABManager()
+        self.manager.close_session = mock.MagicMock()
 
     def assert_wrote(self, lines):
         telnet = self.manager._telnet
@@ -74,19 +75,21 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
     def test_reconnect_raise_exceptions(self):
 
         with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
-            for er in [EOFError, EnvironmentError, ValueError]:
+            for er in [EOFError, EnvironmentError, ValueError, OSError]:
                 tel = telnet.return_value
                 tel.read_until.side_effect = er
-                self.assertRaises(er, self.manager.connect,
-                                  "address", "username", "password")
+                self.manager.close_session()
+                self.assertRaises(er, self.manager._reconnect)
                 self.assertEqual(0, self.manager._retry_count)
 
     def test_reconnect_busy_and_retry(self):
 
+        busy = 'The system is busy. Please login after waiting for a while.\n'
+        max_session = 'Login failed to switch.(too many sessions. bye!\n)'
         with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
             tel = telnet.return_value
-            busy = cfabdriver._PROMPT_BUSY
             tel.read_until.side_effect = [busy,
+                                          max_session,
                                           cfabdriver._PROMPT_LOGIN,
                                           cfabdriver._PROMPT_PASS,
                                           cfabdriver._PROMPT_ADMIN]
@@ -94,14 +97,16 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
             time.sleep.side_effect = None
 
             self.manager.connect("address", "username", "password")
+            self.assertEqual(3, self.manager.close_session.call_count)
             self.assertEqual(0, self.manager._retry_count)
-            time.sleep.assert_called_once_with(cfabdriver._WAIT_FOR_BUSY)
+            time.sleep.assert_called_with(cfabdriver._WAIT_FOR_BUSY)
 
     def test_reconnect_busy_and_reached_maxium_retry(self):
 
+        busy = 'The system is busy. Please login after waiting for a while.\n'
         with mock.patch(_TELNETLIB_TELNET, autospec=True) as telnet:
             tel = telnet.return_value
-            tel.read_until.return_value = cfabdriver._PROMPT_BUSY
+            tel.read_until.return_value = busy
             time.sleep = mock.MagicMock()
             time.sleep.side_effect = None
 
@@ -109,6 +114,7 @@ class TestMockedCFABManager(BaseTestMockedCFABManager):
                 ValueError,
                 self.manager.connect, "address", "username", "password")
             retry_count = cfabdriver._TIMEOUT / cfabdriver._WAIT_FOR_BUSY
+            self.assertEqual(12, self.manager.close_session.call_count)
             self.assertEqual(retry_count, time.sleep.call_count)
             self.assertEqual(0, self.manager._retry_count)
 
@@ -373,6 +379,36 @@ class TestCFABdriver(BaseTestCFABdriver):
     """Test Fujitsu C-Fabric mechanism driver.
     """
 
+    def test_associate_mac_to_network_raises(self):
+        self.driver.mgr = mock.Mock()
+        mgr = self.driver.mgr
+        cfab = self.driver
+        for er in [EOFError, EnvironmentError, OSError, select.error]:
+            mgr.connect.side_effect = er
+            self.assertRaises(er, cfab.associate_mac_to_network,
+                              'a', 'u', 'p', '1', 8, self.mac)
+        mgr.connect.side_effect = ml2_exc.MechanismDriverError(
+            method='connect')
+        self.assertRaises(ml2_exc.MechanismDriverError,
+                          cfab.associate_mac_to_network,
+                          'a', 'u', 'p', '1', 8, self.mac)
+        self.assertEqual(5, mgr.close_session.call_count)
+
+    def test_disassociate_mac_from_network_raises(self):
+        self.driver.mgr = mock.Mock()
+        mgr = self.driver.mgr
+        cfab = self.driver
+        for er in [EOFError, EnvironmentError, OSError, select.error]:
+            mgr.connect.side_effect = er
+            self.assertRaises(er, cfab.dissociate_mac_from_network,
+                              'a', 'u', 'p', '1', 8, self.mac)
+        mgr.connect.side_effect = ml2_exc.MechanismDriverError(
+            method='connect')
+        self.assertRaises(ml2_exc.MechanismDriverError,
+                          cfab.dissociate_mac_from_network,
+                          'a', 'u', 'p', '1', 8, self.mac)
+        self.assertEqual(5, mgr.close_session.call_count)
+
     def test_associate_mac_to_network(self):
         mgr = self.driver.mgr
         """:type : mock.MagicMock"""
@@ -386,6 +422,7 @@ vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:05 00:01:02:03:04:05
 
         mgr.connect.assert_called_once_with("address", "username", "password")
         mgr.get_running_config.assert_called_once_with()
+        mgr.close_session.assert_called_once_with()
         self.assert_configured(
             ["vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 "
              "00:01:02:03:04:05"])
@@ -508,6 +545,7 @@ vfab 3 pprofile 0 vsiid mac 00:00:00:00:00:01 2
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assert_configured(
             ["vfab 3 pprofile 1 vsiid mac 00:01:02:03:04:05 2"])
@@ -522,6 +560,7 @@ vfab 3 pprofile 0 vsiid mac 00:00:00:00:00:01 2
 
         mgr.connect.assert_called_once_with("address", "username", "password")
         mgr.get_running_config.assert_called_once_with()
+        mgr.close_session.assert_called_once_with()
         self.assert_configured(
             ["pprofile 2 vlan tag 2",
              "vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 2"])
@@ -537,6 +576,7 @@ vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assertFalse(mgr.configure.called)
 
@@ -551,6 +591,7 @@ vfab 3 pprofile 1 vsiid mac 00:01:02:03:04:05 1
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assert_configured(
             ["pprofile 2 vlan tag 2",
@@ -567,6 +608,7 @@ vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assert_configured(
             ["no vfab 3 pprofile 0",
@@ -584,6 +626,7 @@ vfab 3 pprofile 1 vsiid mac 00:01:02:03:04:06 1
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assert_configured(["no vfab 3 pprofile 0"])
 
@@ -599,6 +642,7 @@ vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:06 1
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assert_configured(["no vfab 3 pprofile 0"])
 
@@ -613,6 +657,7 @@ vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assertFalse(mgr.configure.called)
 
@@ -636,6 +681,7 @@ vfab 3 pprofile 0 vsiid mac 00:00:00:00:00:01 test-2
             "address", "username", "password", "3", 2, "00:01:02:03:04:05")
 
         mgr.connect.assert_called_once_with("address", "username", "password")
+        mgr.close_session.assert_called_once_with()
         mgr.get_running_config.assert_called_once_with()
         self.assert_configured(
             ["vfab 3 pprofile 1 vsiid mac 00:01:02:03:04:05 test-2"])
@@ -737,11 +783,12 @@ class TestCFABdriverSetupVlan(BaseTestCFABdriver):
     def test_raises(self):
         mgr = self.driver.mgr
         cfab = self.driver
-        mgr.get_candidate_config.side_effect = ml2_exc.MechanismDriverError(
-                                                   method='setup_vlan')
-        self.assertRaises(ml2_exc.MechanismDriverError,
-                          cfab.setup_vlan, 'a', 'u', 'p', '1', 8,
-                          self.ports, self.mac)
+        for er in [EOFError, EnvironmentError, OSError, select.error]:
+            mgr.get_candidate_config.side_effect = er
+            self.assertRaises(er,
+                              cfab.setup_vlan, 'a', 'u', 'p', '1', 8,
+                              self.ports, self.mac)
+        self.assertEqual(4, mgr.close_session.call_count)
 
     def test_no_preconfig_exist(self):
         mgr = self.driver.mgr
@@ -749,6 +796,7 @@ class TestCFABdriverSetupVlan(BaseTestCFABdriver):
         expect = []
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add') \
@@ -766,6 +814,7 @@ vfab 1 vlan 8 endpoint untag 0
         """
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete', ports=self.ports) \
             + cfab_cmd('vlan', 'delete') \
@@ -786,6 +835,7 @@ vfab 1 vlan 8 endpoint untag 0
         """
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete', ports=self.ports) \
             + cfab_cmd('vlan', 'delete') \
@@ -805,6 +855,7 @@ vfab 1 vlan 8 endpoint untag 0-2
         """
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('vlan', 'replace', ifg='1-2') \
@@ -824,6 +875,7 @@ vfab 1 vlan 8 endpoint untag 0-2
         """
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('vlan', 'replace', ifg='0,2') \
@@ -843,6 +895,7 @@ vfab 1 vlan 8 endpoint untag 0-2
         """
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add', ifg='3') \
@@ -860,6 +913,7 @@ vfab 1 vlan 100 endpoint untag 0
         """
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('vlan', 'delete', vlanid=100) \
@@ -881,6 +935,7 @@ vfab 1 vlan 100 endpoint untag 0
 
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('vlan', 'delete', vlanid=100) \
@@ -903,6 +958,7 @@ vfab 1 vlan 100 endpoint untag 100
 
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('vlan', 'delete', vlanid=100) \
@@ -921,6 +977,7 @@ interface 1/1/0/1
         """
         self.driver.setup_vlan("a", "u", "p", "1", 8, self.ports, self.mac)
         mgr.connect.assert_called_once_with("a", "u", "p")
+        mgr.close_session.assert_called_once_with()
         mgr.get_candidate_config.assert_called_once_with()
         expect = cfab_cmd('interface', 'delete') \
             + cfab_cmd('ifgroup', 'add') \
@@ -1134,10 +1191,12 @@ class TestCFABdriverSetupVlanWithLAG(BaseTestCFABdriver):
     def test_raises(self):
         mgr = self.driver.mgr
         cfab = self.driver
-        mgr.get_candidate_config.side_effect = EnvironmentError
-        self.assertRaises(EnvironmentError,
-                          cfab.setup_vlan_with_lag, 'a', 'u', 'p', '1', 8,
-                          self.ports, self.mac)
+        for er in [EOFError, EnvironmentError, OSError, select.error]:
+            mgr.get_candidate_config.side_effect = er
+            self.assertRaises(er,
+                              cfab.setup_vlan_with_lag, 'a', 'u', 'p', '1', 8,
+                              self.ports, self.mac)
+        self.assertEqual(4, mgr.close_session.call_count)
 
     def test_ifgroup_ether_is_exhauted(self):
         mgr = self.driver.mgr
@@ -1407,10 +1466,12 @@ class TestCFABdriverClearVlan(BaseTestCFABdriver):
     def test_raises(self):
         mgr = self.driver.mgr
         cfab = self.driver
-        mgr.get_candidate_config.side_effect = EOFError
-        self.assertRaises(EOFError,
-                          cfab.clear_vlan, 'a', 'u', 'p', '1', 8,
-                          self.ports, self.mac)
+        for er in [EOFError, EnvironmentError, OSError, select.error]:
+            mgr.get_candidate_config.side_effect = er
+            self.assertRaises(er,
+                              cfab.clear_vlan, 'a', 'u', 'p', '1', 8,
+                              self.ports, self.mac)
+        self.assertEqual(4, mgr.close_session.call_count)
 
     def test_ifgroup_ether_is_exhauted(self):
         mgr = self.driver.mgr
@@ -1695,10 +1756,12 @@ class TestCFABdriverClearVlanWithLAG(BaseTestCFABdriver):
     def test_raises(self):
         mgr = self.driver.mgr
         cfab = self.driver
-        mgr.get_candidate_config.side_effect = select.error
-        self.assertRaises(select.error,
-                          cfab.clear_vlan_with_lag, 'a', 'u', 'p', '1', 8,
-                          self.ports, self.mac)
+        for er in [EOFError, EnvironmentError, OSError, select.error]:
+            mgr.get_candidate_config.side_effect = er
+            self.assertRaises(er,
+                              cfab.clear_vlan_with_lag, 'a', 'u', 'p', '1', 8,
+                              self.ports, self.mac)
+        self.assertEqual(4, mgr.close_session.call_count)
 
     def test_ifgroup_ether_is_exhauted(self):
         cfab = self.driver
