@@ -23,7 +23,7 @@ import time
 
 from itertools import chain
 from networking_fujitsu.ml2.cfab import cfabdriver
-from networking_fujitsu.ml2.cfab.mechanism_fujitsu import cfg
+from networking_fujitsu.ml2.cfab.mech_cfab import cfg
 from neutron.common import utils
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import config as ml2_config

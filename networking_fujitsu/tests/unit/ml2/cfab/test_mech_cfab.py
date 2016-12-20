@@ -19,7 +19,7 @@ import os
 from oslo_utils import uuidutils
 
 from networking_fujitsu.ml2.cfab import cfabdriver
-from networking_fujitsu.ml2.cfab import mechanism_fujitsu
+from networking_fujitsu.ml2.cfab import mech_cfab
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
@@ -99,7 +99,7 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
                 self._driver = mock.MagicMock()
                 self._physical_networks = {'physnet1': "1", 'physnet2': "2"}
 
-            with mock.patch.object(mechanism_fujitsu.FujitsuMechanism,
+            with mock.patch.object(mech_cfab.FujitsuMechanism,
                                    'initialize', new=mocked_initialize):
                 super(TestFujitsuMechDriverV2, self).setUp()
 
