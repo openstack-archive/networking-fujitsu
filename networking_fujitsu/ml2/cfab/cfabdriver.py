@@ -54,7 +54,8 @@ _PROMPT_LOGIN = "Login: "
 _PROMPT_PASS = "Password: "
 _PROMPT_ADMIN = "# "
 _PROMPT_CONFIG = "(config)# "
-_PROMPT_BUSY = "The system is busy. Please login after waiting for a while."
+_RETRY_PROMPTS_RE = re.compile(
+    r"The system is busy|too many sessions")
 _PROMPTS_RE = re.compile(
     r"(((\(config(-if)?\))?#)|((?<!<ERROR)>)|((Login|Password):)) $")
 _ADMIN_PROMPTS_RE = re.compile(r"((\(config(-if)?\))?#) $")
@@ -224,12 +225,12 @@ class _CFABManager(object):
         """Re-connect and initialize the CLI session."""
 
         # Close the old connection
-        self._close_session()
+        self.close_session()
         # Open new TELNET connection
         try:
             self._telnet = telnetlib.Telnet(
                 host=self._address, port=TELNET_PORT, timeout=self._timeout)
-        except EnvironmentError:
+        except (OSError, EnvironmentError):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Connect failed to switch"))
         try:
@@ -242,31 +243,31 @@ class _CFABManager(object):
             self._telnet.write(self._password + "\n")
             prompt = self._telnet.read_until(_PROMPT_ADMIN, _TIMEOUT_LOGIN)
             prompt.index(_PROMPT_ADMIN)
-        except (EOFError, EnvironmentError, ValueError):
-            if _PROMPT_BUSY in prompt:
+        except (EOFError, OSError, EnvironmentError, ValueError):
+            if _RETRY_PROMPTS_RE.search(prompt.strip()):
                 # Wait 3 seconds
                 if self._retry_count < self._max_retry:
-                    LOG.warning(_LW("Switch is busy. Wait(%ssec) and retry."),
-                        _WAIT_FOR_BUSY)
+                    LOG.warning(_LW("Wait %(sec)s and retry. cause=%(cause)s"),
+                        dict(sec=_WAIT_FOR_BUSY, cause=prompt))
                     self._retry_count += 1
                     time.sleep(_WAIT_FOR_BUSY)
                     self._reconnect()
                     return
                 with excutils.save_and_reraise_exception():
+                    self.close_session()
                     self._retry_count = 0
                     LOG.exception(_LE("Number of retry times has reached."))
             else:
-                self._telnet.close()
-                self._telnet = None
-                self._retry_count = 0
                 with excutils.save_and_reraise_exception():
+                    self.close_session()
+                    self._retry_count = 0
                     LOG.exception(_LE("Login failed to switch.(%s)"), prompt)
 
         self._retry_count = 0
         LOG.debug("Connect success to address %(address)s:%(telnet_port)s",
                   dict(address=self._address, telnet_port=TELNET_PORT))
 
-    def _close_session(self):
+    def close_session(self):
         """Close TELNET session."""
 
         if self._telnet:
@@ -280,12 +281,12 @@ class _CFABManager(object):
             self.connect(self._address, self._username, self._password)
         try:
             self._telnet.write(buffer)
-        except EnvironmentError:
-            self._close_session()
+        except (OSError, EnvironmentError):
+            self.close_session()
             try:
                 self._reconnect()
                 self._telnet.write(buffer)
-            except EnvironmentError:
+            except (OSError, EnvironmentError):
                 with excutils.save_and_reraise_exception():
                     LOG.exception(_LE("Write failed to switch"))
 
@@ -295,12 +296,12 @@ class _CFABManager(object):
             self.connect(self._address, self._username, self._password)
         try:
             return self._telnet.read_eager()
-        except (EOFError, EnvironmentError):
-            self._close_session()
+        except (EOFError, OSError, EnvironmentError):
+            self.close_session()
             try:
                 self._reconnect()
                 return self._telnet.read_eager()
-            except (EOFError, EnvironmentError):
+            except (EOFError, OSError, EnvironmentError):
                 with excutils.save_and_reraise_exception():
                     LOG.exception(_LE("Read failed from switch"))
 
@@ -311,12 +312,12 @@ class _CFABManager(object):
             self.connect(self._address, self._username, self._password)
         try:
             return self._telnet.read_until(match, self._timeout)
-        except (EOFError, EnvironmentError):
-            self._close_session()
+        except (EOFError, OSError, EnvironmentError):
+            self.close_session()
             try:
                 self._reconnect()
                 return self._telnet.read_until(match, self._timeout)
-            except (EOFError, EnvironmentError):
+            except (EOFError, OSError, EnvironmentError):
                 with excutils.save_and_reraise_exception():
                     LOG.exception(_LE("Read failed from switch"))
 
@@ -327,12 +328,12 @@ class _CFABManager(object):
             self.connect(self._address, self._username, self._password)
         try:
             return self._telnet.expect(res, timeout=self._timeout)
-        except (EOFError, EnvironmentError, select.error):
-            self._close_session()
+        except (EOFError, OSError, EnvironmentError, select.error):
+            self.close_session()
             try:
                 self._reconnect()
                 return self._telnet.expect(res, timeout=self._timeout)
-            except (EOFError, EnvironmentError, select.error):
+            except (EOFError, OSError, EnvironmentError, select.error):
                 with excutils.save_and_reraise_exception():
                     LOG.exception(_LE("Read failed from switch"))
 
@@ -623,8 +624,10 @@ class CFABdriver(object):
                                                  config, mac)
             self._setup_vlan(vfab_id, vlanid, ports, config, ifg=modified,
                              commit=True)
-        except (EOFError, EnvironmentError, select.error,
+            self.mgr.close_session()
+        except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
+            self.mgr.close_session()
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
@@ -650,8 +653,10 @@ class CFABdriver(object):
                                                  config, mac)
             self._setup_vlan_with_lag(vfab_id, vlanid, ports, config,
                                       ifg=modified, commit=True)
-        except (EOFError, EnvironmentError, select.error,
+            self.mgr.close_session()
+        except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
+            self.mgr.close_session()
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
@@ -678,8 +683,10 @@ class CFABdriver(object):
                                                    do_not_commit=True)
             self._clear_vlans(vfab_id, ports, config)
             self._clear_interfaces(ports, commit=True)
-        except (EOFError, EnvironmentError, select.error,
+            self.mgr.close_session()
+        except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
+            self.mgr.close_session()
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
@@ -733,8 +740,10 @@ class CFABdriver(object):
             config = self.mgr.get_candidate_config()
             self._cleanup_definitions(vfab_id, vlanid, ports,
                                       config, mac, commit=True)
-        except (EOFError, EnvironmentError, select.error,
+            self.mgr.close_session()
+        except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
+            self.mgr.close_session()
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
@@ -756,8 +765,10 @@ class CFABdriver(object):
         try:
             self.mgr.connect(address, username, password)
             self._associate_mac_to_port_profile(vfab_id, net_id, mac)
-        except (EOFError, EnvironmentError, select.error,
+            self.mgr.close_session()
+        except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
+            self.mgr.close_session()
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
@@ -779,8 +790,10 @@ class CFABdriver(object):
         try:
             self.mgr.connect(address, username, password)
             self._dissociate_mac_from_port_profile(vfab_id, net_id, mac)
-        except (EOFError, EnvironmentError, select.error,
+            self.mgr.close_session()
+        except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
+            self.mgr.close_session()
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
