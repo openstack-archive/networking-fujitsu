@@ -71,12 +71,12 @@ _VFAB_PPROFILE_RE = re.compile(
     r"^vfab\s+(default|\d+)\s+pprofile\s+(\d+)\s+"
     r"vsiid\s+(?:mac|uuid)\s+\S+\s+(\S+)", re.MULTILINE)
 _IFGROUP_RE = re.compile(r"^ifgroup\s+(\d+)\s+(?:ether|linkaggregation)\s+",
-                  re.MULTILINE)
+                         re.MULTILINE)
 _LAG_RE = re.compile(
-              r"^(?:linkaggregation\s+(?:\d+)\s(\d+)\s+)|"
-              r"^interface\s+\d/\d/\d/\d$\n(?:(?:\s+.+\n)"
-              r"*(?:\s+type\s+linkaggregation\s+(\d+))(?:\s+.+\n)*)\s+exit$",
-              re.MULTILINE)
+    r"^(?:linkaggregation\s+(?:\d+)\s(\d+)\s+)|"
+    r"^interface\s+\d/\d/\d/\d$\n(?:(?:\s+.+\n)"
+    r"*(?:\s+type\s+linkaggregation\s+(\d+))(?:\s+.+\n)*)\s+exit$",
+    re.MULTILINE)
 _VFAB_VLAN = r'^vfab\s+{v}\s+vlan\s+{vlan}\s+endpoint\s+{vlan_type}\s+(\d.*)'
 _VFAB_VLANS = r'^vfab\s+{v}\s+vlan\s+(\d.*)\s+endpoint\s+{vlan_type}\s+(\d.*)'
 _IFGROUP_BOUNDARY = re.compile(r'(\d+)-(\d+)')
@@ -247,7 +247,7 @@ class _CFABManager(object):
                 # Wait 3 seconds
                 if self._retry_count < self._max_retry:
                     LOG.warning(_LW("Switch is busy. Wait(%ssec) and retry."),
-                        _WAIT_FOR_BUSY)
+                                _WAIT_FOR_BUSY)
                     self._retry_count += 1
                     time.sleep(_WAIT_FOR_BUSY)
                     self._reconnect()
@@ -424,7 +424,7 @@ class CFABdriver(object):
         #         'ifgroup' for vfab vlan has been changed in cleanup.
         modified = True if ifg is not None else False
         ifgroups = ifg if modified else _get_ifgroups_of_vfab_vlan(
-                                            vfab_id, vlanid, config)
+            vfab_id, vlanid, config)
         # Need to re-define for the vfab vlan.
         if modified and ifg is '':
             ifgroups = None
@@ -468,7 +468,7 @@ class CFABdriver(object):
             ifgroup_id = _get_available_index(_IFGROUP, config)
             if ifgroup_id is None:
                 raise ml2_exc.MechanismDriverError(
-                          method="_setup_vlan_with_lag")
+                    method="_setup_vlan_with_lag")
             self._create_ifgroup(ifgroup_id, ports, lag_id=lag_id)
         else:
             ifgroup_id = indices[0]
@@ -508,14 +508,14 @@ class CFABdriver(object):
 
         commands = []
         lag = "linkaggregation {domain_id} {lag_id}".format(
-                   domain_id=domain_id, lag_id=lag_id)
+            domain_id=domain_id, lag_id=lag_id)
         for key in sorted(mode_opts):
             commands.append("{lag} {k} {v}".format(lag=lag, k=key,
                                                    v=mode_opts[key]))
         self.mgr.configure(commands, commit=commit)
 
     def _clear_vlans(self, vfab_id, ports, config, port_type=_EP,
-                    vlan_type='untag', lag_id=None, commit=False):
+                     vlan_type='untag', lag_id=None, commit=False):
         """Clear all VLAN definitions with specified ports.
 
         @param self  CFABdriver's instance
@@ -913,7 +913,7 @@ class CFABdriver(object):
             if delete_port_profile:
                 commit = False if do_not_commit else delete_port_profile
                 self.mgr.configure(["no pprofile {pid}".format(pid=pprofile)],
-                    commit=commit)
+                                   commit=commit)
         else:
             LOG.warning(
                 _LW("No corresponding vfab pprofile for %(vid)s, %(mac)s"),
@@ -941,12 +941,12 @@ def search_ifgroup_indices(ports, candidate_config, lag_id=None):
     if lag_id:
         domain_id = _get_domain_id(ports)
         reg = r"^ifgroup\s+(\d+)\s+{if_type}\s+{domain_id}\s+{lag_id}$".format(
-                  if_type=_LAG, domain_id=domain_id, lag_id=lag_id)
+            if_type=_LAG, domain_id=domain_id, lag_id=lag_id)
     match = re.findall(reg, candidate_config, re.MULTILINE)
     if match:
         ifgroup_indices = sorted([int(m) for m in match])
         LOG.debug(_('Found ifgroup for port(%(p)s):%(ifg)s'),
-            dict(p=ports, ifg=ifgroup_indices))
+                  dict(p=ports, ifg=ifgroup_indices))
         return ifgroup_indices
     return []
 
@@ -996,7 +996,7 @@ def _get_all_vfab_vlans_and_ifgroups(vfab_id, config, vlan_type='untag'):
     result = dict(match)
     if result:
         LOG.debug(_('VFAB(%(vfab)s){VLANID: ifgroups}:%(result)s'),
-            dict(vfab=vfab_id, result=result))
+                  dict(vfab=vfab_id, result=result))
     else:
         LOG.debug(_('VLAN and ifgroups not found.'))
     return result
@@ -1035,7 +1035,7 @@ def _get_associated_lag_id(ports, config):
             _LW("Each port%(ports)s has different LAG ids(%(lag_ids)s)"),
             dict(ports=ports, lag_ids=lag_ids))
     LOG.debug(_("Associated LAG%(lag_ids)s with interfaces:%(ports)s"),
-        dict(lag_ids=lag_ids, ports=ports))
+              dict(lag_ids=lag_ids, ports=ports))
     return sorted(lag_ids)[0]
 
 

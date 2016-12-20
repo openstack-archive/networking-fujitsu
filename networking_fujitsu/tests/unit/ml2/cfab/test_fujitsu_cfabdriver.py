@@ -136,6 +136,7 @@ class BaseTestMockedCFABManagerConnected(BaseTestMockedCFABManager):
 
 class TestMockedCFABManagerConnected(BaseTestMockedCFABManagerConnected):
     """Test Fujitsu C-Fabric manager after connected.
+
     """
 
     def test_get_candidate_config(self):
@@ -180,6 +181,7 @@ class TestMockedCFABManagerConnected(BaseTestMockedCFABManagerConnected):
 class TestMockedCFABManagerConnectedWithoutSave(
         BaseTestMockedCFABManagerConnected):
     """Test Fujitsu C-Fabric manager after connected without save.
+
     """
 
     def setUp(self):
@@ -212,6 +214,7 @@ class TestCFABManager(base.BaseTestCase):
     OS_FUJITSU_CFAB_PASSWORD (defaults to "password").
     If the environment variable OS_FUJITSU_CFAB_ADDRESS is NOT defined, tests
     will be skipped.
+
     """
 
     def _setup_lock(self):
@@ -343,6 +346,7 @@ class TestCFABManager(base.BaseTestCase):
 class BaseTestCFABdriver(base.BaseTestCase):
 
     """Base class to test Fujitsu C-Fabric mechanism driver.
+
     """
 
     def setUp(self):
@@ -371,6 +375,7 @@ class BaseTestCFABdriver(base.BaseTestCase):
 class TestCFABdriver(BaseTestCFABdriver):
 
     """Test Fujitsu C-Fabric mechanism driver.
+
     """
 
     def test_associate_mac_to_network(self):
@@ -492,6 +497,7 @@ vfab 4 pprofile 0 vsiid mac 00:01:02:03:04:05 00:01:02:03:04:05
 
 class TestCFABdriverSharePprofile(BaseTestCFABdriver):
     """Test Fujitsu C-Fabric mechanism driver with shared pprofile.
+
     """
     def setUp(self):
         cfg.CONF.set_override('share_pprofile', True, "fujitsu_cfab")
@@ -619,6 +625,7 @@ vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
 
 class TestCFABdriverSharedPprofilePrefixed(BaseTestCFABdriver):
     """Test Fujitsu C-Fabric mechanism driver with pprofile prefix.
+
     """
     def setUp(self):
         cfg.CONF.set_override('share_pprofile', True, "fujitsu_cfab")
@@ -714,7 +721,9 @@ vfab 3 pprofile 0 vsiid mac 00:01:02:03:04:05 1
 
 
 class TestCFABdriverPprofilePrefix(base.BaseTestCase):
-    """Test Fujitsu C-Fabric mechanism driver for pprofile_prefix errors."""
+    """Test Fujitsu C-Fabric mechanism driver for pprofile_prefix errors.
+
+    """
 
     def test_too_long(self):
         cfg.CONF.set_override('pprofile_prefix', "a" * 29, "fujitsu_cfab")
@@ -728,7 +737,9 @@ class TestCFABdriverPprofilePrefix(base.BaseTestCase):
 
 
 class TestCFABdriverSetupVlan(BaseTestCFABdriver):
-    """Test Fujitsu C-Fabric mechanism driver for VLAN configuration."""
+    """Test Fujitsu C-Fabric mechanism driver for VLAN configuration.
+
+    """
 
     def setUp(self):
         cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
@@ -738,7 +749,7 @@ class TestCFABdriverSetupVlan(BaseTestCFABdriver):
         mgr = self.driver.mgr
         cfab = self.driver
         mgr.get_candidate_config.side_effect = ml2_exc.MechanismDriverError(
-                                                   method='setup_vlan')
+            method='setup_vlan')
         self.assertRaises(ml2_exc.MechanismDriverError,
                           cfab.setup_vlan, 'a', 'u', 'p', '1', 8,
                           self.ports, self.mac)
@@ -1116,7 +1127,7 @@ vfab 1 vlan 8 endpoint untag 0
         candidate = ""
         for i in range(0, 4096):
             candidate += 'ifgroup {if_id} ether 1/1/0/{port}\n'.format(
-                             if_id=i, port=100)
+                if_id=i, port=100)
         mgr.get_candidate_config.return_value = candidate
         self.assertRaises(ml2_exc.MechanismDriverError,
                           self.driver.setup_vlan, "a", "u", "p",
@@ -1124,7 +1135,9 @@ vfab 1 vlan 8 endpoint untag 0
 
 
 class TestCFABdriverSetupVlanWithLAG(BaseTestCFABdriver):
-    """Test Fujitsu C-Fabric mechanism driver for VLAN configuration."""
+    """Test Fujitsu C-Fabric mechanism driver for VLAN configuration.
+
+    """
 
     def setUp(self):
         cfg.CONF.set_override('pprofile_prefix', "test-", "fujitsu_cfab")
@@ -1144,7 +1157,7 @@ class TestCFABdriverSetupVlanWithLAG(BaseTestCFABdriver):
         candidate = ""
         for i in range(0, 4096):
             candidate += 'ifgroup {if_id} ether 1/1/0/{port}\n'.format(
-                             if_id=i, port=(i + 1))
+                if_id=i, port=(i + 1))
         mgr.get_candidate_config.return_value = candidate
         self.assertRaises(ml2_exc.MechanismDriverError,
                           self.driver.setup_vlan_with_lag, "a", "u", "p",
@@ -1417,7 +1430,7 @@ class TestCFABdriverClearVlan(BaseTestCFABdriver):
         candidate = ""
         for i in range(0, 4096):
             candidate += 'ifgroup {if_id} ether 1/1/0/{port}\n'.format(
-                             if_id=i, port=(i + 1))
+                if_id=i, port=(i + 1))
         mgr.get_candidate_config.return_value = candidate
         ret = self.driver.clear_vlan("a", "u", "p", "1", 8,
                                      self.ports, self.mac)
@@ -1706,7 +1719,7 @@ class TestCFABdriverClearVlanWithLAG(BaseTestCFABdriver):
         candidate = ""
         for i in range(0, 4096):
             candidate += 'ifgroup {if_id} ether 1/1/0/{port}\n'.format(
-                             if_id=i, port=(i + 1))
+                if_id=i, port=(i + 1))
         mgr.get_candidate_config.return_value = candidate
         ret = cfab.clear_vlan_with_lag("a", "u", "p", "1", 8,
                                        self.ports, self.mac)
