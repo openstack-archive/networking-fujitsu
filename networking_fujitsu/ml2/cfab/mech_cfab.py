@@ -21,9 +21,10 @@ from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 from oslo_utils import importutils
 
-from networking_fujitsu.i18n import _LE
-from networking_fujitsu.i18n import _LI
-from networking_fujitsu.i18n import _LW
+from networking_fujitsu._i18n import _
+from networking_fujitsu._i18n import _LE
+from networking_fujitsu._i18n import _LI
+from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common import utils as fj_util
 
 from neutron.common import constants as const

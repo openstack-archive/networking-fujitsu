@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from networking_fujitsu.i18n import _
-from networking_fujitsu.i18n import _LW
+from networking_fujitsu._i18n import _
+from networking_fujitsu._i18n import _LW
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
 from oslo_log import log as logging

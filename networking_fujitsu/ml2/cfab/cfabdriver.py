@@ -30,9 +30,9 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import excutils
 
-from networking_fujitsu.i18n import _
-from networking_fujitsu.i18n import _LE
-from networking_fujitsu.i18n import _LW
+from networking_fujitsu._i18n import _
+from networking_fujitsu._i18n import _LE
+from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common import utils as fj_util
 from neutron.common import utils
 from neutron.plugins.ml2.common import exceptions as ml2_exc

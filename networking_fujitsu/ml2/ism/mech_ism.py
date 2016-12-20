@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from networking_fujitsu.i18n import _LW
+from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common import utils as fj_util
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api
