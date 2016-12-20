@@ -56,7 +56,7 @@ Configuration
 
 Only VLAN network type is supported (ie. both ``type_drivers`` and
 ``tenant_network_types`` in ``[ml2]`` section of configuration files
-should be ``vlan``).
+should include ``vlan``).
 
 The following parameters can be specified in ``[fujitsu_cfab]``
 section of configuration files (such as ml2_conf_fujitsu_cfab.ini).
