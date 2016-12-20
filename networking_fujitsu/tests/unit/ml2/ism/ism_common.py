@@ -80,7 +80,7 @@ RES = {'get_node': {'IsmBody': {
                         'Speed': {
                             'Unit': 'Mpbs',
                             'Value': 1000
-                            },
+                        },
                         'Wwpn': ''},
                     'NeighborPort': [{
                         'NodeId': '2',
