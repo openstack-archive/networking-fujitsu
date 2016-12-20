@@ -23,6 +23,7 @@ lib64
 pip-log.txt
 
 # Unit test / coverage reports
+cover/
 .coverage
 .tox
 nosetests.xml
@@ -52,6 +53,9 @@ ChangeLog
 *~
 .*.swp
 .*sw?
+
+# Tags
+tags
 
 # Releasenotes
 releasenotes/build
