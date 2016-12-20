@@ -151,8 +151,9 @@ class IsmBase(object):
         pass
 
     def trim_ism_body(self, body):
-        '''Trim ISM body for request.  ISM's response body includes
-           unnecessary attribute named "SchemaType".
+        '''Trim ISM body for request.
+
+        ISM's response body includes unnecessary attribute named "SchemaType".
         '''
         trimmed = dict(body).get(ISM_BODY)
         del trimmed['SchemaType']
@@ -166,9 +167,10 @@ class IsmVlanBase(IsmBase):
 
     def get_current_config(self, params):
         '''Get current VLAN configuration of specified switch/port
-            :params:  Physical connections information from Ironic
-            :returns: Response body of VLAN configurations with
-                      specified switch and port
+
+        :params:  Physical connections information from Ironic
+        :returns: Response body of VLAN configurations with specified switch
+                  and port
         '''
         # TODO(yushiro) get ISM nodeid from switch_id(MAC)
         nodeid = urllib.quote(str(params['switch_id']))
@@ -186,6 +188,7 @@ class IsmVlanBase(IsmBase):
 
     def setup_for_port(self, req_body, params):
         '''Set specified VLANID with specified switch-port
+
         '''
         # TODO(yushiro) get ISM nodeid from switch_id(MAC)
         nodeid = urllib.quote(str(params['switch_id']))
@@ -241,15 +244,20 @@ class IsmVxlanBase(IsmBase):
 
         def get_current_config(self, params):
             '''Get current VXLAN configuration of specified switch
+
             '''
             pass
 
         def generate_req_param_for_switch(self, phy_info):
-            '''Generate request parameter for PATCH VXLAN node'''
+            '''Generate request parameter for PATCH VXLAN node
+
+            '''
             pass
 
         def generate_req_param_for_port(self, phy_info):
-            '''Generate request parameter for PATCH VLAN '''
+            '''Generate request parameter for PATCH VLAN
+
+            '''
             pass
 
         def setup_for_switch(self, phy_info):
@@ -260,4 +268,6 @@ class IsmVxlanBase(IsmBase):
 
 
 class FujitsuIsmException(Exception):
-    '''FujitsuIsmException'''
+    '''FujitsuIsmException
+
+    '''
