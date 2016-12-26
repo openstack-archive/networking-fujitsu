@@ -26,7 +26,7 @@ ISM_DRIVER = 'networking_fujitsu.ml2.ism.ism_base'
 _SUPPORTED_NET_TYPES = ['vlan']
 
 
-class FujitsuIsmDriver(driver_api.MechanismDriver):
+class ISMMechanismDriver(driver_api.MechanismDriver):
     """Ml2 Mechanism driver for Fujitsu ISM. """
 
     def __init__(self):

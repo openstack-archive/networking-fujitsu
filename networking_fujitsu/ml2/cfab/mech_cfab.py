@@ -71,7 +71,7 @@ ML2_FUJITSU = [
 cfg.CONF.register_opts(ML2_FUJITSU, ML2_FUJITSU_GROUP)
 
 
-class FujitsuMechanism(driver_api.MechanismDriver):
+class CFABMechanismDriver(driver_api.MechanismDriver):
     """ML2 Mechanism driver for Fujitsu C-Fabric switches.
 
     This is the upper layer driver class that interfaces to lower layer (CLI)
