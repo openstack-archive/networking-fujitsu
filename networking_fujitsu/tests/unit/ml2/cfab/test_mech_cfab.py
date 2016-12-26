@@ -99,7 +99,7 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
                 self._driver = mock.MagicMock()
                 self._physical_networks = {'physnet1': "1", 'physnet2': "2"}
 
-            with mock.patch.object(mech_cfab.FujitsuMechanism,
+            with mock.patch.object(mech_cfab.CFXMechanismDriver,
                                    'initialize', new=mocked_initialize):
                 super(TestFujitsuMechDriverV2, self).setUp()
 
