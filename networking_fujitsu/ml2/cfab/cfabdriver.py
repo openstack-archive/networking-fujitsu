@@ -45,7 +45,7 @@ _EP = 'endpoint'
 _PORT_MODE = 'cfab port-mode'
 _IFGROUP = 'ifgroup'
 _LAG = 'linkaggregation'
-_LOCK_NAME = 'fujitsu'
+_LOCK_NAME = 'fujitsu-cfab'
 _TIMEOUT = 30
 _TIMEOUT_LOGIN = 5
 _WAIT_FOR_BUSY = 3.0
@@ -602,7 +602,7 @@ class CFABdriver(object):
         cmds.append('{prefix} type'.format(prefix=prefix))
         self.mgr.configure(cmds, commit=commit)
 
-    @utils.synchronized(_LOCK_NAME)
+    @utils.synchronized(_LOCK_NAME, external=True)
     def setup_vlan(self, address, username, password,
                    vfab_id, vlanid, ports, mac):
         """Setup untagged VLAN with specified ports.
@@ -631,7 +631,7 @@ class CFABdriver(object):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
-    @utils.synchronized(_LOCK_NAME)
+    @utils.synchronized(_LOCK_NAME, external=True)
     def setup_vlan_with_lag(self, address, username, password,
                             vfab_id, vlanid, ports, mac):
         """Setup untagged VLAN and linkaggregation.
@@ -660,7 +660,7 @@ class CFABdriver(object):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
-    @utils.synchronized(_LOCK_NAME)
+    @utils.synchronized(_LOCK_NAME, external=True)
     def clear_vlan(self, address, username, password,
                    vfab_id, vlanid, ports, mac):
         """Clear untagged VLAN.
@@ -719,7 +719,7 @@ class CFABdriver(object):
             self._clear_lag(vfab_id, lag_id, ports, config, commit=commit)
         return modified.get(str(vlanid), None)
 
-    @utils.synchronized(_LOCK_NAME)
+    @utils.synchronized(_LOCK_NAME, external=True)
     def clear_vlan_with_lag(self, address, username, password,
                             vfab_id, vlanid, ports, mac):
         """Clear untagged VLAN with linkaggregation.
@@ -747,7 +747,7 @@ class CFABdriver(object):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
-    @utils.synchronized(_LOCK_NAME)
+    @utils.synchronized(_LOCK_NAME, external=True)
     def associate_mac_to_network(self, address, username, password,
                                  vfab_id, net_id, mac):
         """Associates a MAC address to virtual network.
@@ -772,7 +772,7 @@ class CFABdriver(object):
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("CLI error"))
 
-    @utils.synchronized(_LOCK_NAME)
+    @utils.synchronized(_LOCK_NAME, external=True)
     def dissociate_mac_from_network(self, address, username, password,
                                     vfab_id, net_id, mac):
         """Dissociates a MAC address from virtual network.
