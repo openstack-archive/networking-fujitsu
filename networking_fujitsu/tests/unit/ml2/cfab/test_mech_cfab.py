@@ -104,6 +104,11 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
                 super(TestFujitsuMechDriverV2, self).setUp()
 
 
+class TestFujitsuMechDriverNetworksV2(test_ml2_plugin.TestMl2NetworksV2,
+                                      TestFujitsuMechDriverV2):
+    pass
+
+
 class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
                                    TestFujitsuMechDriverV2):
     pass
@@ -117,6 +122,22 @@ class TestFujitsuMechDriverBaremetalPortsV2(TestFujitsuMechDriverV2):
         def call_method(arg):
             return 'new_' + arg + '_request'
         target = call_method(method)
+        # network_type = 'vlan'
+        # segmentation_id = 100
+        # physical_network = 'physnet1'
+        # if net.get(pnet.NETWORK_TYPE):
+        #     network_type = net.get(pnet.NETWORK_TYPE)
+        # if net.get(pnet.SEGMENTATION_ID):
+        #     segmentation_id = net.get(pnet.SEGMENTATION_ID)
+        # if net.get(pnet.PHYSICAL_NETWORK):
+        #     physical_network = net.get(pnet.PHYSICAL_NETWORK)
+
+        # kwargs = {'name': 'prov-net',
+        #           'tenant_id': 'tenant_one',
+        #           'segments':[{
+        #               pnet.NETWORK_TYPE: network_type,
+        #               pnet.SEGMENTATION_ID: segmentation_id,
+        #               pnet.PHYSICAL_NETWORK: physical_network}]}
         with self.network() as network:
             net_id = network['network']['id']
             self._create_subnet(self.fmt, net_id, '172.16.1.0/24')
