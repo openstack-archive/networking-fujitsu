@@ -38,7 +38,7 @@ class FujitsuIsmDriverTestCase(test_ml2_plugin.Ml2PluginV2TestCase):
 
         if self._testMethodName in self._skip:
             self.skipTest("This test has already verified at neutron's test.")
-        self._driver = mech_ism.FujitsuIsmDriver()
+        self._driver = mech_ism.ISMMechanismDriver()
         super(FujitsuIsmDriverTestCase, self).setUp()
 
     def tearDown(self):
