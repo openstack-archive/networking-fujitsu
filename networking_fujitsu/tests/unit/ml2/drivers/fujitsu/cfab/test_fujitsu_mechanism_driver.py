@@ -88,11 +88,6 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
                 super(TestFujitsuMechDriverV2, self).setUp()
 
 
-class TestFujitsuMechDriverNetworksV2(test_ml2_plugin.TestMl2NetworksV2,
-                                      TestFujitsuMechDriverV2):
-    pass
-
-
 class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
                                    TestFujitsuMechDriverV2):
     pass
