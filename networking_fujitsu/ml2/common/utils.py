@@ -1,4 +1,4 @@
-# Copyright 2015-2016 FUJITSU LIMITED
+# Copyright 2015-2017 FUJITSU LIMITED
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,10 +29,13 @@ def eliminate_val(source, reject):
     """Eliminate specified value from range value.
 
     ex. source='1,2,3-10', reject=[1], result: '2,3-10'
-    @param source a string of range definition separated with ","
-           ex. "1,2,3" or "1-5"(same as "1,2,3,4,5")
-    @param reject a list of integer to reject. ex. [1, 2]
-    @return eliminated a string of eliminated value separated with ","
+    :param source: a string of range definition separated with ","
+    :type source: string
+    :param reject: a list of integer to reject. ex. [1, 2]
+    :type reject: list of integer
+
+    :returns: a string separated with "," like an example
+    :rtype string
     """
     if source is None:
         return
@@ -100,9 +103,13 @@ def eliminate_val(source, reject):
 def get_network_segments(network):
     """Get network_type and segmentation_id from specified network.
 
-    @param network a network object
-    @return network_type a string of network type(ex. "vlan" or "vxlan")
-            segmentation_id a integer of segmentation_id
+    :param network: a network object
+    :type network: network object
+
+    :returns network type: 'vlan' or 'vxlan'
+    :rtype: string
+    :returns segmentation_id: VLANID or VNI
+    :rtype: integer
     """
 
     segment = network.network_segments[0]
@@ -114,16 +121,22 @@ def get_network_segments(network):
 def get_physical_connectivity(port):
     """Get local_link_information from specified port.
 
-    @param port a port object
-    @return lli a list of following dict
-                {"switch_id": "MAC_of_switch", "port_id": "1/1/0/1",
-                 "switch_info": "switch_name"}
+    :param port: a dictionary of neutron port
+    :type port: dictionary
+
+    :returns lli: "local_link_information" as follows
+                 [{"switch_id": "MAC_of_switch", "port_id": "1/1/0/1",
+                  "switch_info": "switch_name"}]
+                 If all of parameter specified, returns above format otherwise
+                 empty list
+    :rtype: list of dict or empty list
     """
 
     # TODO(yushiro) replace following characters to constant value
-    binding_profile = port['binding:profile']
-    lli = binding_profile.get("local_link_information", {})
-    is_all_specified = True if lli else False
+    lli = port['binding:profile'].get("local_link_information", [])
+    if not lli:
+        return []
+    is_all_specified = True
     for i in lli:
         if not (i.get('switch_id') and i.get('port_id') and
                 i.get('switch_info')):
@@ -131,28 +144,31 @@ def get_physical_connectivity(port):
     if is_all_specified:
         return lli
     LOG.warning(_LW("Some physical network param is missing:%s"), lli)
-    return {}
+    return []
 
 
 def is_baremetal(port):
     """Judge a specified port is for baremetal or not.
 
-    @param port a port object
-    @return True/False a boolean baremetal:True, otherwise:False
+    :param port: a dictionary of neutron port
+    :type port: dictionary
+
+    :return: True(vnic_type is baremetal) or False(otherwise)
+    :rtype: boolean
     """
 
     vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
-    if (vnic_type == portbindings.VNIC_BAREMETAL):
-        return True
-    else:
-        return False
+    return True if (vnic_type == portbindings.VNIC_BAREMETAL) else False
 
 
 def is_lag(local_link_information):
     """Judge a specified port param is for LAG(linkaggregation) or not.
 
-    @param local_link_information a list of dict
-    @return True/False a boolean LAG:True, otherwise:False
+    :param local_link_information: physical connectivity information
+    :type local_link_information: list of dict
+
+    :return: True(mode is LAG) or False(otherwise)
+    :rtype: boolean
     """
 
     return True if len(local_link_information) > 1 else False
