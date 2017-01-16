@@ -1,4 +1,4 @@
-# Copyright 2015 FUJITSU LIMITED
+# Copyright 2015-2017 FUJITSU LIMITED
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,6 +31,13 @@ class FujitsuCommonUtilsTestCase(base.BaseTestCase):
 
         self.net.network_segments = [{"network_type": "vlan",
                                       "segmentation_id": 100}]
+        self.port = defaultdict(lambda: {})
+        self.port[portbindings.VNIC_TYPE] = portbindings.VNIC_BAREMETAL
+        self.lli = [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "1/1/0/1",
+                     "switch_info": "CFX2000R"},
+                    {"switch_id": "00:00:4c:ee:e5:40", "port_id": "1/1/0/2",
+                     "switch_info": "CFX2000R"}]
+        self.port['binding:profile']['local_link_information'] = self.lli
 
 
 class TestEliminateVal(FujitsuCommonUtilsTestCase):
@@ -157,32 +164,19 @@ class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
 class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
     """Test class for get_physical_connectivity"""
 
-    def setUp(self):
-        super(TestGetPhysicalConnectivity, self).setUp()
-        # Mock
-        self.port = defaultdict(lambda: {})
-        self.port[portbindings.VNIC_TYPE] = portbindings.VNIC_BAREMETAL
-        self.lli = [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "1/1/0/1",
-                     "switch_info": "CFX2000R"},
-                    {"switch_id": "00:00:4c:ee:e5:40", "port_id": "1/1/0/2",
-                     "switch_info": "CFX2000R"}]
-        self.port['binding:profile']['local_link_information'] = self.lli
-
     def test_get_correct_data(self):
-        self.port['binding:profile']['local_link_information'] = self.lli
-        expect = self.lli
         local_link_info = fj_util.get_physical_connectivity(self.port)
-        self.assertEqual(expect, local_link_info)
+        self.assertEqual(self.lli, local_link_info)
 
     def test_local_link_info_is_undefined(self):
         del self.port['binding:profile']['local_link_information']
         local_link_info = fj_util.get_physical_connectivity(self.port)
-        self.assertEqual({}, local_link_info)
+        self.assertEqual([], local_link_info)
 
     def test_local_link_info_is_empty(self):
         self.port['binding:profile']['local_link_information'] = []
         local_link_info = fj_util.get_physical_connectivity(self.port)
-        self.assertEqual({}, local_link_info)
+        self.assertEqual([], local_link_info)
 
     def test_some_key_in_local_link_info_is_missing(self):
         for missing in self.lli[1]:
@@ -190,7 +184,7 @@ class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
             del tmp[missing]
             self.port['binding:profile']['local_link_information'] = [tmp]
             local_link_info = fj_util.get_physical_connectivity(self.port)
-            self.assertEqual({}, local_link_info)
+            self.assertEqual([], local_link_info)
 
     def test_some_value_in_local_link_info_is_missing(self):
         for missing in self.lli[0]:
@@ -198,12 +192,40 @@ class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
             tmp[missing] = ""
             self.port['binding:profile']['local_link_information'] = [tmp]
             local_link_info = fj_util.get_physical_connectivity(self.port)
-            self.assertEqual({}, local_link_info)
+            self.assertEqual([], local_link_info)
 
 
 class TestIsBaremetalDeploy(FujitsuCommonUtilsTestCase):
     """Test class for is_baremetal_deploy"""
 
+    def test_vnic_type_is_baremetal(self):
+        self.assertTrue(fj_util.is_baremetal(self.port))
+
+    def test_vnic_type_is_not_baremetal(self):
+        self.port[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
+        self.assertFalse(fj_util.is_baremetal(self.port))
+
+        self.port[portbindings.VNIC_TYPE] = None
+        self.assertFalse(fj_util.is_baremetal(self.port))
+
+    def test_illegal_port_without_vnic_type(self):
+        self.assertFalse(fj_util.is_baremetal({}))
+
+    def test_illegal_argument_is_none(self):
+        self.assertRaises(AttributeError, fj_util.is_baremetal, None)
+
+    def test_illegal_argument_is_empty_list(self):
+        self.assertRaises(AttributeError, fj_util.is_baremetal, [])
+
 
 class TestIsLag(FujitsuCommonUtilsTestCase):
     """Test class for is_lag"""
+
+    def test_lli_is_one(self):
+        self.assertFalse(fj_util.is_lag([self.lli[0]]))
+
+    def test_lli_is_more_than_2(self):
+        self.assertTrue(fj_util.is_lag(self.lli))
+
+    def test_lli_is_empty(self):
+        self.assertFalse(fj_util.is_lag([]))
