@@ -1,0 +1,9 @@
+Code-Review+2: Takanori Miyagishi <miyagishi.t@jp.fujitsu.com>
+Code-Review+2: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Workflow+1: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 23 Jan 2017 01:14:34 +0000
+Reviewed-on: https://review.openstack.org/420518
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
