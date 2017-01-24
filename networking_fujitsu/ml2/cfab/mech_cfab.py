@@ -254,7 +254,7 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         try:
             setup_method = getattr(self._driver, target)
         except AttributeError:
-            LOG.exception(_LE("Unexpected error happend."))
+            LOG.exception(_LE("Unexpected error happened."))
             raise ml2_exc.MechanismDriverError(method='setup_vlan')
         try:
             # This plugin supposes 1 C-Fabric(fabric_id) management.
@@ -296,7 +296,7 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         try:
             clear_method = getattr(self._driver, call_target)
         except AttributeError:
-            LOG.exception(_LE("Unexpected error happend."))
+            LOG.exception(_LE("Unexpected error happened."))
             raise ml2_exc.MechanismDriverError(method="clear_vlan")
 
         try:
