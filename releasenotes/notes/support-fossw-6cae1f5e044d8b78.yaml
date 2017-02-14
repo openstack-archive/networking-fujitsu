@@ -1,0 +1,6 @@
+---
+prelude: >
+  - FOS switch support for baremetal provisioning with VLAN/VXLAN
+features:
+  - Add a new mechanism driver "fujitsu_fossw" for FOS switch. This driver supports
+    baremetal provisioning for VLAN/VXLAN
