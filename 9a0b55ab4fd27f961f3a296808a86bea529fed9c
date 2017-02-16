@@ -1,0 +1,9 @@
+Code-Review+2: watanabe isao <watanabe_isao@jp.fujitsu.com>
+Code-Review+2: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Workflow+1: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 16 Feb 2017 01:02:45 +0000
+Reviewed-on: https://review.openstack.org/434028
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
