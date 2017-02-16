@@ -69,6 +69,7 @@ class FOSSWClient(object):
                     timeout=self._conf.fujitsu_fossw.timeout
                 )
                 self.console = self.ssh.invoke_shell()
+                return
             except (paramiko.ssh_exception.BadHostKeyException,
                     paramiko.ssh_exception.AuthenticationException,
                     paramiko.ssh_exception.SSHException) as e:
