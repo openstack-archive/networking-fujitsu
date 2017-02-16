@@ -22,24 +22,24 @@ from networking_fujitsu.ml2.fossw import fossw_vxlandriver
 from networking_fujitsu.tests.unit.ml2.common.ovsdb import (
     test_base_connection as base_test)
 
+from neutron.plugins.ml2 import config
 from neutron.tests import base
 
 
-class FakeConf(object):
-    def __init__(self):
-        self.ovsdb_port = 6640
-        self.udp_dest_port = 4789
-        self.ovsdb_vlanid_range_min = 2
-        self.fossw_ips = ["fake_switch_ip1", "fake_switch_ip2"]
+FOSSW_IPS = ["fake_switch_ip1", "fake_switch_ip2"]
 
 
 class TestFOSSWVxlanDriver(base.BaseTestCase):
     def setUp(self):
         super(TestFOSSWVxlanDriver, self).setUp()
+        config.cfg.CONF.set_override('ovsdb_vlanid_range_min', 2,
+                                     group='fujitsu_fossw')
+        config.cfg.CONF.set_override('fossw_ips', FOSSW_IPS,
+                                     group='fujitsu_fossw')
 
-        self.driver = fossw_vxlandriver.FOSSWVxlanDriver(FakeConf())
-        self.fake_ovsdb_port = FakeConf().ovsdb_port
-        self.fake_udp_dest_port = FakeConf().udp_dest_port
+        self.driver = fossw_vxlandriver.FOSSWVxlanDriver()
+        self.fake_ovsdb_port = 6640
+        self.fake_udp_dest_port = 4789
         self.fake_ip_mac_pairs = {'fake_switch_mac1': 'fake_switch_ip1',
                                   'fake_switch_mac2': 'fake_switch_ip2'}
         self.fake_lli = [{'switch_id': 'fake_switch_mac1',

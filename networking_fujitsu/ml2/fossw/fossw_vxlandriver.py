@@ -39,10 +39,11 @@ class FOSSWVxlanDriver(object):
             self._conf = conf
         else:
             self._conf = cfg.CONF
-        self.ovsdb_port = self._conf.ovsdb_port
-        self.udp_dest_port = self._conf.udp_dest_port
-        self.ovsdb_vlanid_range_min = self._conf.ovsdb_vlanid_range_min
-        self.fossw_ips = self._conf.fossw_ips
+        self.ovsdb_port = self._conf.fujitsu_fossw.ovsdb_port
+        self.udp_dest_port = self._conf.fujitsu_fossw.udp_dest_port
+        self.ovsdb_vlanid_range_min = (
+            self._conf.fujitsu_fossw.ovsdb_vlanid_range_min)
+        self.fossw_ips = self._conf.fujitsu_fossw.fossw_ips
 
         self.client = client.FOSSWClient(self._conf)
         self.type_vxlan = type_vxlan.TypeVxlan()
