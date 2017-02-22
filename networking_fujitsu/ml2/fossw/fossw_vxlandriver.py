@@ -57,8 +57,7 @@ class FOSSWVxlanDriver(object):
         with host & other switches' VTEPs.
         """
 
-        self.ml2_tenant_network_types = cfg.CONF.ml2.tenant_network_types
-        if "vxlan" in self.ml2_tenant_network_types:
+        if "vxlan" in self._conf.ml2.type_drivers:
             self._update_neutron_db()
             self.vxlan_endpoint_ips = [vxlan_endpoint['ip_address']
                                        for vxlan_endpoint in
