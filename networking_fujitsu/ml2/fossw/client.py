@@ -50,17 +50,19 @@ class FOSSWClient(object):
 
         """
         method = "connect"
-        try:
-            self.ssh = paramiko.SSHClient()
-        except (IOError, paramiko.ssh_exception.SSHException) as e:
-            self.disconnect()
-            LOG.exception(_LE("an error occurred while initializing SSH "
-                              "client. %s"), e)
-            raise FOSSWClientException(method)
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        # try:
+        #     self.ssh = paramiko.SSHClient()
+        # except (IOError, paramiko.ssh_exception.SSHException) as e:
+        #     self.disconnect()
+        #     LOG.exception(_LE("an error occurred while initializing SSH "
+        #                       "client. %s"), e)
+        #     raise FOSSWClientException(method)
+        # self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         retry_count = 0
         while retry_count < 5:
             try:
+                self.ssh = paramiko.SSHClient()
+                self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 self.ssh.connect(
                     ip,
                     port=self._conf.fujitsu_fossw.port,
@@ -70,12 +72,17 @@ class FOSSWClient(object):
                 )
                 self.console = self.ssh.invoke_shell()
                 return
+            except IOError as e:
+                retry_count += 1
+                self.disconnect()
+                LOG.warning(_LW('Connect attempt %s failed.'), retry_count)
+                LOG.exception(_LE('could not initialize SSH client. %s'), e)
             except (paramiko.ssh_exception.BadHostKeyException,
                     paramiko.ssh_exception.AuthenticationException,
                     paramiko.ssh_exception.SSHException) as e:
                 retry_count += 1
                 self.disconnect()
-                LOG.warning(_LW('Connect attempt %(retry)s failed.'))
+                LOG.warning(_LW('Connect attempt %s failed.'), retry_count)
                 LOG.exception(_LE('could not connect to FOS switch. An error'
                                   'occurred while connecting. %s'), e)
             except socket.error as e:

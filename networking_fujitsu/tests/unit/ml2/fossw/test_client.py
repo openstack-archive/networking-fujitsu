@@ -12,8 +12,8 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-# import mock
-# import paramiko
+import mock
+import paramiko
 # import socket
 
 from networking_fujitsu.ml2.fossw import client
@@ -47,23 +47,28 @@ class TestFOSSWClientConnect(BaseTestFOSSWClient):
     """Test Fossw client for connect to FOS switch."""
 
     def test_connect(self):
-        pass
-
-        # TODO(t_miyagishi) Update unit test to through latest source code.
-        # with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-        #     p_ssh.connect.return_value = None
-        #     self.client.connect(cfg.CONF.fujitsu_fossw.fossw_ips[0])
-        #     p_ssh.return_value.connect.assert_called_once_with(
-        #         cfg.CONF.fujitsu_fossw.fossw_ips[0],
-        #         password=cfg.CONF.fujitsu_fossw.password,
-        #         port=cfg.CONF.fujitsu_fossw.port,
-        #         timeout=cfg.CONF.fujitsu_fossw.timeout,
-        #         username=cfg.CONF.fujitsu_fossw.username
-        #     )
-        #     self.assertEqual(p_ssh(), self.client.ssh)
+        with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
+            p_ssh.connect.return_value = None
+            self.client.connect(cfg.CONF.fujitsu_fossw.fossw_ips[0])
+            p_ssh.return_value.connect.assert_called_once_with(
+                cfg.CONF.fujitsu_fossw.fossw_ips[0],
+                password=cfg.CONF.fujitsu_fossw.password,
+                port=cfg.CONF.fujitsu_fossw.port,
+                timeout=cfg.CONF.fujitsu_fossw.timeout,
+                username=cfg.CONF.fujitsu_fossw.username
+            )
 
     def test_connect_fail_with_connect(self):
-        pass
+        with mock.patch(__name__ + ".client.paramiko.SSHClient") as p_ssh:
+            error = paramiko.ssh_exception.AuthenticationException
+            errors = [error, error, error, error, error, error]
+            p_ssh.return_value.connect.side_effect = errors
+            self.assertRaises(
+                client.FOSSWClientException,
+                self.client.connect,
+                cfg.CONF.fujitsu_fossw.fossw_ips[0]
+            )
+            self.assertIsNone(self.client.ssh)
 
         # TODO(t_miyagishi) Update unit test to through latest source code.
         # with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
