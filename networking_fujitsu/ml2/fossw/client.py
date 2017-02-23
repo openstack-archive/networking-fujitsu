@@ -29,7 +29,9 @@ MODE_GLOBAL = 'configure'
 MODE_VLAN = 'vlan database'
 MODE_INTERFACE = 'interface'
 ENABLE = 'enable'
-CTRL_Z = '\x1A'
+CTRL_Z = 'end'
+READ_TIMEOUT = 5.0
+MAX_LOOP = 50
 
 
 class FOSSWClient(object):
@@ -50,17 +52,19 @@ class FOSSWClient(object):
 
         """
         method = "connect"
-        try:
-            self.ssh = paramiko.SSHClient()
-        except (IOError, paramiko.ssh_exception.SSHException) as e:
-            self.disconnect()
-            LOG.exception(_LE("an error occurred while initializing SSH "
-                              "client. %s"), e)
-            raise FOSSWClientException(method)
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        # try:
+        #     self.ssh = paramiko.SSHClient()
+        # except (IOError, paramiko.ssh_exception.SSHException) as e:
+        #     self.disconnect()
+        #     LOG.exception(_LE("an error occurred while initializing SSH "
+        #                       "client. %s"), e)
+        #     raise FOSSWClientException(method)
+        # self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         retry_count = 0
         while retry_count < 5:
             try:
+                self.ssh = paramiko.SSHClient()
+                self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 self.ssh.connect(
                     ip,
                     port=self._conf.fujitsu_fossw.port,
@@ -69,13 +73,19 @@ class FOSSWClient(object):
                     timeout=self._conf.fujitsu_fossw.timeout
                 )
                 self.console = self.ssh.invoke_shell()
+                self.console.settimeout(READ_TIMEOUT)
                 return
+            except IOError as e:
+                retry_count += 1
+                self.disconnect()
+                LOG.warning(_LW('Connect attempt %s failed.'), retry_count)
+                LOG.exception(_LE('could not initialize SSH client. %s'), e)
             except (paramiko.ssh_exception.BadHostKeyException,
                     paramiko.ssh_exception.AuthenticationException,
                     paramiko.ssh_exception.SSHException) as e:
                 retry_count += 1
                 self.disconnect()
-                LOG.warning(_LW('Connect attempt %(retry)s failed.'))
+                LOG.warning(_LW('Connect attempt %s failed.'), retry_count)
                 LOG.exception(_LE('could not connect to FOS switch. An error'
                                   'occurred while connecting. %s'), e)
             except socket.error as e:
@@ -113,23 +123,31 @@ class FOSSWClient(object):
 
     def _exec_command(self, command):
         try:
-            res = ""
-            i = 0
-            command = command + "\n"
+            raw_res = ""
+            self.console.send(command + "\n")
             LOG.debug(_("fossw client sending command: %s"), command)
-            self.console.send(command)
-            while i <= 5000:
+            i = 0
+            while i < MAX_LOOP:
                 time.sleep(0.1)
                 if self.console.recv_ready():
-                    res += self.console.recv(1024)
+                    raw_res += self.console.recv(1024)
+                elif raw_res:
                     break
                 i += 1
-            index = res.find(command)
-            return res[(index + len(command) + 1):]
-        except Exception as e:
-            self.disconnect
-            LOG.exception(_LE('an error occured while executing commands to '
-                              'FOS Switch. %s'), e)
+            if (i == MAX_LOOP):
+                LOG.error(_LE("No reply from FOS switch."))
+                raise socket.timeout
+            res = raw_res.replace('\r\n', '')
+            received = res[(res.find(command) + len(command)):]
+        except socket.timeout:
+            self.disconnect()
+            LOG.exception(_LE('Socket timeout occured while wxecuting '
+                              'commands to FOS Switch.'))
+            raise FOSSWClientException('_exec_command')
+        else:
+            LOG.debug(_("fossw client received: %s"), received)
+            # NOTE(yushiro) Validate received message here
+            return received
 
     def _format_command(self, command, **kwargs):
         method = "_format_command"
