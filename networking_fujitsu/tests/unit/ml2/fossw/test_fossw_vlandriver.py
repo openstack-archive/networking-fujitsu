@@ -12,9 +12,12 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-# import mock
+import mock
+from networking_fujitsu.ml2.fossw import client
 from networking_fujitsu.ml2.fossw import fossw_vlandriver
+from networking_fujitsu.ml2.fossw import mech_fossw
 from neutron.tests import base
+from oslo_config import cfg
 
 LLI = {'single': [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "0/1",
                    "switch_info": "ET-7648BRA-FOS"}],
@@ -27,8 +30,7 @@ LLI = {'single': [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "0/1",
                 {"switch_id": "00:00:4c:ee:e5:40", "port_id": "0/1",
                  "switch_info": "ET-7648BRA-FOS"}]}
 
-SWITCHES = [{"address": "192.168.0.1", "username": "admin", "password": ""},
-            {"address": "192.168.0.2", "username": "admin", "password": ""}]
+DUMMY_FOSSW_IPS = ['192.168.0.1']
 
 
 class BaseTestFOSSWVlanDriver(base.BaseTestCase):
@@ -36,74 +38,123 @@ class BaseTestFOSSWVlanDriver(base.BaseTestCase):
 
     def setUp(self):
         super(BaseTestFOSSWVlanDriver, self).setUp()
-        self.driver = fossw_vlandriver.FOSSWVlanDriver()
+        cfg.CONF.register_opts(
+            mech_fossw.ML2_FUJITSU,
+            mech_fossw.ML2_FUJITSU_GROUP
+        )
+        self.driver = fossw_vlandriver.FOSSWVlanDriver(cfg.CONF)
 
 
 class TestFOSSWVlanDriverCreateVlan(BaseTestFOSSWVlanDriver):
     """Test Fujitsu fossw driver for create VLAN"""
 
-    def test_create_vlan(self):
-        pass
+    def setUp(self):
+        super(TestFOSSWVlanDriverCreateVlan, self).setUp()
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.client.create_vlan = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
 
-        # TODO(t_miyagishi) Update unit test to through latest source code.
-        # ip = '192.168.0.1'
-        # vlan_id = '2'
-        # with mock.patch('self.driver.client') as mocked_client:
-        #     mocked_client.connect.return_value = None
-        #     mocked_client.create_vlan.return_value = None
-        #     self.assertIsNone(self.driver.create_vlan, ip, vlan_id)
-        #     self.driver.client.disconnect.assert_called_with()
+    def test_create_vlan(self):
+        self.driver.create_vlan(DUMMY_FOSSW_IPS[0], 2)
+        self.assertIsNone(self.driver.client.ssh)
+
+    def test_create_vlan_fail(self):
+        error = client.FOSSWClientException('create_vlan')
+        self.driver.client.connect.side_effect = error
+        self.assertRaises(
+            client.FOSSWClientException,
+            self.driver.create_vlan,
+            DUMMY_FOSSW_IPS[0],
+            2
+        )
 
 
 class TestFOSSWVlanDriverDeleteVlan(BaseTestFOSSWVlanDriver):
     """Test Fujitsu FOSSW vlan driver for delete VLAN"""
     def setUp(self):
         super(TestFOSSWVlanDriverDeleteVlan, self).setUp()
-
-    def test_vlan_not_exist(self):
-        pass
-        # TODO(t_miyagishi) Update unit test to through latest source code.
-        # switch = SWITCHES[0]
-        # vlan_id = 2
-        # with mock.patch.object(self.driver.client,
-        #                        'is_exist_vlan',
-        #                        return_value=False), \
-        #     mock.patch.object(self.driver.client,
-        #                       'delete_vlan'):
-        #     self.driver.delete_vlan(switch, vlan_id)
-        #     self.assertEqual(self.driver.client.delete_vlan.called, 0)
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.client.delete_vlan = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
 
     def test_delete_vlan(self):
-        pass
-        # TODO(t_miyagishi) Update unit test to through latest source code.
-        # switch = SWITCHES[0]
-        # vlan_id = 2
-        # with mock.patch.object(self.driver.client,
-        #                        'is_exist_vlan',
-        #                        return_value=True), \
-        #     mock.patch.object(self.driver.client,
-        #                       'delete_vlan',
-        #                       return_value=None):
-        #     self.assertIsNone(self.driver.delete_vlan(switch, vlan_id))
-        #     self.assertEqual(self.driver.client.delete_vlan.called, 1)
+        self.driver.delete_vlan(DUMMY_FOSSW_IPS[0], 2)
+        self.assertIsNone(self.driver.client.ssh)
+
+    def test_delete_vlan_fail(self):
+        error = client.FOSSWClientException('delete_vlan')
+        self.driver.client.connect.side_effect = error
+        self.assertRaises(
+            client.FOSSWClientException,
+            self.driver.delete_vlan,
+            DUMMY_FOSSW_IPS[0],
+            2
+        )
 
 
 class TestFOSSWVlanDriverSetupVlan(BaseTestFOSSWVlanDriver):
     """Test Fujitsu FOSSW vlan driver."""
-    pass
-    # TODO(t_miyagishi) Update unit test to through latest source code.
+    def setUp(self):
+        super(TestFOSSWVlanDriverSetupVlan, self).setUp()
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.client.set_vlan = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
 
-    #    def setUp(self):
-    #        super(TestFosswdriverSetupVlan, self).setUp()
-    #
-    #    def test_not_matched_switch(self):
-    #        pass
-    #
-    #    def test_setup_vlan(self):
-    #        self.driver.setup_vlan(self, SWITCHES, vlan_id, lli)
-    #        pass
+    def test_setup_vlan(self):
+        ip_mac_pairs = {'00:00:4c:ee:e5:39': '192.168.1.1'}
+        self.driver.setup_vlan(2, LLI['single'], ip_mac_pairs)
+        self.assertIsNone(self.driver.client.ssh)
+
+    def test_setup_vlan_fail(self):
+        ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
+        self.assertRaises(
+            client.FOSSWClientException,
+            self.driver.setup_vlan,
+            2,
+            LLI['single'],
+            ip_mac_pairs
+        )
+        ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
+        error = client.FOSSWClientException('set_vlan')
+        self.driver.client.connect.side_effect = error
+        self.assertRaises(
+            client.FOSSWClientException,
+            self.driver.setup_vlan,
+            2,
+            LLI['single'],
+            ip_mac_pairs
+        )
 
 
 class TestFOSSWVlanDriverClearVlan(BaseTestFOSSWVlanDriver):
-    pass
-    # TODO(t_miyagishi) Update unit test to through latest source code.
+    """Test Fujitsu FOSSW vlan driver for clear vlan"""
+    def setUp(self):
+        super(TestFOSSWVlanDriverClearVlan, self).setUp()
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.client.clear_vlan = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
+
+    def test_clear_vlan(self):
+        ip_mac_pairs = {'00:00:4c:ee:e5:39': '192.168.1.1'}
+        self.driver.clear_vlan(2, LLI['single'], ip_mac_pairs)
+        self.assertIsNone(self.driver.client.ssh)
+
+    def test_clear_vlan_fail(self):
+        ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
+        self.assertRaises(
+            client.FOSSWClientException,
+            self.driver.clear_vlan,
+            2,
+            LLI['single'],
+            ip_mac_pairs
+        )
+        ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
+        error = client.FOSSWClientException('set_vlan')
+        self.driver.client.connect.side_effect = error
+        self.assertRaises(
+            client.FOSSWClientException,
+            self.driver.clear_vlan,
+            2,
+            LLI['single'],
+            ip_mac_pairs
+        )
