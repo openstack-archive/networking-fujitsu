@@ -12,9 +12,12 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-# import mock
-# import paramiko
-# import socket
+import paramiko
+import socket
+import time
+
+import mock
+# from unittest import mock
 
 from networking_fujitsu.ml2.fossw import client
 from networking_fujitsu.ml2.fossw import mech_fossw
@@ -40,78 +43,86 @@ class BaseTestFOSSWClient(base.BaseTestCase):
         cfg.CONF.set_override(
             'fossw_ips', DUMMY_FOSSW_IPS, 'fujitsu_fossw'
         )
-        self.client = client.FOSSWClient(cfg.CONF)
+        self.cli = client.FOSSWClient(cfg.CONF)
+        self.cli.ssh = mock.Mock()
+        self.cli.console = mock.Mock()
 
 
 class TestFOSSWClientConnect(BaseTestFOSSWClient):
-    """Test Fossw client for connect to FOS switch."""
+    """Test FOSSW client for connect to FOS switch."""
 
     def test_connect(self):
-        pass
+        with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
+            p_ssh.connect.return_value = None
+            self.cli.connect(cfg.CONF.fujitsu_fossw.fossw_ips[0])
+            p_ssh.return_value.connect.assert_called_once_with(
+                cfg.CONF.fujitsu_fossw.fossw_ips[0],
+                password=cfg.CONF.fujitsu_fossw.password,
+                port=cfg.CONF.fujitsu_fossw.port,
+                timeout=cfg.CONF.fujitsu_fossw.timeout,
+                username=cfg.CONF.fujitsu_fossw.username
+            )
 
-        # TODO(t_miyagishi) Update unit test to through latest source code.
-        # with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-        #     p_ssh.connect.return_value = None
-        #     self.client.connect(cfg.CONF.fujitsu_fossw.fossw_ips[0])
-        #     p_ssh.return_value.connect.assert_called_once_with(
-        #         cfg.CONF.fujitsu_fossw.fossw_ips[0],
-        #         password=cfg.CONF.fujitsu_fossw.password,
-        #         port=cfg.CONF.fujitsu_fossw.port,
-        #         timeout=cfg.CONF.fujitsu_fossw.timeout,
-        #         username=cfg.CONF.fujitsu_fossw.username
-        #     )
-        #     self.assertEqual(p_ssh(), self.client.ssh)
+    def test_connect_fail(self):
+        with mock.patch(__name__ + ".client.paramiko.SSHClient") as p_ssh:
+            err_io = IOError
+            err_hostkey = paramiko.ssh_exception.BadHostKeyException
+            err_auth = paramiko.ssh_exception.AuthenticationException
+            err_ssh = paramiko.ssh_exception.SSHException
+            err_socket = socket.error(9999, "fake_error")
+            errors = [err_io, err_hostkey, err_auth, err_ssh, err_socket]
+            p_ssh.return_value.connect.side_effect = errors
+            self.assertRaises(
+                client.FOSSWClientException,
+                self.cli.connect,
+                cfg.CONF.fujitsu_fossw.fossw_ips[0]
+            )
+            self.assertIsNone(self.cli.ssh)
 
-    def test_connect_fail_with_connect(self):
-        pass
 
-        # TODO(t_miyagishi) Update unit test to through latest source code.
-        # with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-        #     p_ssh.return_value = Mocked_SSH()
-        #     errors = [
-        #         paramiko.ssh_exception.BadHostKeyException,
-        #         paramiko.ssh_exception.AuthenticationException,
-        #         paramiko.ssh_exception.SSHException,
-        #         socket.error
-        #     ]
-        #     for error in errors:
-        #        p_ssh.return_value.connect.side_effect = error
-        #         self.assertRaises(
-        #             client.FOSSWClientException,
-        #             self.client.connect,
-        #             cfg.CONF.fujitsu_fossw.fossw_ips[0]
-        #         )
-        #         self.client.ssh.close.assert_called_with()
-        #         self.assertEqual(p_ssh.call_count, 5)
-        #         self.client.ssh.invoke_shell.assert_not_called()
+class TestFOSSWClientDisconnect(BaseTestFOSSWClient):
+    """Test FOSSW client for diconnect from FOS switch."""
 
-    def test_connect_fail_with_invoke_shell(self):
-        pass
-
-        # TODO(t_miyagishi) Update unit test to through latest source code.
-        # with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-        #     p_ssh.return_value = Mocked_SSH()
-        #     error = paramiko.ssh_exception.SSHException
-        #     p_ssh.return_value.invoke_shell.side_effect = error
-        #     self.assertRaises(
-        #         client.FOSSWClientException,
-        #         self.client.connect,
-        #         cfg.CONF.fujitsu_fossw.fossw_ips[0]
-        #     )
-        #     self.client.ssh.close.assert_called_with()
-        #     self.assertEqual(p_ssh.call_count, 5)
+    def test_disconnect(self):
+        with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
+            p_ssh.connect.return_value = None
+            self.cli.connect(cfg.CONF.fujitsu_fossw.fossw_ips[0])
+            self.cli.disconnect()
+            self.assertIsNone(self.cli.ssh)
 
 
 class TestFOSSWClientExecCommand(BaseTestFOSSWClient):
-    """Test Fossw client for execute command to FOS switch."""
+    """Test FOSSW client for execute command to FOS switch."""
 
-    def test__exec_command(self):
-        pass
-        # TODO(t_miyagishi) Update unit test to through latest source code.
+    def setUp(self):
+        super(TestFOSSWClientExecCommand, self).setUp()
+        time.sleep = mock.Mock()
+        self.cli.console.recv_ready.side_effect = [True, False]
+        self.cli.disconnect = mock.Mock()
 
-    def test__exec_command_fail(self):
-        pass
-        # TODO(t_miyagishi) Update unit test to through latest source code.
+    def test_normal(self):
+        cmd = 'configure'
+        self.cli.console.recv.return_value = (
+            '\r\n(ET-7648BRA-FOS) #%s\r\n(ET-7648BRA-FOS) (Config)#' % cmd)
+        result = self.cli._exec_command(cmd)
+        self.cli.console.send.assert_called_with(cmd + '\n')
+        self.cli.console.recv_ready.assert_called_with()
+        self.cli.console.recv.assert_called_once_with(1024)
+        self.assertEqual('(ET-7648BRA-FOS) (Config)#', result)
+
+    def test_socket_timeout_with_send(self):
+        cmd = 'configure'
+        self.cli.console.send.side_effect = socket.timeout
+        self.assertRaises(
+            client.FOSSWClientException, self.cli._exec_command, cmd)
+        self.cli.disconnect.assert_called_once_with()
+
+    def test_socket_timeout_with_maximum_retry(self):
+        self.cli.console.recv_ready = mock.Mock(return_value=False)
+        cmd = 'configure'
+        self.assertRaises(
+            client.FOSSWClientException, self.cli._exec_command, cmd)
+        self.cli.disconnect.assert_called_once_with()
 
 
 class TestFOSSWClientCreateVlan(BaseTestFOSSWClient):
