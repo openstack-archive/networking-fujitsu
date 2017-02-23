@@ -29,7 +29,9 @@ MODE_GLOBAL = 'configure'
 MODE_VLAN = 'vlan database'
 MODE_INTERFACE = 'interface'
 ENABLE = 'enable'
-CTRL_Z = '\x1A'
+END = 'end'
+READ_TIMEOUT = 5.0
+MAX_LOOP = 50
 
 
 class FOSSWClient(object):
@@ -50,17 +52,11 @@ class FOSSWClient(object):
 
         """
         method = "connect"
-        try:
-            self.ssh = paramiko.SSHClient()
-        except (IOError, paramiko.ssh_exception.SSHException) as e:
-            self.disconnect()
-            LOG.exception(_LE("an error occurred while initializing SSH "
-                              "client. %s"), e)
-            raise FOSSWClientException(method)
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         retry_count = 0
         while retry_count < 5:
             try:
+                self.ssh = paramiko.SSHClient()
+                self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 self.ssh.connect(
                     ip,
                     port=self._conf.fujitsu_fossw.port,
@@ -69,28 +65,26 @@ class FOSSWClient(object):
                     timeout=self._conf.fujitsu_fossw.timeout
                 )
                 self.console = self.ssh.invoke_shell()
+                self.console.settimeout(READ_TIMEOUT)
                 return
+            except IOError as e:
+                LOG.warning(_LW('Could not initialize SSH client. %s'), e)
             except (paramiko.ssh_exception.BadHostKeyException,
                     paramiko.ssh_exception.AuthenticationException,
                     paramiko.ssh_exception.SSHException) as e:
-                retry_count += 1
-                self.disconnect()
-                LOG.warning(_LW('Connect attempt %(retry)s failed.'))
-                LOG.exception(_LE('could not connect to FOS switch. An error'
-                                  'occurred while connecting. %s'), e)
+                LOG.warning(_LW('Could not connect to FOS switch. An error'
+                                'occurred while connecting. %s'), e)
             except socket.error as e:
-                retry_count += 1
-                self.disconnect()
                 e_no, e_str = e
-                LOG.warning(_LW('Connect attempt %(err)s failed.'))
-                LOG.exception(_LE('a socket error occurred while connecting.\n'
-                                  '[Errno %(e_no)s] %(e_str)s'),
-                              {'e_no': str(e_no), 'e_str': e_str})
+                LOG.warning(_LW('A socket error occurred while connecting.\n'
+                                '[Errno %(e_no)s] %(e_str)s'),
+                            {'e_no': e_no, 'e_str': e_str})
             except Exception as e:
-                retry_count += 1
-                self.disconnect()
-                LOG.exception(_LE('Connect attempt %(retry)s failed. %(err)s'),
-                              {'retry': str(retry_count), 'err': e})
+                LOG.warning(_LW('Unexpected error occurred while connecting. '
+                                '%s'), e)
+            retry_count += 1
+            self.disconnect()
+            LOG.warning(_LW('Connect attempt %s failed.'), retry_count)
         if retry_count >= 5:
             self.disconnect()
             LOG.exception(_LE('Max retries exceeded. Failed to connect to '
@@ -113,23 +107,31 @@ class FOSSWClient(object):
 
     def _exec_command(self, command):
         try:
-            res = ""
+            raw_res = ""
+            self.console.send(command + "\n")
+            LOG.debug(_("FOSSW client sending command: %s"), command)
             i = 0
-            command = command + "\n"
-            LOG.debug(_("fossw client sending command: %s"), command)
-            self.console.send(command)
-            while i <= 5000:
+            while i < MAX_LOOP:
                 time.sleep(0.1)
                 if self.console.recv_ready():
-                    res += self.console.recv(1024)
+                    raw_res += self.console.recv(1024)
+                elif raw_res:
                     break
                 i += 1
-            index = res.find(command)
-            return res[(index + len(command) + 1):]
-        except Exception as e:
-            self.disconnect
-            LOG.exception(_LE('an error occured while executing commands to '
-                              'FOS Switch. %s'), e)
+            if (i == MAX_LOOP):
+                LOG.error(_LE("No reply from FOS switch."))
+                raise socket.timeout
+            res = raw_res.replace('\r\n', '')
+            received = res[(res.find(command) + len(command)):]
+        except socket.timeout:
+            self.disconnect()
+            LOG.exception(_LE('Socket timeout occured while wxecuting '
+                              'commands to FOS Switch.'))
+            raise FOSSWClientException('_exec_command')
+        else:
+            LOG.debug(_("FOSSW client received: %s"), received)
+            # NOTE(yushiro) Validate received message here
+            return received
 
     def _format_command(self, command, **kwargs):
         method = "_format_command"
@@ -185,7 +187,7 @@ class FOSSWClient(object):
         """
         method = "set_vlan"
         self.change_mode(MODE_INTERFACE, port_id)
-        LOG.debug(_("fossw client received: %s"),
+        LOG.debug(_("FOSSW client received: %s"),
                   self._exec_command("switchport mode access"))
         cmd = self._format_command("switchport access vlan {vlan_id}",
                                    vlan_id=segmentation_id)
@@ -332,7 +334,7 @@ class FOSSWClient(object):
 
         """
         # Move to Privileged EXEC mode.
-        prompt = self._exec_command(CTRL_Z)
+        prompt = self._exec_command(END)
         if ") >" in prompt:
             prompt = self._exec_command(ENABLE)
 
