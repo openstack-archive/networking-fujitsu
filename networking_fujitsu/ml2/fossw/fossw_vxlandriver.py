@@ -15,8 +15,6 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from networking_fujitsu._i18n import _LI
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
 from networking_fujitsu.ml2.common import tunnel_caller
 from networking_fujitsu.ml2.common import type_vxlan
@@ -89,36 +87,37 @@ class FOSSWVxlanDriver(object):
                 neutron_db = self.type_vxlan.get_endpoint_by_ip(
                     sw_ep_ip)
                 if not neutron_db:
-                    LOG.info(_LI("Add FOS switch endpoint information (ip = "
-                                 "%(ip)s, hostname = %(name)s, udp_dest_port "
-                                 "= %(port)s) to ml2_vxlan_endpoints table in "
-                                 "Neutron DB."), {'ip': sw_ep_ip,
-                                                  'name': sw_ep_host,
-                                                  'port': self.udp_dest_port})
+                    LOG.info("Add FOS switch endpoint information (ip = "
+                             "%(ip)s, hostname = %(name)s, udp_dest_port "
+                             "= %(port)s) to ml2_vxlan_endpoints table in "
+                             "Neutron DB.",
+                             {'ip': sw_ep_ip,
+                              'name': sw_ep_host,
+                              'port': self.udp_dest_port})
                     self.type_vxlan.add_endpoint(sw_ep_ip, sw_ep_host,
                                                  self.udp_dest_port)
                 elif (neutron_db['host'] != sw_ep_host or
                       neutron_db['udp_port'] != self.udp_dest_port):
-                    LOG.warning(_LW("Existed endpoint information with same "
-                                    "IP address (%(ip)s) has been updated "
-                                    "with hostname = %(host)s, udp_dest_port "
-                                    "= %(port)s."),
+                    LOG.warning("Existed endpoint information with same "
+                                "IP address (%(ip)s) has been updated "
+                                "with hostname = %(host)s, udp_dest_port "
+                                "= %(port)s.",
                                 {'ip': sw_ep_ip, 'host': sw_ep_host,
                                  'port': self.udp_dest_port})
                     self.type_vxlan.delete_endpoint(sw_ep_ip)
                     self.type_vxlan.add_endpoint(sw_ep_ip, sw_ep_host,
                                                  self.udp_dest_port)
                 else:
-                    LOG.info(_LI("FOS switch endpoint information (ip = "
-                                 "%(ip)s, hostname = %(name)s, udp_dest_port "
-                                 "= %(port)s) has alreadly been added to "
-                                 "ml2_vxlan_endpoints table in Neutron DB. "
-                                 "Do nothing."),
+                    LOG.info("FOS switch endpoint information (ip = "
+                             "%(ip)s, hostname = %(name)s, udp_dest_port "
+                             "= %(port)s) has alreadly been added to "
+                             "ml2_vxlan_endpoints table in Neutron DB. "
+                             "Do nothing.",
                              {'ip': sw_ep_ip, 'name': sw_ep_host,
                               'port': self.udp_dest_port})
             else:
-                LOG.warning(_LW("Unable to get endpoint information from "
-                                "switch (IP = %s). Skip."), fossw_ip)
+                LOG.warning("Unable to get endpoint information from "
+                            "switch (IP = %s). Skip.", fossw_ip)
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def create_logical_switch(self, net_uuid, vni, save=True):

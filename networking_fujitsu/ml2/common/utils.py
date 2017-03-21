@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LW
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net
 from neutron_lib.plugins.ml2 import api
@@ -97,7 +95,7 @@ def eliminate_val(source, reject):
                 found = True
                 break
     if not found:
-        LOG.debug(_('Reject target doesn\'t exist.'))
+        LOG.debug('Reject target doesn\'t exist.')
     return ','.join(rejected)
 
 
@@ -110,9 +108,8 @@ def _get_provider_attribute(net, net_attr):
         api_attr = getattr(api, net_attr)
         provider_attr = getattr(provider_net, net_attr)
     except AttributeError as e:
-        msg = _('Attribute(%s) not found. A version of neutron-lib seems '
-                'not to match suitable one. Please check it.'), net_attr
-        LOG.critical(msg)
+        LOG.critical('Attribute(%s) not found. A version of neutron-lib seems '
+                     'not to match suitable one. Please check it.', net_attr)
         raise e
     else:
         return segment.get(api_attr, segment.get(provider_attr, None))
@@ -179,7 +176,7 @@ def get_physical_connectivity(port):
             is_all_specified = False
     if is_all_specified:
         return lli
-    LOG.warning(_LW("Some physical network param is missing:%s"), lli)
+    LOG.warning("Some physical network param is missing:%s", lli)
     return []
 
 

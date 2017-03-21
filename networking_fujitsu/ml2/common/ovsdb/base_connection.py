@@ -20,8 +20,6 @@ from oslo_serialization import jsonutils
 from oslo_utils import excutils
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common.ovsdb import constants as n_const
 
 from neutron_lib import exceptions
@@ -50,22 +48,22 @@ class BaseConnection(object):
                 self.socket.connect((str(self.ovsdb_ip), int(self.ovsdb_port)))
                 break
             except (socket.error, socket.timeout):
-                LOG.warning(_LW('Unable to reach OVSDB server %s'),
+                LOG.warning('Unable to reach OVSDB server %s',
                             self.ovsdb_ip)
                 if retryCount == n_const.MAX_CONNECTION_RETRIES:
                     # Retried for max_connection_retries times.
                     # Give up and return so that it can be tried in
                     # the next periodic interval.
                     with excutils.save_and_reraise_exception(reraise=True):
-                        LOG.exception(_LE("Socket error in connecting to "
-                                          "the OVSDB server"))
+                        LOG.exception("Socket error in connecting to "
+                                      "the OVSDB server")
                 else:
                     time.sleep(1)
                     retryCount += 1
 
         # Successfully connected to the socket
-        LOG.debug(_("Connected to OVSDB server %(ip)s, with tcp port %(port)s"
-                    ), {'ip': self.ovsdb_ip, 'port': self.ovsdb_port})
+        LOG.debug("Connected to OVSDB server %(ip)s, with tcp port %(port)s",
+                  {'ip': self.ovsdb_ip, 'port': self.ovsdb_port})
 
     def disconnect(self):
         """disconnects the connection from the OVSDB server."""
@@ -81,10 +79,10 @@ class BaseConnection(object):
                 self.socket.send(jsonutils.dumps(message))
                 return True
             except Exception as ex:
-                LOG.exception(_LE("Exception [%s] occurred while sending "
-                                  "message to the OVSDB server"), ex)
+                LOG.exception("Exception [%s] occurred while sending "
+                              "message to the OVSDB server", ex)
             retry_count += 1
 
-        LOG.exception(_LE("Could not send message to the OVSDB server."))
+        LOG.exception("Could not send message to the OVSDB server.")
         self.disconnect()
         return False
