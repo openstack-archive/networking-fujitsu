@@ -31,8 +31,6 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common import utils as fj_util
 from neutron.common import utils
 from neutron.plugins.ml2.common import exceptions as ml2_exc
@@ -629,7 +627,7 @@ class CFABdriver(object):
                 ml2_exc.MechanismDriverError):
             self.mgr.close_session()
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("CLI error"))
+                LOG.exception("CLI error")
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def setup_vlan_with_lag(self, address, username, password,
@@ -658,7 +656,7 @@ class CFABdriver(object):
                 ml2_exc.MechanismDriverError):
             self.mgr.close_session()
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("CLI error"))
+                LOG.exception("CLI error")
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def clear_vlan(self, address, username, password,
@@ -688,7 +686,7 @@ class CFABdriver(object):
                 ml2_exc.MechanismDriverError):
             self.mgr.close_session()
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("CLI error"))
+                LOG.exception("CLI error")
 
     def _cleanup_definitions(self, vfab_id, vlanid, ports, config, mac,
                              commit=False):
@@ -745,7 +743,7 @@ class CFABdriver(object):
                 ml2_exc.MechanismDriverError):
             self.mgr.close_session()
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("CLI error"))
+                LOG.exception("CLI error")
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def associate_mac_to_network(self, address, username, password,
@@ -770,7 +768,7 @@ class CFABdriver(object):
                 ml2_exc.MechanismDriverError):
             self.mgr.close_session()
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("CLI error"))
+                LOG.exception("CLI error")
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def dissociate_mac_from_network(self, address, username, password,
@@ -795,7 +793,7 @@ class CFABdriver(object):
                 ml2_exc.MechanismDriverError):
             self.mgr.close_session()
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("CLI error"))
+                LOG.exception("CLI error")
 
     def _create_port_profile(self, vlanid, mac_address, running_config=None,
                              commit=True):
@@ -818,8 +816,8 @@ class CFABdriver(object):
             if match:
                 if match.group(1) != str(vlanid):
                     LOG.warning(
-                        _LW('Override "pprofile %(pid)s vlan tag %(vids)s" '
-                            'to "vlan tag %(vlanid)s"'),
+                        'Override "pprofile %(pid)s vlan tag %(vids)s" '
+                            'to "vlan tag %(vlanid)s"',
                         dict(pid=pprofile, vids=match.group(1),
                              vlanid=vlanid))
                     self._configure_pprofile(pprofile, vlanid, commit)
@@ -884,7 +882,7 @@ class CFABdriver(object):
             index = _get_available_vfab_pprofile_index(
                 vfab_id, running_config)
             if index is None:
-                LOG.error(_LE("No unused vfab pprofile index"))
+                LOG.error("No unused vfab pprofile index")
                 raise ml2_exc.MechanismDriverError(
                     method="_associate_mac_to_port_profile")
         else:
@@ -892,9 +890,9 @@ class CFABdriver(object):
                 return
             else:
                 LOG.warning(
-                    _LW('Override "vfab %(vfab_id)s pprofile %(index)d vsiid '
+                    'Override "vfab %(vfab_id)s pprofile %(index)d vsiid '
                         'mac %(mac)s %(profile_name)s" to "vsiid mac %(mac)s '
-                        '%(pprofile)s"'),
+                        '%(pprofile)s"',
                     dict(vfab_id=vfab_id, index=index, mac=mac_address,
                          profile_name=profile_name, pprofile=pprofile))
         self.mgr.configure(
@@ -929,7 +927,7 @@ class CFABdriver(object):
                                    commit=commit)
         else:
             LOG.warning(
-                _LW("No corresponding vfab pprofile for %(vid)s, %(mac)s"),
+                "No corresponding vfab pprofile for %(vid)s, %(mac)s",
                 dict(vid=vlanid, mac=mac_address))
 
 
@@ -1024,7 +1022,7 @@ def _get_available_index(target, config):
     if len(available) > 0:
         return sorted(available)[0]
     else:
-        LOG.error(_LE("No unused %s index."), target)
+        LOG.error("No unused %s index.", target)
         return None
 
 
@@ -1045,7 +1043,7 @@ def _get_associated_lag_id(ports, config):
         return None
     if len(lag_ids) > 1:
         LOG.warning(
-            _LW("Each port%(ports)s has different LAG ids(%(lag_ids)s)"),
+            "Each port%(ports)s has different LAG ids(%(lag_ids)s)",
             dict(ports=ports, lag_ids=lag_ids))
     LOG.debug(_("Associated LAG%(lag_ids)s with interfaces:%(ports)s"),
               dict(lag_ids=lag_ids, ports=ports))
