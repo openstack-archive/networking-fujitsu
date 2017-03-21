@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LW
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net
 from neutron_lib.plugins.ml2 import api
@@ -179,7 +178,7 @@ def get_physical_connectivity(port):
             is_all_specified = False
     if is_all_specified:
         return lli
-    LOG.warning(_LW("Some physical network param is missing:%s"), lli)
+    LOG.warning("Some physical network param is missing:%s", lli)
     return []
 
 

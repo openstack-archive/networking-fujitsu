@@ -22,8 +22,6 @@ import copy
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.fossw import client
 from neutron.common import utils
 
@@ -62,8 +60,7 @@ class FOSSWVlanDriver(object):
             mac = self.client.get_switch_mac()
             if not mac:
                 self.client.disconnect()
-                LOG.exception(
-                    _LE('Cannot get MAC address from FOS switch(%s)'), ip)
+                LOG.exception('Cannot get MAC address from FOS switch(%s)', ip)
                 raise client.FOSSWClientException('get_switch_mac_ip_pair')
             switches_mac_ip_pair.update({mac: ip})
             self.client.disconnect()
@@ -88,8 +85,8 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
-            LOG.exception(_LE("an error occurred while creating vlan to FOS "
-                              "switch. %s"), e)
+            LOG.exception("an error occurred while creating vlan to FOS "
+                          "switch. %s", e)
             raise client.FOSSWClientException(method)
 
     def delete_vlan(self, ip, vlanid):
@@ -111,8 +108,8 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
-            LOG.exception(_LE("An error occurred while deleting vlan from "
-                              "FOS switch. %s"), e)
+            LOG.exception("An error occurred while deleting vlan from "
+                          "FOS switch. %s", e)
             raise client.FOSSWClientException(method)
 
     def setup_vlan(self, vlanid, lli, ip_mac_pairs):
@@ -137,7 +134,7 @@ class FOSSWVlanDriver(object):
         try:
             target_ip = ip_mac_pairs[sw_mac]
         except KeyError as e:
-            LOG.exception(_LE("FOS switch with MAC(%s) not found."), sw_mac)
+            LOG.exception("FOS switch with MAC(%s) not found.", sw_mac)
             raise client.FOSSWClientException(method)
         try:
             self.client.connect(target_ip)
@@ -145,8 +142,8 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
-            LOG.exception(_LE("An error occurred while setup vlan for "
-                              "physical port on FOS switch. %s"), e)
+            LOG.exception("An error occurred while setup vlan for "
+                          "physical port on FOS switch. %s", e)
             raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME, external=True)
@@ -171,10 +168,8 @@ class FOSSWVlanDriver(object):
         if len(unique_mac_list) > 1:
             mlag = self.is_valid_mlag(unique_mac_list, ip_mac_pairs)
             if not mlag:
-                LOG.exception(
-                    _LE("Specified switches cannot set mLAG pair. "
-                        "Please confirm each switch's peerlink setting.")
-                )
+                LOG.exception("Specified switches cannot set mLAG pair. "
+                              "Please confirm each switch's peerlink setting.")
                 raise client.FOSSWClientException(method)
 
         # NOTE(takanorimiyagishi): Currently this driver is hard-coded for
@@ -195,8 +190,8 @@ class FOSSWVlanDriver(object):
             lag_port = self.client.get_lag_port()
             if not lag_port:
                 self.client.disconnect()
-                LOG.exception(_LE("Could not find available logicalport in "
-                                  "switch(%s)."), target_ip)
+                LOG.exception("Could not find available logicalport in "
+                              "switch(%s).", target_ip)
                 raise client.FOSSWClientException(method)
 
             for port in ports:
@@ -221,8 +216,8 @@ class FOSSWVlanDriver(object):
     def _validate_lli_macs_with_config(self, macs, ip_mac_pairs):
         ips = [ip_mac_pairs.get(mac, None) for mac in macs]
         if None in ips:
-            LOG.error(_LE("MAC(%s) in local_link_informatio doesn't match "
-                          "with FOS switches"), macs)
+            LOG.error("MAC(%s) in local_link_informatio doesn't match "
+                      "with FOS switches", macs)
             raise client.FOSSWClientException('_validate_lli_macs_with_config')
         return ips
 
@@ -247,8 +242,8 @@ class FOSSWVlanDriver(object):
             return (partner_ip in ips)
         except Exception as e:
             self.client.disconnect()
-            LOG.warning(_LW("An error occurred while validating specified "
-                            "FOS switches are VPC pair. %s"), e)
+            LOG.warning("An error occurred while validating specified "
+                        "FOS switches are VPC pair. %s", e)
             return False
 
     def clear_vlan(self, lli, ip_mac_pairs):
@@ -267,7 +262,7 @@ class FOSSWVlanDriver(object):
         try:
             target_ip = ip_mac_pairs[sw_mac]
         except KeyError as e:
-            LOG.exception(_LE("FOS switch with MAC(%s) not found."), sw_mac)
+            LOG.exception("FOS switch with MAC(%s) not found.", sw_mac)
             raise client.FOSSWClientException(method)
         try:
             self.client.connect(target_ip)
@@ -275,8 +270,8 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
-            LOG.exception(_LE("an error occurred while clearing VLAN from "
-                              "physical port on FOS switch. %s"), e)
+            LOG.exception("an error occurred while clearing VLAN from "
+                          "physical port on FOS switch. %s", e)
             raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME, external=True)
@@ -299,9 +294,9 @@ class FOSSWVlanDriver(object):
         if len(unique_mac_list) > 1:
             mlag = self.is_valid_mlag(unique_mac_list, ip_mac_pairs)
             if not mlag:
-                LOG.exception(_LE("Specified switches are not able to clear "
-                                  "mLAG pair. Please confirm each switch's "
-                                  "peerlink setting."))
+                LOG.exception("Specified switches are not able to clear "
+                              "mLAG pair. Please confirm each switch's "
+                              "peerlink setting.")
                 raise client.FOSSWClientException(method)
 
         for mac in unique_mac_list:
@@ -317,9 +312,9 @@ class FOSSWVlanDriver(object):
                         self.client.leave_from_vpc(lag_port, vpcid)
                     else:
                         LOG.warning(
-                            _LW("Specified logicalport has been already "
-                                "disssociated with any VPC on the switch(%s). "
-                                "skip leave_from_vpc."), target_ip)
+                            "Specified logicalport has been already "
+                            "disassociated with any VPC on the switch(%s). "
+                            "skip leave_from_vpc.", target_ip)
                 for port in ports:
                     self.client.leave_from_lag(port, lag_port)
 
@@ -328,9 +323,8 @@ class FOSSWVlanDriver(object):
                 lag_lli['port_id'] = lag_port
                 self.clear_vlan([lag_lli], ip_mac_pairs)
             else:
-                LOG.warning(
-                    _LW("Specified logicalport has already cleared. Skip "
-                        "clearing LAG."))
+                LOG.warning("Specified logicalport has already cleared. Skip "
+                            "clearing LAG.")
             self.client.disconnect()
         # NOTE(takanorimiyagishi): Currently this driver is hard-coded for
         # LAG(802.3ad) setting for FOS switch. When logical port on FOS switch

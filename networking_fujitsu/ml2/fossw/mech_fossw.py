@@ -22,9 +22,6 @@ from oslo_log import log as logging
 from oslo_utils import importutils
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LI
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common import utils
 
 from neutron_lib.api.definitions import portbindings
@@ -142,8 +139,8 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             self.create_network_postcommit_vxlan(network_id, seg_id)
 
         LOG.info(
-            _LI("created network (postcommit): network_id=%(network_id)s "
-                "tenant_id=%(tenant_id)s"),
+            "created network (postcommit): network_id=%(network_id)s "
+            "tenant_id=%(tenant_id)s",
             {'network_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
@@ -162,8 +159,8 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             try:
                 self._vlan_driver.create_vlan(ip, vlanid)
             except Exception:
-                LOG.exception(_LE("Failed to create vlan(%(vid)s) on switch"
-                                  "(%(ip)s)."), {'vid': vlanid, 'ip': ip})
+                LOG.exception("Failed to create vlan(%(vid)s) on switch"
+                              "(%(ip)s).", {'vid': vlanid, 'ip': ip})
                 raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -173,7 +170,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             self._vxlan_driver.create_logical_switch(net_uuid, seg_id)
         except Exception:
             LOG.exception(
-                _LE("Failed to create vxlan(%(seg_id)s) on switch(%(ip)s)"),
+                "Failed to create vxlan(%(seg_id)s) on switch(%(ip)s)",
                 {'seg_id': seg_id, 'ip': self.ips})
             raise ml2_exc.MechanismDriverError(method=method)
 
@@ -206,8 +203,8 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         if network_type == 'vxlan' and seg_id:
             self.delete_network_postcommit_vxlan(net_id)
         LOG.info(
-            _LI("Deleted network (postcommit): network_id=%(net)s "
-                "tenant_id=%(tenant)s"), {'net': net_id, 'tenant': tenant_id})
+            "Deleted network (postcommit): network_id=%(net)s "
+            "tenant_id=%(tenant)s", {'net': net_id, 'tenant': tenant_id})
 
     @log_helpers.log_method_call
     def delete_network_postcommit_vlan(self, vlanid):
@@ -226,7 +223,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                 self._vlan_driver.delete_vlan(ip, vlanid)
             except Exception:
                 LOG.exception(
-                    _LE("Failed to validate on switch(%(ip)s)."), {'ip': ip})
+                    "Failed to validate on switch(%(ip)s).", {'ip': ip})
                 raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -236,7 +233,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             self._vxlan_driver.delete_logical_switch(net_uuid)
         except Exception:
             LOG.exception(
-                _LE("Failed to validate on switch(%(ip)s)."), {'ip': self.ips})
+                "Failed to validate on switch(%(ip)s).", {'ip': self.ips})
             raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -268,8 +265,8 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         if network_type == 'vxlan':
             self.clear_vxlan(mech_context)
         LOG.info(
-            _LI("Delete port (postcommit): port_id=%(port_id)s "
-                "network_id=%(net_id)s tenant_id=%(tenant_id)s"),
+            "Delete port (postcommit): port_id=%(port_id)s "
+            "network_id=%(net_id)s tenant_id=%(tenant_id)s",
             {'port_id': port_id, 'net_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
@@ -291,8 +288,8 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                     if network_type == 'vxlan':
                         self.clear_vxlan(context, use_original=True)
                 except Exception:
-                    LOG.exception(_LE("Failed to clear %(network_type)s"
-                                      "(%(seg_id)s)."),
+                    LOG.exception("Failed to clear %(network_type)s"
+                                  "(%(seg_id)s).",
                                   {'network_type': network_type,
                                    'seg_id': seg_id})
                     raise ml2_exc.MechanismDriverError(method=method)
@@ -306,7 +303,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                 self._vxlan_driver.update_physical_port(
                     seg_id, [], port, self.switches_mac_ip_pair)
             except Exception:
-                LOG.exception(_LE("Failed to setup VNI(%s)."), seg_id)
+                LOG.exception("Failed to setup VNI(%s).", seg_id)
                 raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -330,17 +327,15 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         target = 'setup_vlan_with_lag' if params['lag'] else 'setup_vlan'
         try:
             setup_method = getattr(self._vlan_driver, target)
-            LOG.info(
-                _LI("Call %(target)s.  params: %(params)s"),
-                {'target': target, 'params': params}
-            )
+            LOG.info("Call %(target)s.  params: %(params)s",
+                     {'target': target, 'params': params})
             setup_method(
                 params['vlanid'],
                 params['local_link_info'],
                 self.switches_mac_ip_pair,
             )
         except Exception:
-            LOG.exception(_LE("Failed to setup vlan(%s)"), params['vlanid'])
+            LOG.exception("Failed to setup vlan(%s)", params['vlanid'])
             raise ml2_exc.MechanismDriverError(method=target)
 
     @log_helpers.log_method_call
@@ -366,12 +361,11 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         try:
             call_target = target if params['lag'] else 'clear_vlan'
             clear_method = getattr(self._vlan_driver, call_target)
-            LOG.info(
-                _LI("call %(target)s. params: %(params)s"),
-                {'target': call_target, 'params': params})
+            LOG.info("call %(target)s. params: %(params)s",
+                     {'target': call_target, 'params': params})
             clear_method(params['local_link_info'], self.switches_mac_ip_pair)
         except Exception:
-            LOG.exception(_LE("Failed to clear vlan(%s)"), params['vlanid'])
+            LOG.exception("Failed to clear vlan(%s)", params['vlanid'])
             raise ml2_exc.MechanismDriverError(method=target)
 
     @log_helpers.log_method_call
@@ -395,7 +389,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                     lli, port, self.switches_mac_ip_pair)
         except Exception:
             seg_id = utils.get_segmentation_id(network)
-            LOG.exception(_LE("Failed to clear VNI(%s)."), seg_id)
+            LOG.exception("Failed to clear VNI(%s).", seg_id)
             raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -478,7 +472,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                 self._vxlan_driver.update_physical_port(
                     seg_id, lli, port, self.switches_mac_ip_pair, req_id)
         except Exception:
-            LOG.exception(_LE("Failed to setup VNI(%s)."), seg_id)
+            LOG.exception("Failed to setup VNI(%s).", seg_id)
             raise ml2_exc.MechanismDriverError(method='setup_vxlan')
 
 
@@ -495,8 +489,7 @@ def is_supported(network):
 
     net_type = utils.get_network_type(network)
     if net_type not in _SUPPORTED_NET_TYPES:
-        LOG.warning(_LW("Network type(%s) is not supported. Skip it."),
-                    net_type)
+        LOG.warning("Network type(%s) is not supported. Skip it.", net_type)
         return False
     return True if utils.get_segmentation_id(network) else False
 

@@ -21,8 +21,6 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common.ovsdb import base_connection
 from networking_fujitsu.ml2.common.ovsdb import constants as n_const
 
@@ -56,14 +54,14 @@ class OVSDBWriter(base_connection.BaseConnection):
                         return True
                 except Exception as ex:
                     with excutils.save_and_reraise_exception():
-                        LOG.exception(_LE("Exception while receiving the "
-                                          "response for the write request: "
-                                          "[%s]"), ex)
+                        LOG.exception("Exception while receiving the "
+                                      "response for the write request: "
+                                      "[%s]", ex)
 
             count += 1
         with excutils.save_and_reraise_exception():
-            LOG.exception(_LE("Could not obtain response from the OVSDB "
-                              "server for the request"))
+            LOG.exception("Could not obtain response from the OVSDB "
+                          "server for the request")
 
     def _recv_data(self):
         chunks = []
@@ -89,12 +87,12 @@ class OVSDBWriter(base_connection.BaseConnection):
                         prev_char = c
                     chunks.append(response)
                 else:
-                    LOG.warning(_LW("Did not receive any reply from the OVSDB "
-                                    "server"))
+                    LOG.warning("Did not receive any reply from the OVSDB "
+                                "server")
                     return
             except (socket.error, socket.timeout):
-                LOG.warning(_LW("Did not receive any reply from the OVSDB "
-                                "server"))
+                LOG.warning("Did not receive any reply from the OVSDB "
+                            "server")
                 return
 
     def _process_response(self, op_id):
@@ -144,9 +142,9 @@ class OVSDBWriter(base_connection.BaseConnection):
             return_data = result_rows[0] if result_rows else None
         except Exception as ex:
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("Exception while receiving the "
-                                  "response for the write request: "
-                                  "[%s]"), ex)
+                LOG.exception("Exception while receiving the "
+                              "response for the write request: "
+                              "[%s]", ex)
         endpoint_ip = return_data['tunnel_ips'] if return_data else ""
         endpoint_hostname = return_data['name'] if return_data else ""
         return (endpoint_ip, endpoint_hostname)
@@ -205,9 +203,9 @@ class OVSDBWriter(base_connection.BaseConnection):
             return_data = result_rows[0] if result_rows else None
         except Exception as ex:
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("Exception while receiving the "
-                                  "response for the write request: "
-                                  "[%s]"), ex)
+                LOG.exception("Exception while receiving the "
+                              "response for the write request: "
+                              "[%s]", ex)
         return return_data['_uuid'][1] if return_data else ""
 
     def delete_logical_switch(self, logical_switch_uuid, rcv_required=True):
@@ -267,9 +265,9 @@ class OVSDBWriter(base_connection.BaseConnection):
             binding_list = self.response["result"][0]["rows"]
         except Exception as ex:
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("Exception while receiving the "
-                                  "response for the write request: "
-                                  "[%s]"), ex)
+                LOG.exception("Exception while receiving the "
+                              "response for the write request: "
+                              "[%s]", ex)
 
         if binding_list:
             for b_c in range(len(binding_list)):
@@ -342,9 +340,9 @@ class OVSDBWriter(base_connection.BaseConnection):
             return_list = self.response['result'][0]['rows']
         except Exception as ex:
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("Exception while receiving the "
-                                  "response for the write request: "
-                                  "[%s]"), ex)
+                LOG.exception("Exception while receiving the "
+                              "response for the write request: "
+                              "[%s]", ex)
         return return_list if return_list else []
 
     def delete_ucast_macs_local(self, port_mac, rcv_required=True):
@@ -394,9 +392,9 @@ class OVSDBWriter(base_connection.BaseConnection):
             return_data = result_rows[0] if result_rows else None
         except Exception as ex:
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("Exception while receiving the "
-                                  "response for the write request: "
-                                  "[%s]"), ex)
+                LOG.exception("Exception while receiving the "
+                              "response for the write request: "
+                              "[%s]", ex)
         return return_data['_uuid'][1] if return_data else ""
 
     def insert_ucast_macs_local(self, logical_switch_uuid, locator_uuid,
@@ -489,9 +487,9 @@ class OVSDBWriter(base_connection.BaseConnection):
             return_list = self.response['result'][0]['rows']
         except Exception as ex:
             with excutils.save_and_reraise_exception():
-                LOG.exception(_LE("Exception while receiving the "
-                                  "response for the write request: "
-                                  "[%s]"), ex)
+                LOG.exception("Exception while receiving the "
+                              "response for the write request: "
+                              "[%s]", ex)
         return return_list if return_list else []
 
     def delete_ucast_macs_remote(self, port_mac, rcv_required=True):

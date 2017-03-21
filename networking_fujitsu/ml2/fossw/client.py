@@ -21,8 +21,6 @@ import time
 from oslo_log import log as logging
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LW
 
 LOG = logging.getLogger(__name__)
 
@@ -89,27 +87,27 @@ class FOSSWClient(object):
                 self.console.settimeout(READ_TIMEOUT)
                 return
             except IOError as e:
-                LOG.warning(_LW('Could not initialize SSH client. %s'), e)
+                LOG.warning('Could not initialize SSH client. %s', e)
             except (paramiko.ssh_exception.BadHostKeyException,
                     paramiko.ssh_exception.AuthenticationException,
                     paramiko.ssh_exception.SSHException) as e:
-                LOG.warning(_LW('Could not connect to FOS switch. An error'
-                                'occurred while connecting. %s'), e)
+                LOG.warning('Could not connect to FOS switch. An error'
+                            'occurred while connecting. %s', e)
             except socket.error as e:
                 e_no, e_str = e
-                LOG.warning(_LW('A socket error occurred while connecting.\n'
-                                '[Errno %(e_no)s] %(e_str)s'),
+                LOG.warning('A socket error occurred while connecting.\n'
+                            '[Errno %(e_no)s] %(e_str)s',
                             {'e_no': e_no, 'e_str': e_str})
             except Exception as e:
-                LOG.warning(_LW('Unexpected error occurred while connecting. '
-                                '%s'), e)
+                LOG.warning('Unexpected error occurred while connecting. '
+                            '%s', e)
             retry_count += 1
             self.disconnect()
-            LOG.warning(_LW('Connect attempt %s failed.'), retry_count)
+            LOG.warning('Connect attempt %s failed.', retry_count)
         if retry_count >= 5:
             self.disconnect()
-            LOG.exception(_LE('Max retries exceeded. Failed to connect to '
-                              'FOS switch.'))
+            LOG.exception('Max retries exceeded. Failed to connect to '
+                          'FOS switch.')
             raise FOSSWClientException(method)
 
     def disconnect(self):
@@ -139,18 +137,18 @@ class FOSSWClient(object):
                 elif raw_res:
                     break
                 i += 1
-            if (i == MAX_LOOP):
-                LOG.error(_LE("No reply from FOS switch."))
+            if i == MAX_LOOP:
+                LOG.error("No reply from FOS switch.")
                 raise socket.timeout
             index = raw_res.find(command)
             received = raw_res[(index + len(command) + 1):]
         except socket.timeout:
             self.disconnect()
-            LOG.exception(_LE('Socket timeout occured while executing '
-                              'commands to FOS Switch.'))
+            LOG.exception('Socket timeout occurred while executing '
+                          'commands to FOS Switch.')
             raise FOSSWClientException('_exec_command')
         else:
-            LOG.debug(_("FOSSW client received: %s"), received)
+            LOG.debug("FOSSW client received: %s", received)
             # NOTE(yushiro) Validate received message here
             return received.replace('\r\n', '\n')
 
@@ -208,7 +206,7 @@ class FOSSWClient(object):
         self.change_mode(MODE_VLAN)
         cmd = self._format_command("no vlan {vlanid}", vlanid=segmentation_id)
         if "Failed to delete" in self._exec_command(cmd):
-            LOG.warning(_LW("VLAN(%s) has already deleted."), segmentation_id)
+            LOG.warning("VLAN(%s) has already deleted.", segmentation_id)
 
     def set_vlan(self, segmentation_id, port_id):
         """Associate VLAN to specified physical port on FOS switch.
@@ -228,8 +226,8 @@ class FOSSWClient(object):
         cmd = self._format_command("switchport access vlan {vlanid}",
                                    vlanid=segmentation_id)
         if "VLAN ID not found." in self._exec_command(cmd):
-            LOG.exception(_LE("VLAN(%s) does not exist on FOS switch. "
-                              "Please check vlan setting."), segmentation_id)
+            LOG.exception("VLAN(%s) does not exist on FOS switch. "
+                          "Please check vlan setting.", segmentation_id)
             raise FOSSWClientException(method)
 
     def clear_vlan(self, port_id):
@@ -287,14 +285,13 @@ class FOSSWClient(object):
         if logicalport is "none":
             # NOTE(miyagishi_t): All vpc is already associated to any logical
             # port. Therefore, the FOS switch cannot to define a new vpc.
-            LOG.error(_LE("There is no free vpc. All vpc is already "
-                          "configured."))
+            LOG.error("There is no free vpc. All vpc is already configured.")
         else:
             # NOTE(miyagishi_t): There is no VPC id which is related to
-            # specified logicalport. It maybe the vpc already cleard or
-            # originaly not defined on the FOS switch.
-            LOG.warning(_LW("A vpc which related to logicalport(%s) on FOS "
-                            "switch not found."), logicalport)
+            # specified logicalport. It maybe the vpc already cleared or
+            # originally not defined on the FOS switch.
+            LOG.warning("A vpc which related to logicalport(%s) on FOS "
+                        "switch not found.", logicalport)
 
     def join_to_vpc(self, logicalport, vpcid):
         """Join a specified logical port to member of VPC.
@@ -381,8 +378,8 @@ class FOSSWClient(object):
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         self._exec_command("port-channel static")
         if "is not a member of port-channel" in res:
-            LOG.warning(_LW("Specified port(%(port)s) has already removed "
-                            "from logical port(%(log_po)s)"),
+            LOG.warning("Specified port(%(port)s) has already removed "
+                        "from logical port(%(log_po)s)",
                         {"port": port, "log_po": logicalport})
 
     def leave_from_vpc(self, logicalport, vpcid):
@@ -400,8 +397,8 @@ class FOSSWClient(object):
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         res = self._exec_command("no vpc {vpcid}".format(vpcid=vpcid))
         if "Failed to remove" in res:
-            LOG.warning(_LW("Specified logical port(%(log_po)s) has already "
-                            "removed from VPC(%(vpc)s)."),
+            LOG.warning("Specified logical port(%(log_po)s) has already "
+                        "removed from VPC(%(vpc)s).",
                         {"log_po": logicalport, "vpc": vpcid})
 
     def save_running_config(self):
