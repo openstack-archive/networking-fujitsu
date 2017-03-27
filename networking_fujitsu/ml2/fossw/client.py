@@ -256,9 +256,8 @@ class FOSSWClient(object):
             if switch_logicalport is logicalport:
                 return str(i)
         if logicalport is "none":
-            LOG.exception(_LE("There is no free vpc. All vpc is already "
-                              "configured."))
-            raise FOSSWClientException(method)
+            LOG.error(_LE("There is no free vpc. All vpc is already "
+                          "configured."))
         else:
             LOG.warning(_LW("A vpc which related to logicalport(%s) on FOS "
                             "switch not found."), logicalport)
