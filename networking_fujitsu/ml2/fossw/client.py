@@ -248,7 +248,6 @@ class FOSSWClient(object):
         * not specified: Get free VPC id.
         * specified    : Get VPC id which associate with specified logicalpot.
         """
-        method = "get_vpcid"
         for i in iter(range(64)):
             cmd = 'show vpc {vid} | include "Port channel"'.format(vid=str(i))
             tmp_text = self._exec_command(cmd)
@@ -256,9 +255,8 @@ class FOSSWClient(object):
             if switch_logicalport is logicalport:
                 return str(i)
         if logicalport is "none":
-            LOG.exception(_LE("There is no free vpc. All vpc is already "
-                              "configured."))
-            raise FOSSWClientException(method)
+            LOG.error(_LE("There is no free vpc. All vpc is already "
+                          "configured."))
         else:
             LOG.warning(_LW("A vpc which related to logicalport(%s) on FOS "
                             "switch not found."), logicalport)

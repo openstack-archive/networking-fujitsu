@@ -12,7 +12,7 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-# import mock
+import mock
 # import paramiko
 # import socket
 
@@ -40,7 +40,9 @@ class BaseTestFOSSWClient(base.BaseTestCase):
         cfg.CONF.set_override(
             'fossw_ips', DUMMY_FOSSW_IPS, 'fujitsu_fossw'
         )
-        self.client = client.FOSSWClient(cfg.CONF)
+        self.cli = client.FOSSWClient(cfg.CONF)
+        self.cli.ssh = mock.Mock()
+        self.cli.console = mock.Mock()
 
 
 class TestFOSSWClientConnect(BaseTestFOSSWClient):
@@ -136,3 +138,27 @@ class TestFOSSWClientIsExistVLAN(BaseTestFOSSWClient):
     """Test Fossw client for validate vlan is exist or not"""
     pass
     # TODO(t_miyagishi) Update unit test to through latest source code.
+
+
+class TestFOSSWClientTestGetFreeLogicalPort(BaseTestFOSSWClient):
+    """Test FOSSW Client for get free logical port"""
+    def setUp(self):
+        super(TestFOSSWClientTestGetFreeLogicalPort, self).setUp()
+        self.cli.change_mode = mock.Mock(return_value=None)
+        self.cli._exec_command = mock.Mock(return_value=None)
+
+    def test_get_free_logical_port(self):
+        ret = ("3/1       ch1              1   Down       Disabled Static"
+               "3/2       ch2              1   Down       Disabled Static"
+               "3/3       ch3              1   Down       Disabled Static"
+               "3/4       ch4              1   Down       Disabled Static"
+               "3/5       ch5              1   Down       Disabled Static"
+               "3/6       ch6              1   Down       Disabled Static"
+               "3/7       ch7              1   Down       Disabled Static"
+               "3/8       ch8              1   Down       Disabled Static"
+               "3/9       ch9              1   Down       Disabled Static"
+               "3/10      ch10             1   Down       Disabled Static"
+               ""
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual("3/1", self.cli.get_free_logical_port())
