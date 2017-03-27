@@ -170,13 +170,13 @@ class FOSSWVlanDriver(object):
             switch_mac_list.add(lli['switch_id'])
         unique_mac_list = set(switch_mac_list)
         if len(unique_mac_list) > 1:
-            if not self.is_valid_mlag(unique_mac_list, ip_mac_pairs):
+            mlag = self.is_valid_mlag(unique_mac_list, ip_mac_pairs)
+            if not mlag:
                 LOG.exception(
                     _LE("Specified switches cannot set mLAG pair. "
                         "Please confirm each switch's peerlink setting.")
                 )
-                raise self.client.FOSSWClientException(method)
-            mlag = True
+                raise client.FOSSWClientException(method)
 
         # setup vlan for each physical port
         for lli in llis:
@@ -196,12 +196,18 @@ class FOSSWVlanDriver(object):
 
             lag.update({mac: lag_ports})
             self.client.connect(target_ip)
-            lag_portname = self.client.get_free_logicalport()
+            lag_portname = self.client.get_free_logical_port()
             for port in lag[mac]:
                 self.client.join_to_lag(port, lag_portname)
             if mlag:
-                vpcid = self.client.get_free_vpcid()
-                self.client.join_to_vpc(target_ip, lag_portname, vpcid)
+                # Get free VPC id from fossw.
+                vpcid = self.client.get_vpcid()
+                if vpcid:
+                    self.client.join_to_vpc(target_ip, lag_portname, vpcid)
+                else:
+                    # All vpc is already used by other logical ports.
+                    self.client.disconnect()
+                    raise client.FOSSWClientException(method)
             self.client.disconnect()
 
     @utils.synchronized(_LOCK_NAME, external=True)
@@ -218,12 +224,21 @@ class FOSSWVlanDriver(object):
         :rtype: Boolean
 
         """
-        first_switch = ip_mac_pairs[macs[0]]
-        mlag_partner_ip = self.client.get_peerlink_pertner(first_switch)
-        if mlag_partner_ip == macs[1]:
-            return True
-        else:
-            return False
+        method = "is_valid_mlag"
+        try:
+            first_switch_ip = ip_mac_pairs[macs[0]]
+            self.client.connect(first_switch_ip)
+            mlag_partner_ip = self.client.get_peerlink_partner()
+            self.client.disconnect()
+            if mlag_partner_ip == macs[1]:
+                return True
+            else:
+                return False
+        except Exception as e:
+            self.client.disconnect()
+            LOG.exception(_LE("an error occurred while validating specified "
+                              "FOS switches are VPC pair. %s"), e)
+            raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME)
     def clear_vlan(self, vlan_id, lli, ip_mac_pairs):

@@ -12,7 +12,7 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-# import mock
+import mock
 # import paramiko
 # import socket
 
@@ -40,7 +40,9 @@ class BaseTestFOSSWClient(base.BaseTestCase):
         cfg.CONF.set_override(
             'fossw_ips', DUMMY_FOSSW_IPS, 'fujitsu_fossw'
         )
-        self.client = client.FOSSWClient(cfg.CONF)
+        self.cli = client.FOSSWClient(cfg.CONF)
+        self.cli.ssh = mock.Mock()
+        self.cli.console = mock.Mock()
 
 
 class TestFOSSWClientConnect(BaseTestFOSSWClient):
@@ -136,3 +138,111 @@ class TestFOSSWClientIsExistVLAN(BaseTestFOSSWClient):
     """Test Fossw client for validate vlan is exist or not"""
     pass
     # TODO(t_miyagishi) Update unit test to through latest source code.
+
+
+class TestFOSSWClientGetFreeLogicalPort(BaseTestFOSSWClient):
+    """Test FOSSW Client for get free logical port"""
+    def setUp(self):
+        super(TestFOSSWClientGetFreeLogicalPort, self).setUp()
+        self.cli._exec_command = mock.Mock(return_value=None)
+
+    def test_get_free_logical_port(self):
+        ret = ("3/1       ch1              1   Down       Disabled Static"
+               "3/2       ch2              1   Down       Disabled Static"
+               "3/3       ch3              1   Down       Disabled Static"
+               "3/4       ch4              1   Down       Disabled Static"
+               "3/5       ch5              1   Down       Disabled Static"
+               "3/6       ch6              1   Down       Disabled Static"
+               "3/7       ch7              1   Down       Disabled Static"
+               "3/8       ch8              1   Down       Disabled Static"
+               "3/9       ch9              1   Down       Disabled Static"
+               "3/10      ch10             1   Down       Disabled Static"
+               ""
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual("3/1", self.cli.get_free_logical_port())
+
+
+class TestFOSSWClientJoinToLag(BaseTestFOSSWClient):
+    """Test FOSSW Client for join to lag"""
+    def setUp(self):
+        super(TestFOSSWClientJoinToLag, self).setUp()
+        self.cli.change_mode = mock.Mock(return_value=None)
+        self.cli._exec_command = mock.Mock(return_value=None)
+
+    def test_join_to_lag(self):
+        ret = ["(ET-7648BRA-FOS) (Interface 3/1)#",
+               "(ET-7648BRA-FOS) (Interface 0/1)#"]
+        self.cli._exec_command.side_effect = ret
+        self.assertIsNone(self.cli.join_to_lag("0/1", "3/1"))
+
+
+class TestFOSSWClientGetVPCId(BaseTestFOSSWClient):
+    """TEst FOSSW Client for get vpc id"""
+    def setUp(self):
+        super(TestFOSSWClientGetVPCId, self).setUp()
+        self.cli._exec_command = mock.Mock()
+
+    def test_get_vpc_specified_id(self):
+        ret = [
+            "Port channel................................... none",
+            "Port channel................................... none",
+            "Port channel................................... none",
+            "Port channel................................... 3/1",
+            "Port channel................................... 3/2",
+            "Port channel................................... none"]
+        self.cli._exec_command.side_effect = ret
+        self.assertEqual("5", self.cli.get_vpcid(logicalport="3/2"))
+
+    def test_get_vpc_free_id(self):
+        ret = [
+            "Port channel................................... none",
+            "Port channel................................... none",
+            "Port channel................................... none"]
+        self.cli._exec_command.side_effect = ret
+        self.assertEqual("1", self.cli.get_vpcid())
+
+        ret[0] = "Port channel................................... 3/1"
+        self.cli._exec_command.side_effect = ret
+        self.assertEqual("2", self.cli.get_vpcid())
+
+    def test_get_vpc_id_no_free_vpc(self):
+        ret = []
+        for i in iter(range(1, 65)):
+            ret.append(
+                ("Port channel................................... "
+                 "3/{no}").format(no=i))
+        self.cli._exec_command.side_effect = ret
+        self.assertIsNone(self.cli.get_vpcid())
+
+    def test_get_vpc_specidied_id_not_found(self):
+        ret = "Port channel................................... none"
+        self.cli._exec_command.return_value = ret
+        self.assertIsNone(self.cli.get_vpcid("3/1"))
+
+
+class TestFOSSWClientJoinToVPC(BaseTestFOSSWClient):
+    """Test FOSSW Client for join to vpc"""
+    def setUp(self):
+        super(TestFOSSWClientJoinToVPC, self).setUp()
+        self.cli.change_mode = mock.Mock(return_value=None)
+        self.cli._exec_command = mock.Mock(return_value=None)
+
+    def test_join_to_lag(self):
+        ret = ["(ET-7648BRA-FOS) (Interface 3/1)#",
+               "(ET-7648BRA-FOS) (Interface 0/1)#"]
+        self.cli._exec_command.side_effect = ret
+        self.assertIsNone(self.cli.join_to_lag("0/1", "3/1"))
+
+
+class TestFOSSWClientGetPeerlinkPartner(BaseTestFOSSWClient):
+    """Test FOSSW Client for get peerlink partner ip"""
+    def setUp(self):
+        super(TestFOSSWClientGetPeerlinkPartner, self).setUp()
+        self.cli._exec_command = mock.Mock()
+
+    def test_get_peerlink_partner(self):
+        self.cli._exec_command.return_value = (
+            "Peer IP address................................ 192.168.1.1")
+        self.assertEqual("192.168.1.1", self.cli.get_peerlink_partner())
+
