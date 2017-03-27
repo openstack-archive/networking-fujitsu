@@ -126,6 +126,72 @@ class TestFOSSWVlanDriverSetupVlan(BaseTestFOSSWVlanDriver):
         )
 
 
+class TestFOSSWVlanDriverSetupVlanWithLag(BaseTestFOSSWVlanDriver):
+    """Test FujitsuFOSSW vlan driver for setup vlan with lag"""
+    def setUp(self):
+        super(TestFOSSWVlanDriverSetupVlanWithLag, self).setUp()
+        self.driver.is_valid_mlag = mock.Mock(return_value=None)
+        self.driver.setup_vlan = mock.Mock(return_value=None)
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.client.setup_vlan = mock.Mock(return_value=None)
+        self.driver.client.get_free_logical_port = mock.Mock()
+        self.driver.client.join_to_lag = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
+
+    def test_setup_vlan_with_lag(self):
+        llis = LLI['lag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.client.get_free_logical_port.return_value = "3/1"
+        self.assertIsNone(self.driver.setup_vlan_with_lag(vlan_id,
+                                                          llis,
+                                                          ip_mac_pairs))
+        self.driver.is_valid_mlag.assert_not_called()
+
+    def test_setup_vlan_with_mlag(self):
+        llis = LLI['mlag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.is_valid_mlag.return_value = True
+        self.driver.client.get_free_logical_port.return_value = "3/1"
+        self.driver.client.get_vpcid = mock.Mock(return_value=1)
+        self.driver.client.join_to_vpc = mock.Mock(return_value=None)
+        self.assertIsNone(self.driver.setup_vlan_with_lag(vlan_id,
+                                                          llis,
+                                                          ip_mac_pairs))
+        self.driver.is_valid_mlag.assert_called_once()
+        self.assertEqual(2, self.driver.client.join_to_vpc.call_count)
+
+    def test_setup_vlan_with_mlag_not_valid_pair(self):
+        llis = LLI['mlag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.is_valid_mlag.return_value = False
+        self.assertRaises(client.FOSSWClientException,
+                          self.driver.setup_vlan_with_lag,
+                          vlan_id,
+                          llis,
+                          ip_mac_pairs)
+        self.driver.client.setup_vlan.assert_not_called()
+
+    def test_setup_vlan_with_mlag_vpcid_already_used(self):
+        llis = LLI['mlag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.is_valid_mlag.return_value = True
+        self.driver.client.get_vpcid = mock.Mock(return_value=None)
+        self.assertRaises(client.FOSSWClientException,
+                          self.driver.setup_vlan_with_lag,
+                          vlan_id,
+                          llis,
+                          ip_mac_pairs)
+        self.driver.client.disconnect.assert_called_once()
+
+
 class TestFOSSWVlanDriverClearVlan(BaseTestFOSSWVlanDriver):
     """Test Fujitsu FOSSW vlan driver for clear vlan"""
     def setUp(self):
@@ -158,3 +224,69 @@ class TestFOSSWVlanDriverClearVlan(BaseTestFOSSWVlanDriver):
             LLI['single'],
             ip_mac_pairs
         )
+
+
+class TestFOSSWVlanDriverClearVlanWithLAG(BaseTestFOSSWVlanDriver):
+    """Test Fujitsu FOSSW vlan driver for clear vlan with LAG"""
+    def setUp(self):
+        super(TestFOSSWVlanDriverClearVlanWithLAG, self).setUp()
+        self.driver.is_valid_mlag = mock.Mock(return_value=None)
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.clear_vlan = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
+        self.driver.client.get_lagname = mock.Mock()
+        self.driver.client.get_vpcid = mock.Mock()
+        self.driver.client.leave_from_lag = mock.Mock(return_value=None)
+        self.driver.client.leave_from_vpc = mock.Mock(return_value=None)
+
+    def test_clear_vlan_with_lag(self):
+        llis = LLI['lag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.client.get_lagname.return_value = "3/1"
+        self.assertIsNone(self.driver.clear_vlan_with_lag(vlan_id,
+                                                          llis,
+                                                          ip_mac_pairs))
+        self.driver.is_valid_mlag.assert_not_called()
+        self.driver.client.get_vpcid.assert_not_called()
+
+    def test_clear_vlan_with_mlag(self):
+        llis = LLI['mlag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.is_valid_mlag.return_value = True
+        self.driver.client.get_lagname.return_value = "3/1"
+        self.driver.client.get_vpcid.return_value = "1"
+        self.assertIsNone(self.driver.clear_vlan_with_lag(vlan_id,
+                                                          llis,
+                                                          ip_mac_pairs))
+        self.driver.is_valid_mlag.assert_called_once()
+        self.driver.client.leave_from_vpc.assert_called_with("3/1", "1")
+        self.assertEqual(2, self.driver.client.leave_from_vpc.call_count)
+
+    def test_clear_vlan_mlag_not_defined(self):
+        llis = LLI['mlag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.is_valid_mlag.return_value = False
+        self.assertRaises(client.FOSSWClientException,
+                          self.driver.clear_vlan_with_lag,
+                          vlan_id,
+                          llis,
+                          ip_mac_pairs)
+
+    def test_clear_vlan_with_mlag_not_valid_pair(self):
+        llis = LLI['mlag']
+        vlan_id = 2
+        ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
+                        "00:00:4c:ee:e5:40": "192.168.1.2"}
+        self.driver.is_valid_mlag.return_value = True
+        self.driver.client.get_lagname.return_value = "3/1"
+        self.driver.client.get_vpcid.return_value = None
+        self.assertIsNone(self.driver.clear_vlan_with_lag(vlan_id,
+                                                          llis,
+                                                          ip_mac_pairs))
+        self.assertEqual(2, self.driver.client.disconnect.call_count)
