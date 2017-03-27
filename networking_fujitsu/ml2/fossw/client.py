@@ -236,7 +236,7 @@ class FOSSWClient(object):
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         self._exec_command("no port-channel static")
 
-        self.chenge_mode(MODE_INTERFACE, ifname=port)
+        self.change_mode(MODE_INTERFACE, ifname=port)
         self._exec_command("addport {lo_port}".format(lo_port=logicalport))
 
     def get_vpcid(self, logicalport="none"):
@@ -248,17 +248,15 @@ class FOSSWClient(object):
         * not specified: Get free VPC id.
         * specified    : Get VPC id which associate with specified logicalpot.
         """
-        method = "get_vpcid"
-        for i in iter(range(64)):
+        for i in iter(range(1, 64)):
             cmd = 'show vpc {vid} | include "Port channel"'.format(vid=str(i))
             tmp_text = self._exec_command(cmd)
-            switch_logicalport = tmp_text[tmp_text.find('. '):]
-            if switch_logicalport is logicalport:
+            switch_logicalport = tmp_text[tmp_text.find('. ') + 2:]
+            if switch_logicalport == logicalport:
                 return str(i)
         if logicalport is "none":
-            LOG.exception(_LE("There is no free vpc. All vpc is already "
-                              "configured."))
-            raise FOSSWClientException(method)
+            LOG.error(_LE("There is no free vpc. All vpc is already "
+                          "configured."))
         else:
             LOG.warning(_LW("A vpc which related to logicalport(%s) on FOS "
                             "switch not found."), logicalport)
@@ -287,7 +285,7 @@ class FOSSWClient(object):
         """
         ret = self._exec_command('show vpc peer-keepalive | include "Peer '
                                  'IP address"')
-        return ret[ret.find('. '):]
+        return ret[ret.find('. ') + 2:]
 
     def get_lag_port(self, portname):
         """Get logicalport from FOS switch.
@@ -305,7 +303,7 @@ class FOSSWClient(object):
         for key in key_charactors:
             res = self._exec_command(show_pc + '"' + portname + key + '"')
             if portname in res:
-                lag_port = res[res.lfind():]
+                lag_port = res[:res.find(" ")]
                 return lag_port
 
     def get_switch_mac(self):
@@ -317,6 +315,49 @@ class FOSSWClient(object):
         """
         return self._exec_command(
             'show hardware eeprom | include "Base MAC Address"')
+
+    def leave_from_lag(self, port, logicalport):
+        """Leave a specified port from LAG configuration.
+
+        :param port: the number of physical port on FOS switch
+        :type port: string
+        :param logicalport: the number of logical port on FOS switch
+        :type logicalport: string
+
+        :returns: None
+        :rtype: None
+
+        """
+        self.change_mode(MODE_INTERFACE, ifname=port)
+        res = self._exec_command(
+            "deleteport {lo_port}".format(lo_port=logicalport))
+
+        self.change_mode(MODE_INTERFACE, ifname=logicalport)
+        self._exec_command("port-channel static")
+
+        if "is not a member of port-channel" in res:
+            LOG.warning(_LW("specified port(%(port)s) has already removed "
+                            "from logical port(%(log_po)s)"),
+                        {"port": port, "log_po": logicalport})
+
+    def leave_from_vpc(self, logicalport, vpcid):
+        """Leave a specified logical port from member of VPC.
+
+        :param logicalport: the number of logical port on FOS switch
+        :type logicalport: string
+        :param vpcid: id of VPC
+        :type vpcid: string
+
+        :returns: None
+        :rtype: None
+
+        """
+        self.change_mode(MODE_INTERFACE, ifname=logicalport)
+        res = self._exec_command("no vpc {vpcid}".format(vpcid=vpcid))
+        if "Failed to remove" in res:
+            LOG.warning(_LW("specified logical port(%(log_po)s) has already "
+                            "removed from VPC(%(vpc)s)."),
+                        {"log_po": logicalport, "vpc": vpcid})
 
     def change_mode(self, mode, ifname=None):
         """Change CLI mode of FOS switch.
