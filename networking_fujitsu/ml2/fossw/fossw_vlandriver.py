@@ -107,7 +107,7 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
-            LOG.exception(_LE("an error occurred while deleting vlan from "
+            LOG.exception(_LE("An error occurred while deleting vlan from "
                               "FOS switch. %s"), e)
             raise client.FOSSWClientException(method)
 
@@ -130,6 +130,9 @@ class FOSSWVlanDriver(object):
         method = "setup_vlan"
         try:
             target_ip = ip_mac_pairs[lli[0]['switch_id']]
+            self.client.connect(target_ip)
+            self.client.set_vlan(vlan_id, lli[0]['port_id'])
+            self.client.disconnect()
         except KeyError as e:
             LOG.exception(_LE("Valid IP and MAC pair is: %s"), ip_mac_pairs)
             LOG.exception(
@@ -140,12 +143,10 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
         except Exception as e:
             LOG.exception(
-                _LE("fossw driver caught unexpected error. %s"), e
+                _LE("An error occurred while setup vlan for physical port on "
+                    "FOS switch. %s"), e
             )
             raise client.FOSSWClientException(method)
-        self.client.connect(target_ip)
-        self.client.set_vlan(vlan_id, lli[0]['port_id'])
-        self.client.disconnect()
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def setup_vlan_with_lag(self, vlan_id, llis, ip_mac_pairs):
