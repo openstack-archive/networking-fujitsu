@@ -379,3 +379,13 @@ class TestFOSSWClientLeaveFromVPC(BaseTestFOSSWClient):
         self.cli._exec_command.side_effect = ret
         self.assertIsNone(self.cli.leave_from_vpc("3/1", "1"))
         self.assertIsNone(self.cli.leave_from_vpc("3/1", "2"))
+
+
+class TestFOSSWClientSaveRunningConfig(BaseTestFOSSWClient):
+    """Test FOSSW client for save running config."""
+    def setUp(self):
+        super(TestFOSSWClientSaveRunningConfig, self).setUp()
+        self.cli._exec_command = mock.Mock(return_value="(ET-7648BRA-FOS) #")
+
+    def test_save_running_config(self):
+        self.assertIsNone(self.cli.save_running_config())

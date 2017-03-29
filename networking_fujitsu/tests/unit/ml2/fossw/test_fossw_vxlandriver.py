@@ -77,6 +77,16 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               return_value=None):
             self.driver = fossw_vxlandriver.FOSSWVxlanDriver()
 
+    def test__save_all_fossw(self):
+        """Test case to test _save_all_fossw."""
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.client.save_running_config = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
+
+        self.assertIsNone(self.driver._save_all_fossw())
+        self.assertEqual(len(FOSSW_IPS),
+                         self.driver.client.save_running_config.call_count)
+
     def test_update_neutron_db_insert(self):
         """Test case to test _update_neutron_db.
 
