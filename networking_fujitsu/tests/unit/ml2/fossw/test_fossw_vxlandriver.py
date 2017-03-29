@@ -65,23 +65,15 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                       'udp_port': 4789,
                                       'host': 'fake_host_name2'}]
 
-        # def test_initialize(self):
-        # """Test case to test initialize."""
-        # with mock.patch.object(cfg.CONF,
-        #                       'ml2.tenant_network_types',
-        #                       return_value=['vxlan']), \
-        #    mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
-        #                      '_update_physical_locator_host'
-        #                      ) as up_pl_host, \
-        #    mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
-        #                      '_update_physical_locator_switch'
-        #                      ) as up_pl_switch, \
-        #    mock.patch.object(type_vxlan.TypeVxlan,
-        #                      'get_endpoints',
-        #                      return_value=self.type_vxlan_endpoints):
-        #        self.driver.initialize()
-        #        self.assertEqual(up_pl_host.call_count, 1)
-        #        self.assertEqual(up_pl_switch.call_count, 1)
+    def test__save_all_fossw(self):
+        """Test case to test _save_all_fossw."""
+        self.driver.client.connect = mock.Mock(return_value=None)
+        self.driver.client.save_running_config = mock.Mock(return_value=None)
+        self.driver.client.disconnect = mock.Mock(return_value=None)
+
+        self.assertIsNone(self.driver._save_all_fossw())
+        self.assertEqual(len(FOSSW_IPS),
+                         self.driver.client.save_running_config.call_count)
 
     def test_update_neutron_db_insert(self):
         """Test case to test _update_neutron_db.

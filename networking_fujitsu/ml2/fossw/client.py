@@ -320,6 +320,15 @@ class FOSSWClient(object):
         return self._exec_command(
             'show hardware eeprom | include "Base MAC Address"')
 
+    def save_running_config(self):
+        """Save running config of FOS switch.
+
+        :returns: None
+        :rtypes: None
+
+        """
+        self._exec_command("copy system:running-config nvram:startup-config")
+
     def change_mode(self, mode, ifname=None):
         """Change CLI mode of FOS switch.
 
