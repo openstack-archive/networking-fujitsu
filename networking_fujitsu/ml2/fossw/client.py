@@ -371,6 +371,15 @@ class FOSSWClient(object):
                             "removed from VPC(%(vpc)s)."),
                         {"log_po": logicalport, "vpc": vpcid})
 
+    def save_running_config(self):
+        """Save running config of FOS switch.
+
+        :returns: None
+        :rtypes: None
+
+        """
+        self._exec_command("copy system:running-config nvram:startup-config")
+
     def change_mode(self, mode, ifname=None):
         """Change CLI mode of FOS switch.
 
