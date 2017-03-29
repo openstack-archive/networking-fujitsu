@@ -114,9 +114,9 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
     def create_network_postcommit(self, mech_context):
         """Calls setup process for FOS switch.
 
-        Case1: Baremetal deploy with VLAN network
+        Case1: Create VLAN network
                    Create VLAN with specified VLAN ID.
-        Case2: Baremetal deploy with VXLAN network
+        Case2: Create VXLAN network
                    Create DCVPN with specified VNI.
         Case3: Otherwise
                    Do nothing.
@@ -135,8 +135,7 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
         provider_type = network['provider:network_type']
         segmentation_id = network['provider:segmentation_id']
 
-        if (provider_type == 'vlan' and segmentation_id and
-           not fj_util.is_baremetal(mech_context.current)):
+        if provider_type == 'vlan' and segmentation_id:
             self.create_network_postcommit_vlan(segmentation_id)
         elif provider_type == 'vxlan' and segmentation_id:
             self.create_network_postcommit_vxlan(network_id, segmentation_id)
