@@ -22,22 +22,22 @@ from networking_fujitsu.ml2.fossw import fossw_vxlandriver
 from networking_fujitsu.tests.unit.ml2.common.ovsdb import (
     test_base_connection as base_test)
 
-from neutron.plugins.ml2 import config
 from neutron.tests import base
+from oslo_config import cfg
 
 
 FOSSW_IPS = ["fake_switch_ip1", "fake_switch_ip2"]
+FAKE_SOCKET = base_test.SocketClass(None, None, None, '{"f_key":"f_value"}')
 
 
 class TestFOSSWVxlanDriver(base.BaseTestCase):
     def setUp(self):
         super(TestFOSSWVxlanDriver, self).setUp()
-        config.cfg.CONF.set_override('ovsdb_vlanid_range_min', 2,
-                                     group='fujitsu_fossw')
-        config.cfg.CONF.set_override('fossw_ips', FOSSW_IPS,
-                                     group='fujitsu_fossw')
+        cfg.CONF.set_override('ovsdb_vlanid_range_min', 2,
+                              group='fujitsu_fossw')
+        cfg.CONF.set_override('fossw_ips', FOSSW_IPS,
+                              group='fujitsu_fossw')
 
-        self.driver = fossw_vxlandriver.FOSSWVxlanDriver()
         self.fake_ovsdb_port = 6640
         self.fake_udp_dest_port = 4789
         self.fake_ip_mac_pairs = {'fake_switch_mac1': 'fake_switch_ip1',
@@ -65,23 +65,17 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                       'udp_port': 4789,
                                       'host': 'fake_host_name2'}]
 
-        # def test_initialize(self):
-        # """Test case to test initialize."""
-        # with mock.patch.object(cfg.CONF,
-        #                       'ml2.tenant_network_types',
-        #                       return_value=['vxlan']), \
-        #    mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
-        #                      '_update_physical_locator_host'
-        #                      ) as up_pl_host, \
-        #    mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
-        #                      '_update_physical_locator_switch'
-        #                      ) as up_pl_switch, \
-        #    mock.patch.object(type_vxlan.TypeVxlan,
-        #                      'get_endpoints',
-        #                      return_value=self.type_vxlan_endpoints):
-        #        self.driver.initialize()
-        #        self.assertEqual(up_pl_host.call_count, 1)
-        #        self.assertEqual(up_pl_switch.call_count, 1)
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'get_sw_ep_info',
+                              return_value=('fake_endpoint_ip',
+                                            'fake_endpoint_hostname')), \
+            mock.patch.object(type_vxlan.TypeVxlan, 'get_endpoints',
+                              return_value=self.type_vxlan_endpoints), \
+            mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
+                              '_update_neutron_db',
+                              return_value=None):
+            self.driver = fossw_vxlandriver.FOSSWVxlanDriver()
 
     def test_update_neutron_db_insert(self):
         """Test case to test _update_neutron_db.
@@ -89,12 +83,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
         In the case that FOS switch endpoint has not been inserted.
         """
 
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'get_sw_ep_info',
                               return_value=('fake_endpoint_ip',
@@ -115,12 +104,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
         In the case that FOS switch endpoint hostname has been changed.
         """
 
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'get_sw_ep_info',
                               return_value=('fake_endpoint_ip',
@@ -147,12 +131,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
         In the case that FOS switch endpoint has not been inserted.
         """
 
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'get_sw_ep_info',
                               return_value=('fake_endpoint_ip',
@@ -168,12 +147,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
 
     def test_create_logical_switch(self):
         """Test case to test create_logical_switch."""
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'insert_logical_switch') as ins_ls, \
             mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
@@ -184,12 +158,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
 
     def test_delete_logical_switch(self):
         """Test case to test delete_logical_switch."""
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'get_logical_switch_uuid',
                               return_value="fake_uuid") as get_lsuuid, \
@@ -204,12 +173,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
 
     def test_update_physical_port(self):
         """Test case to test update_physical_port."""
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(type_vxlan.TypeVxlan,
                               'db_get_endpoint_ip_by_host',
                               return_value='fake_target_tunnel_ip'
@@ -270,12 +234,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
 
     def test_update_ucast_macs_remote(self):
         """Test case to test _update_ucast_macs_remote."""
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'get_logical_switch_uuid',
                               return_value='fake_ls_uuid') as get_lsuuid, \
@@ -311,12 +270,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
         With related locator need to get insert, too.
         """
 
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'get_logical_switch_uuid',
                               return_value='fake_ls_uuid') as get_lsuuid, \
@@ -349,12 +303,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
 
     def test_reset_physical_port(self):
         """Test case to test reset_physical_port."""
-        fake_data_raw = '{"fake_key": "fake_value"}'
-        fake_socket = base_test.SocketClass(None,
-                                            None,
-                                            None,
-                                            fake_data_raw)
-        with mock.patch.object(socket, 'socket', return_value=fake_socket), \
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
                               'reset_physical_port') as res_pp, \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
