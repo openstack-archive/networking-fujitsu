@@ -108,7 +108,7 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
-            LOG.exception(_LE("an error occurred while deleting vlan from "
+            LOG.exception(_LE("An error occurred while deleting vlan from "
                               "FOS switch. %s"), e)
             raise client.FOSSWClientException(method)
 
@@ -129,24 +129,23 @@ class FOSSWVlanDriver(object):
 
         """
         method = "setup_vlan"
+        sw_mac = lli[0]['switch_id']
+        port_id = lli[0]['port_id']
+
         try:
-            target_ip = ip_mac_pairs[lli[0]['switch_id']]
+            target_ip = ip_mac_pairs[sw_mac]
         except KeyError as e:
-            LOG.exception(_LE("Valid IP and MAC pair is: %s"), ip_mac_pairs)
-            LOG.exception(
-                _LE("Target FOS Switch which have MAC address(%(mac)s) "
-                    "not found. %(err)s"),
-                {'mac': lli[0]['switch_id'], 'err': e}
-            )
+            LOG.exception(_LE("FOS switch with MAC(%s) not found."), sw_mac)
             raise client.FOSSWClientException(method)
+        try:
+            self.client.connect(target_ip)
+            self.client.set_vlan(vlan_id, port_id)
+            self.client.disconnect()
         except Exception as e:
-            LOG.exception(
-                _LE("fossw driver caught unexpected error. %s"), e
-            )
+            self.client.disconnect()
+            LOG.exception(_LE("An error occurred while setup vlan for "
+                              "physical port on FOS switch. %s"), e)
             raise client.FOSSWClientException(method)
-        self.client.connect(target_ip)
-        self.client.set_vlan(vlan_id, lli[0]['port_id'])
-        self.client.disconnect()
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def setup_vlan_with_lag(self, vlan_id, llis, ip_mac_pairs):
@@ -254,17 +253,17 @@ class FOSSWVlanDriver(object):
         :type ip_mac_pairs: dictionary
         """
         method = "clear_vlan"
+        sw_mac = lli[0]['switch_id']
+        port_id = lli[0]['port_id']
+
         try:
-            target_ip = ip_mac_pairs[lli[0]['switch_id']]
+            target_ip = ip_mac_pairs[sw_mac]
         except KeyError as e:
-            LOG.exception(_LE("Valid IP and MAC pair is: %s"), ip_mac_pairs)
-            LOG.error(_LE("Target FOS Switch whitch have MAC address(%(mac)s "
-                          "not found. %(err)s"),
-                      {'mac': lli[0]['switch_id'], 'err': e})
+            LOG.exception(_LE("FOS switch with MAC(%s) not found."), sw_mac)
             raise client.FOSSWClientException(method)
         try:
             self.client.connect(target_ip)
-            self.client.clear_vlan(vlan_id, lli[0]['port_id'])
+            self.client.clear_vlan(vlan_id, port_id)
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
