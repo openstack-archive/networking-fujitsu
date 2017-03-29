@@ -105,7 +105,7 @@ class TestFOSSWVlanDriverSetupVlan(BaseTestFOSSWVlanDriver):
         self.driver.setup_vlan(2, LLI['single'], ip_mac_pairs)
         self.assertIsNone(self.driver.client.ssh)
 
-    def test_setup_vlan_fail(self):
+    def test_setup_vlan_fail_with_keyerror(self):
         ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
         self.assertRaises(
             client.FOSSWClientException,
@@ -114,7 +114,10 @@ class TestFOSSWVlanDriverSetupVlan(BaseTestFOSSWVlanDriver):
             LLI['single'],
             ip_mac_pairs
         )
-        ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
+        self.driver.client.disconnect.assert_not_called()
+
+    def test_setup_vlan_fail_with_connect_fail(self):
+        ip_mac_pairs = {'00:00:4c:ee:e5:39': '192.168.1.1'}
         error = client.FOSSWClientException('set_vlan')
         self.driver.client.connect.side_effect = error
         self.assertRaises(
@@ -124,6 +127,8 @@ class TestFOSSWVlanDriverSetupVlan(BaseTestFOSSWVlanDriver):
             LLI['single'],
             ip_mac_pairs
         )
+        self.driver.client.set_vlan.assert_not_called()
+        self.driver.client.disconnect.assert_called_once()
 
 
 class TestFOSSWVlanDriverSetupVlanWithLag(BaseTestFOSSWVlanDriver):
@@ -205,7 +210,7 @@ class TestFOSSWVlanDriverClearVlan(BaseTestFOSSWVlanDriver):
         self.driver.clear_vlan(2, LLI['single'], ip_mac_pairs)
         self.assertIsNone(self.driver.client.ssh)
 
-    def test_clear_vlan_fail(self):
+    def test_clear_vlan_fail_with_keyerror(self):
         ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
         self.assertRaises(
             client.FOSSWClientException,
@@ -214,8 +219,11 @@ class TestFOSSWVlanDriverClearVlan(BaseTestFOSSWVlanDriver):
             LLI['single'],
             ip_mac_pairs
         )
-        ip_mac_pairs = {'00:00:4c:ee:e5:40': '192.168.1.1'}
-        error = client.FOSSWClientException('set_vlan')
+        self.driver.client.disconnect.assert_not_called()
+
+    def test_clear_vlan_fail_with_connect_fail(self):
+        ip_mac_pairs = {'00:00:4c:ee:e5:39': '192.168.1.1'}
+        error = client.FOSSWClientException('clear_vlan')
         self.driver.client.connect.side_effect = error
         self.assertRaises(
             client.FOSSWClientException,
@@ -224,6 +232,8 @@ class TestFOSSWVlanDriverClearVlan(BaseTestFOSSWVlanDriver):
             LLI['single'],
             ip_mac_pairs
         )
+        self.driver.client.clear_vlan.assert_not_called()
+        self.driver.client.disconnect.assert_called_once()
 
 
 class TestFOSSWVlanDriverClearVlanWithLAG(BaseTestFOSSWVlanDriver):
