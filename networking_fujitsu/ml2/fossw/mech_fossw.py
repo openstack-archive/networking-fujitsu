@@ -169,7 +169,7 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
             except Exception as e:
                 LOG.exception(_LE("Fujitsu Mechanism: failed to create vlan "
                                   "switch(%(ip)s. %(err)s"),
-                              ip=ip, err=e)
+                              {'ip': ip, 'err': e})
                 raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -178,9 +178,9 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
         try:
             self._vxlan_driver.create_logical_switch(net_uuid, vnid)
         except Exception as e:
-            LOG.exception(_LE("Fujitsu Mechanism: failed to create vlxan "
+            LOG.exception(_LE("Fujitsu Mechanism: failed to create vxlan "
                               "switch(%(ip)). %(err)s"),
-                          ip=self.ips, err=e)
+                          {'ip': self.ips, 'err': e})
             raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -242,7 +242,7 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
                 LOG.exception(
                     _LE("Fujitsu Mechanism: failed to validate "
                         "on switch(%(ip)s). %(err)"),
-                    ip=ip, err=e
+                    {'ip': ip, 'err': e}
                 )
                 raise ml2_exc.MechanismDriverError(method=method)
 
@@ -255,7 +255,7 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
             LOG.exception(
                 _LE("Fujitsu Mechanism: failed to validate "
                     "on switch(%(ip)). %(err)"),
-                ip=self.ips, err=e
+                {'ip': self.ips, 'err': e}
             )
             raise ml2_exc.MechanismDriverError(method=method)
 
