@@ -221,7 +221,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                  'id': self.op_id}
         return_value_raw = '{"id":1,"result":[{"rows":[{"name":' \
                            '"fake_host_name","tunnel_ips":' \
-                           '"\'fake_endpoint_ip\'"}]}],"error":null}'
+                           '"fake_endpoint_ip"}]}],"error":null}'
         return_value = return_value_raw.replace(':null', ':None')
         return_value_dict = ast.literal_eval(return_value)
         self.fake_ovsdb.responses = [return_value_dict]
