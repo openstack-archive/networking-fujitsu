@@ -93,8 +93,8 @@ class BaseConnection(object):
     def _response(self, operation_id):
         x_copy = None
         for x in self.responses:
-            if x['id'] == operation_id:
-                x_copy = copy.deepcopy(x)
+            if x['id'] != operation_id:
                 self.responses.remove(x)
-                break
+            else:
+                x_copy = copy.deepcopy(x)
         return x_copy
