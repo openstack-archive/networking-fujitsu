@@ -192,7 +192,7 @@ class FOSSWVlanDriver(object):
 
             lag_ports = []
             for lli in llis:
-                if lli['switch_id'] is mac:
+                if lli['switch_id'] == mac:
                     lag_ports.append(lli['port_id'])
 
             lag.update({mac: lag_ports})
@@ -306,7 +306,7 @@ class FOSSWVlanDriver(object):
             target_ip = ip_mac_pairs[mac]
             ports = []
             for lli in llis:
-                if mac is lli['switch_id']:
+                if lli['switch_id'] == mac:
                     ports.append(lli['port_id'])
             self.client.connect(target_ip)
             lag_portname = self.client.get_lagname(ports[0])
