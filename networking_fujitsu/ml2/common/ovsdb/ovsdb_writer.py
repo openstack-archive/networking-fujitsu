@@ -13,6 +13,7 @@
 #   under the License.
 
 import ast
+import copy
 import random
 import socket
 
@@ -48,11 +49,9 @@ class OVSDBWriter(base_connection.BaseConnection):
             LOG.debug(_("Response from OVSDB server = %s"), str(response))
             if response:
                 try:
-                    response = response.replace(':null', ':None')
-                    response_dict = ast.literal_eval(response)
-                    self.responses.append(response_dict)
-                    method_type = response_dict.get('method', None)
-                    if (method_type != "echo" and
+                    self.response = ast.literal_eval(
+                        response.replace(':null', ':None'))
+                    if (self.response.get('method', None) != "echo" and
                             self._process_response(operation_id)):
                         return True
                 except Exception as ex:
@@ -100,6 +99,9 @@ class OVSDBWriter(base_connection.BaseConnection):
 
     def _process_response(self, op_id):
         result = self._response(op_id)
+        if not result:
+            raise base_connection.OVSDBError(
+                message="No operation_id(%s) matched to response." % op_id)
         error = result.get("error", None)
         if error:
             raise base_connection.OVSDBError(
@@ -113,6 +115,10 @@ class OVSDBWriter(base_connection.BaseConnection):
                     raise base_connection.OVSDBError(
                         message="Error from the OVSDB server: %s" % error)
         return result
+
+    def _response(self, op_id):
+        if self.response['id'] == op_id:
+            return copy.deepcopy(self.response)
 
     def get_sw_ep_info(self, rcv_required=True):
         """Get switch endpoint information.
@@ -134,7 +140,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_sw_ep_info: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_data = self.responses[0]['result'][0]['rows'][0]
+            return_data = self.response['result'][0]['rows'][0]
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
@@ -194,7 +200,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_logical_switch_uuid: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_data = self.responses[0]['result'][0]['rows'][0]
+            return_data = self.response['result'][0]['rows'][0]
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
@@ -256,7 +262,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         self._send_and_receive(query, op_id, rcv_required)
         binding_list = []
         try:
-            binding_list = self.responses[0]["result"][0]["rows"]
+            binding_list = self.response["result"][0]["rows"]
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
@@ -331,7 +337,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_ucast_macs_local: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_list = self.responses[0]['result'][0]['rows']
+            return_list = self.response['result'][0]['rows']
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
@@ -382,7 +388,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_physical_locator_uuid: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_data = self.responses[0]['result'][0]['rows'][0]
+            return_data = self.response['result'][0]['rows'][0]
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
@@ -477,7 +483,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_ucast_macs_remote: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_list = self.responses[0]['result'][0]['rows']
+            return_list = self.response['result'][0]['rows']
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
