@@ -379,6 +379,8 @@ class FOSSWClient(object):
 
         """
         self._exec_command("copy system:running-config nvram:startup-config")
+        self._exec_command("y")
+        self._exec_command("")
 
     def change_mode(self, mode, ifname=None):
         """Change CLI mode of FOS switch.
