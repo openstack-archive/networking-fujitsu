@@ -234,7 +234,7 @@ class TestFOSSWVlanDriverClearVlanWithLAG(BaseTestFOSSWVlanDriver):
         self.driver.client.connect = mock.Mock(return_value=None)
         self.driver.clear_vlan = mock.Mock(return_value=None)
         self.driver.client.disconnect = mock.Mock(return_value=None)
-        self.driver.client.get_lagname = mock.Mock()
+        self.driver.client.get_lag_port = mock.Mock()
         self.driver.client.get_vpcid = mock.Mock()
         self.driver.client.leave_from_lag = mock.Mock(return_value=None)
         self.driver.client.leave_from_vpc = mock.Mock(return_value=None)
@@ -244,7 +244,7 @@ class TestFOSSWVlanDriverClearVlanWithLAG(BaseTestFOSSWVlanDriver):
         vlan_id = 2
         ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
                         "00:00:4c:ee:e5:40": "192.168.1.2"}
-        self.driver.client.get_lagname.return_value = "3/1"
+        self.driver.client.get_lag_port.return_value = "3/1"
         self.assertIsNone(self.driver.clear_vlan_with_lag(vlan_id,
                                                           llis,
                                                           ip_mac_pairs))
@@ -257,7 +257,7 @@ class TestFOSSWVlanDriverClearVlanWithLAG(BaseTestFOSSWVlanDriver):
         ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
                         "00:00:4c:ee:e5:40": "192.168.1.2"}
         self.driver.is_valid_mlag.return_value = True
-        self.driver.client.get_lagname.return_value = "3/1"
+        self.driver.client.get_lag_port.return_value = "3/1"
         self.driver.client.get_vpcid.return_value = "1"
         self.assertIsNone(self.driver.clear_vlan_with_lag(vlan_id,
                                                           llis,
@@ -284,7 +284,7 @@ class TestFOSSWVlanDriverClearVlanWithLAG(BaseTestFOSSWVlanDriver):
         ip_mac_pairs = {"00:00:4c:ee:e5:39": "192.168.1.1",
                         "00:00:4c:ee:e5:40": "192.168.1.2"}
         self.driver.is_valid_mlag.return_value = True
-        self.driver.client.get_lagname.return_value = "3/1"
+        self.driver.client.get_lag_port.return_value = "3/1"
         self.driver.client.get_vpcid.return_value = None
         self.assertIsNone(self.driver.clear_vlan_with_lag(vlan_id,
                                                           llis,
