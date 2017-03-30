@@ -140,7 +140,8 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_sw_ep_info: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_data = self.response['result'][0]['rows'][0]
+            result_rows = self.response['result'][0]['rows']
+            return_data = result_rows[0] if result_rows else None
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
@@ -200,7 +201,8 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_logical_switch_uuid: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_data = self.response['result'][0]['rows'][0]
+            result_rows = self.response['result'][0]['rows']
+            return_data = result_rows[0] if result_rows else None
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
@@ -388,7 +390,8 @@ class OVSDBWriter(base_connection.BaseConnection):
         LOG.debug(_("get_physical_locator_uuid: query: %s"), query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
-            return_data = self.response['result'][0]['rows'][0]
+            result_rows = self.response['result'][0]['rows']
+            return_data = result_rows[0] if result_rows else None
         except Exception as ex:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE("Exception while receiving the "
