@@ -121,40 +121,73 @@ only for VXLAN. In the case of VLAN, any configurations is not needed.
 
     (ET-7648BRA-FOS) #configure
 
-3. Set VTEP IP address for switch side.
+3. Enable IP routing.
+
+   Example::
+
+    (ET-7648BRA-FOS) (Config)#ip routing
+
+4. Enable vxlan service.
+
+   Example::
+
+    (ET-7648BRA-FOS) (Config)#vxlan enable
+
+5. Set VTEP IP address for switch side.
 
    Example::
 
     (ET-7648BRA-FOS) (Config)#vxlan vtep source-ip 192.167.3.111
 
-4. Set port number of VXLAN UDP destination, which is specified as
+6. Set port number of VXLAN UDP destination, which is specified as
    ``udp_dest_port`` in the configuration file.
 
    Example::
 
     (ET-7648BRA-FOS) (Config)#vxlan udp-dst-port 4789
 
-5. Exit configuration mode and start ovsdb setup.
+7. Set IP address for physical port which is connected to OpenStack controller
+   node. The value of IP address equals to VTEP IP address of switch.
 
    Example::
 
-    (ET-7648BRA-FOS) (Config)#exit
+    (ET-7648BRA-FOS) (Config)#interface 0/10
+    (ET-7648BRA-FOS) (Interface 0/10)#ip address 192.167.3.111 255.255.255.0
+
+
+8. Enable routing of the physical port.
+
+   Example::
+
+    (ET-7648BRA-FOS) (Interface 0/10)#routing
+
+9. Return to Privileged EXEC mode and start ovsdb setup.
+
+   Example::
+
+    (ET-7648BRA-FOS) (Interface 0/10)#end
     (ET-7648BRA-FOS) #ovsdb
 
-6. Set port number of OVSDB server in the FOS switch, which is specified as
-   ``ovsdb_port`` in the configuration file.
+10. Set port number of OVSDB server in the FOS switch, which is specified as
+    ``ovsdb_port`` in the configuration file.
 
-   Example::
+    Example::
 
-    (ET-7648BRA-FOS) #ovsdb tcp port 6640
+     (ET-7648BRA-FOS) #ovsdb tcp port 6640
 
-7. Check ``ovsdb_vlanid_range_min`` value in configuration file, and confirm
-   that the VLAN ID within the range from ``ovsdb_vlanid_range_min`` to
-   ``ovsdb_vlanid_range_min + 77`` are not used.
+11. Check ``ovsdb_vlanid_range_min`` value in configuration file, and confirm
+    that the VLAN ID within the range from ``ovsdb_vlanid_range_min`` to
+    ``ovsdb_vlanid_range_min + 77`` are not used.
 
-   Example::
+    Example::
 
-    (ET-7648BRA-FOS) #show vlan 3
-    VLAN does not exist.
+     (ET-7648BRA-FOS) #show vlan 3
+     VLAN does not exist.
 
-8. Log out of FOS switch.
+12. Save configurations.
+
+    Example::
+
+     (ET-7648BRA-FOS) #copy system:running-config nvram:startup-config
+
+13. Log out of FOS switch.
