@@ -33,7 +33,7 @@ END = 'end'
 READ_TIMEOUT = 5.0
 MAX_LOOP = 50
 MAX_VPC_ID = 63
-
+SHOW_PC_BRIEF = 'show port-channel brief'
 
 class FOSSWClient(object):
 
@@ -220,9 +220,9 @@ class FOSSWClient(object):
         :rtype: string
 
         """
-        tmp_text = self._exec_command("show port-channel brief | exclude Up "
-                                      "begin 3/")
-        return tmp_text[tmp_text.find('3/'):].split(" ")[0]
+        cmd = SHOW_PC_BRIEF + " | exclude Dynamic begin 3/"
+        res = self._exec_command(cmd)
+        return res[res.find('3/'):].split(" ")[0]
 
     def join_to_lag(self, port, logicalport):
         """Join specified port to LAG configuration.
@@ -310,13 +310,12 @@ class FOSSWClient(object):
         :rtype: string
 
         """
-        show_pc = 'show port-channel brief | include'
         key_charactors = [',', ' ']
         for key in key_charactors:
-            res = self._exec_command(show_pc + '"' + portname + key + '"')
+            cmd = SHOW_PC_BRIEF + " | include " + '"' + portname + key + '"'
+            res = self._exec_command(cmd)
             if portname in res:
-                lag_port = res[:res.find(" ")]
-                return lag_port
+                return res[:res.find(" ")]
 
     def get_switch_mac(self):
         """Get MAC address of FOS switch.
