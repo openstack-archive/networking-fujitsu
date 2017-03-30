@@ -320,52 +320,31 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
                 raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
-    def update_port_postcommit(self, context):
-        """Update VXLAN from specified physical port on switch."""
-        port_context = context.current
-        if fj_util.is_baremetal(port_context):
-            return
-        network = context.network
-        vif_type = port_context['binding:vif_type']
-        network_type = network.network_segments[0][driver_api.NETWORK_TYPE]
-        if network_type != 'vxlan' or vif_type == 'unbound':
-            return
-        # currently supports only one segment per network
-        vni = network.network_segments[0][driver_api.SEGMENTATION_ID]
-        try:
-            self._vxlan_driver.update_physical_port(
-                vni, [], port_context, self.switches_mac_ip_pair)
-        except Exception:
-            LOG.exception(_LE("Failed to create vxlan(%s)."), vni)
-            raise ml2_exc.MechanismDriverError(method='create_port_postcommit')
-
-    @log_helpers.log_method_call
     def delete_port_postcommit_vxlan(self, context, method):
         """Clear VXLAN from specified physical port on switch."""
-        port_context = context.current
-        network = context.network
-        network_type = network.network_segments[0][driver_api.NETWORK_TYPE]
-        vif_type = port_context['binding:vif_type']
-        if vif_type == 'unbound' or network_type == 'flat':
-            return
-        # currently supports only one segment per network
-        segment = context.network.network_segments[0]
-        vni = segment[driver_api.SEGMENTATION_ID]
-        lli = fj_util.get_physical_connectivity(port_context)
-        lag = fj_util.is_lag(lli)
-        target = 'reset_physical_port_with_lag' \
-            if lag else 'reset_physical_port'
-        try:
-            reset_method = getattr(self._vxlan_driver, target)
-        except AttributeError:
-            LOG.exception(_LE("Unexpected error happend."))
-            raise ml2_exc.MechanismDriverError(
-                method='delete_port_postcommit_vxlan')
-        try:
-            reset_method(lli, port_context, self.switches_mac_ip_pair)
-        except Exception:
-            LOG.exception(_LE("Failed to clear vxlan(%s)."), vni)
-            raise ml2_exc.MechanismDriverError(method=method)
+        if validate_baremetal_deploy(context):
+            # currently supports only one segment per network
+            segment = context.network.network_segments[0]
+            vnid = segment[driver_api.SEGMENTATION_ID]
+            lli = fj_util.get_physical_connectivity(context.current)
+            lag = fj_util.is_lag(lli)
+            target = 'reset_physical_port_with_lag' \
+                if lag else 'reset_physical_port'
+            try:
+                reset_method = getattr(self._vxlan_driver, target)
+            except AttributeError:
+                LOG.exception(_LE("Unexpected error happend."))
+                raise ml2_exc.MechanismDriverError(
+                    method='delete_port_postcommit_vxlan')
+
+            try:
+                reset_method(lli, context, self.switches_mac_ip_pair)
+            except Exception:
+                LOG.exception(
+                    _LE("Failed to clear vxlan(%s)."),
+                    vnid
+                )
+                raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
     def setup_vlan(self, params):
@@ -506,7 +485,7 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
                             status=const.PORT_STATUS_ACTIVE)
 
     @log_helpers.log_method_call
-    def bind_port_vxlan(self, context):
+    def bind_port_vxlan(self, context, method):
         """Update VXLAN from specified physical port on switch."""
         # currently supports only one segment per network
         segment = context.network.network_segments[0]
