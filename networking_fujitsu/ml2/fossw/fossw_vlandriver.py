@@ -309,7 +309,7 @@ class FOSSWVlanDriver(object):
                 if lli['switch_id'] == mac:
                     ports.append(lli['port_id'])
             self.client.connect(target_ip)
-            lag_portname = self.client.get_lagname(ports[0])
+            lag_portname = self.client.get_lag_port(ports[0])
 
             if mlag:
                 vpcid = self.client.get_vpcid(lag_portname)
