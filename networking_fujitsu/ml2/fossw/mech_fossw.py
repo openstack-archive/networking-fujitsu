@@ -478,14 +478,11 @@ class FOSSWMechanismDriver(driver_api.MechanismDriver):
                   {'port': port['id'], 'vnic_type': vnic_type,
                    'network': context.network.current['id']})
         provider_type = network.network_segments[0][driver_api.NETWORK_TYPE]
-        params = self.get_physical_net_params(context)
         segments = context.segments_to_bind
         if provider_type == 'vlan' and validate_baremetal_deploy(context):
-            self.setup_vlan(params)
-        elif provider_type == 'vxlan':
+            self.setup_vlan(self.get_physical_net_params(context))
+        if provider_type == 'vxlan':
             self.bind_port_vxlan(context)
-        else:
-            return
         context.set_binding(segments[0][driver_api.ID],
                             portbindings.VIF_TYPE_OTHER, {},
                             status=const.PORT_STATUS_ACTIVE)
