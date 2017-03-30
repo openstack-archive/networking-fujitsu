@@ -160,7 +160,6 @@ class FOSSWVxlanDriver(object):
                 ovsdb_client.delete_logical_switch(logical_switch_uuid)
         self._save_all_fossw()
 
-    @utils.synchronized(_LOCK_NAME, external=True)
     def update_physical_port(self, vnid, lli, port_context, ip_mac_pairs):
         """Update Physical_Port table in FOS switch OVSDB.
 
@@ -271,7 +270,6 @@ class FOSSWVxlanDriver(object):
                     ovsdb_client.insert_ucast_macs_remote_and_locator(
                         ls_uuid, port_mac, port_ips, target_tunnel_ip)
 
-    @utils.synchronized(_LOCK_NAME, external=True)
     def reset_physical_port(self, lli, port_context, ip_mac_pairs):
         """Remove setting of raw of Physical_Port table in FOS switch OVSDB.
 
