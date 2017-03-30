@@ -64,7 +64,6 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         return switches_mac_ip_pair
 
-    @utils.synchronized(_LOCK_NAME)
     def create_vlan(self, ip, vlan_id):
         """Create VLAN with specified VLAN ID.
 
@@ -88,7 +87,6 @@ class FOSSWVlanDriver(object):
                               "switch. %s"), e)
             raise client.FOSSWClientException(method)
 
-    @utils.synchronized(_LOCK_NAME)
     def delete_vlan(self, ip, vlan_id):
         """Delete VLAN with specified VLAN ID.
 
@@ -112,7 +110,6 @@ class FOSSWVlanDriver(object):
                               "FOS switch. %s"), e)
             raise client.FOSSWClientException(method)
 
-    @utils.synchronized(_LOCK_NAME)
     def setup_vlan(self, vlan_id, lli, ip_mac_pairs):
         """Setup VLAN for physical port on FOS Switch.
 
@@ -210,7 +207,6 @@ class FOSSWVlanDriver(object):
                     raise client.FOSSWClientException(method)
             self.client.disconnect()
 
-    @utils.synchronized(_LOCK_NAME, external=True)
     def is_valid_mlag(self, macs, ip_mac_pairs):
         """Validates which given pair of MAC address is valid mlag pair or not.
 
@@ -240,7 +236,6 @@ class FOSSWVlanDriver(object):
                               "FOS switches are VPC pair. %s"), e)
             raise client.FOSSWClientException(method)
 
-    @utils.synchronized(_LOCK_NAME)
     def clear_vlan(self, vlan_id, lli, ip_mac_pairs):
         """Clear VLAN from FOS switch.
 
