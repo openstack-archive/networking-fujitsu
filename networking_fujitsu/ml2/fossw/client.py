@@ -34,6 +34,7 @@ READ_TIMEOUT = 5.0
 MAX_LOOP = 50
 MAX_VPC_ID = 63
 SHOW_PC_BRIEF = 'show port-channel brief'
+TERMINAL_LENGTH_0 = 'terminal length 0'
 
 
 class FOSSWClient(object):
@@ -68,6 +69,7 @@ class FOSSWClient(object):
                 )
                 self.console = self.ssh.invoke_shell()
                 self.console.settimeout(READ_TIMEOUT)
+                self._exec_command(TERMINAL_LENGTH_0)
                 return
             except IOError as e:
                 LOG.warning(_LW('Could not initialize SSH client. %s'), e)
@@ -111,7 +113,7 @@ class FOSSWClient(object):
         try:
             raw_res = ""
             self.console.send(command + "\n")
-            LOG.debug(_("FOSSW client sending command: %s"), command)
+            LOG.debug(_("FOSSW client sent: %s"), command)
             i = 0
             while i < MAX_LOOP:
                 time.sleep(0.1)
@@ -156,7 +158,7 @@ class FOSSWClient(object):
 
         """
         self.change_mode(MODE_VLAN)
-        cmd = self._format_command("vlan {vlan_id}", vlan_id=segmentation_id)
+        cmd = self._format_command("vlan {vlanid}", vlanid=segmentation_id)
         return self._exec_command(cmd)
 
     def delete_vlan(self, segmentation_id):
@@ -170,8 +172,7 @@ class FOSSWClient(object):
 
         """
         self.change_mode(MODE_VLAN)
-        cmd = self._format_command("no vlan {vlan_id}",
-                                   vlan_id=segmentation_id)
+        cmd = self._format_command("no vlan {vlanid}", vlanid=segmentation_id)
         if "Failed to delete" in self._exec_command(cmd):
             LOG.warning(_LW("VLAN(%s) has already deleted."), segmentation_id)
 
@@ -189,10 +190,9 @@ class FOSSWClient(object):
         """
         method = "set_vlan"
         self.change_mode(MODE_INTERFACE, port_id)
-        LOG.debug(_("FOSSW client received: %s"),
-                  self._exec_command("switchport mode access"))
-        cmd = self._format_command("switchport access vlan {vlan_id}",
-                                   vlan_id=segmentation_id)
+        self._exec_command("switchport mode access")
+        cmd = self._format_command("switchport access vlan {vlanid}",
+                                   vlanid=segmentation_id)
         if "VLAN ID not found." in self._exec_command(cmd):
             LOG.exception(_LE("VLAN(%s) does not exist on FOS switch. "
                               "Please check vlan setting."), segmentation_id)

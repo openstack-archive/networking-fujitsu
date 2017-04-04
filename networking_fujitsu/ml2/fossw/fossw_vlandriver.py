@@ -64,13 +64,13 @@ class FOSSWVlanDriver(object):
             self.client.disconnect()
         return switches_mac_ip_pair
 
-    def create_vlan(self, ip, vlan_id):
+    def create_vlan(self, ip, vlanid):
         """Create VLAN with specified VLAN ID.
 
         :param ip: IP address of target FOS switch
         :type ip: string
-        :param vlan_id: ID of VLAN to be created
-        :type vlan_id: string
+        :param vlanid: ID of VLAN to be created
+        :type vlanid: string
 
         :returns: None
         :rtype: None
@@ -79,7 +79,7 @@ class FOSSWVlanDriver(object):
         method = 'create_vlan'
         try:
             self.client.connect(ip)
-            self.client.create_vlan(vlan_id)
+            self.client.create_vlan(vlanid)
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
@@ -87,13 +87,13 @@ class FOSSWVlanDriver(object):
                               "switch. %s"), e)
             raise client.FOSSWClientException(method)
 
-    def delete_vlan(self, ip, vlan_id):
+    def delete_vlan(self, ip, vlanid):
         """Delete VLAN with specified VLAN ID.
 
         :param ip: IP address of target FOS switch
         :type ip: string
-        :param vlan_id: ID of VLAN to be deleted
-        :type vlan_id: string
+        :param vlanid: ID of VLAN to be deleted
+        :type vlanid: string
 
         :returns: None
         :rtype: None
@@ -102,7 +102,7 @@ class FOSSWVlanDriver(object):
         method = 'delete_vlan'
         try:
             self.client.connect(ip)
-            self.client.delete_vlan(vlan_id)
+            self.client.delete_vlan(vlanid)
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
@@ -110,11 +110,11 @@ class FOSSWVlanDriver(object):
                               "FOS switch. %s"), e)
             raise client.FOSSWClientException(method)
 
-    def setup_vlan(self, vlan_id, lli, ip_mac_pairs):
+    def setup_vlan(self, vlanid, lli, ip_mac_pairs):
         """Setup VLAN for physical port on FOS Switch.
 
-        :param vlan_id: the ID of VLAN to be associated
-        :type vlan_id: string
+        :param vlanid: the ID of VLAN to be associated
+        :type vlanid: string
         :param lli: the local link information of ironic node
         :type lli: list of local link information dictionary
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
@@ -136,7 +136,7 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
         try:
             self.client.connect(target_ip)
-            self.client.set_vlan(vlan_id, port_id)
+            self.client.set_vlan(vlanid, port_id)
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
@@ -145,11 +145,11 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def setup_vlan_with_lag(self, vlan_id, llis, ip_mac_pairs):
+    def setup_vlan_with_lag(self, vlanid, llis, ip_mac_pairs):
         """Setup VLAN and LAG for physical ports FOS switch.
 
-        :param vlan_id: the ID of VLAN to be associated
-        :type vlan_id: string
+        :param vlanid: the ID of VLAN to be associated
+        :type vlanid: string
         :param llis: the local link informations of ironic node
         :type llis: list of local link informations dictionary
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
@@ -179,7 +179,7 @@ class FOSSWVlanDriver(object):
         for lli in llis:
             arr_lli = []
             arr_lli.append(lli)
-            self.setup_vlan(vlan_id, arr_lli, ip_mac_pairs)
+            self.setup_vlan(vlanid, arr_lli, ip_mac_pairs)
 
         # Create lag resource
         lag = {}
@@ -236,11 +236,11 @@ class FOSSWVlanDriver(object):
                               "FOS switches are VPC pair. %s"), e)
             raise client.FOSSWClientException(method)
 
-    def clear_vlan(self, vlan_id, lli, ip_mac_pairs):
+    def clear_vlan(self, vlanid, lli, ip_mac_pairs):
         """Clear VLAN from FOS switch.
 
-        :param vlan_id: the ID of VLAN to be disassociated
-        :type vlan_id: string
+        :param vlanid: the ID of VLAN to be disassociated
+        :type vlanid: string
         :param lli: the local link information of ironic node
         :type lli: list
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
@@ -258,7 +258,7 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
         try:
             self.client.connect(target_ip)
-            self.client.clear_vlan(vlan_id, port_id)
+            self.client.clear_vlan(vlanid, port_id)
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
@@ -267,13 +267,13 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def clear_vlan_with_lag(self, vlan_id, llis, ip_mac_pairs):
+    def clear_vlan_with_lag(self, vlanid, llis, ip_mac_pairs):
         """Clear VLAN and LAG from FOS switch.
 
-        :param vlan_id: the ID of VLAN to be disassociated
-        :type vlan_id: string
+        :param vlanid: the ID of VLAN to be disassociated
+        :type vlanid: string
         :param llis: the local link informations of ironic node
-        :type vlan_id: list
+        :type llis: list
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
                              switches
         :type ip_mac_pairs: dictionary
@@ -321,4 +321,4 @@ class FOSSWVlanDriver(object):
         for lli in llis:
             arr_lli = []
             arr_lli.append(lli)
-            self.clear_vlan(vlan_id, arr_lli, ip_mac_pairs)
+            self.clear_vlan(vlanid, arr_lli, ip_mac_pairs)

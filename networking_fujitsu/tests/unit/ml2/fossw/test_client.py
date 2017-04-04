@@ -133,10 +133,10 @@ class TestFOSSWClientFormatCommand(BaseTestFOSSWClient):
 
     def test__format_command(self):
         self.assertEqual(
-            "vlan 2", self.cli._format_command("vlan {vlan_id}", vlan_id=2))
+            "vlan 2", self.cli._format_command("vlan {vlanid}", vlanid=2))
 
     def test__format_command_fails(self):
-        raw_cmd = "vlan {vlan_id}"
+        raw_cmd = "vlan {vlanid}"
         self.assertRaises(
             client.FOSSWClientException, self.cli._format_command, raw_cmd)
         self.assertRaises(
@@ -144,7 +144,7 @@ class TestFOSSWClientFormatCommand(BaseTestFOSSWClient):
             vlan=2)
         self.assertRaises(
             client.FOSSWClientException, self.cli._format_command, raw_cmd,
-            vlan_id=None)
+            vlanid=None)
 
 
 class TestFOSSWClientCreateVlan(BaseTestFOSSWClient):
