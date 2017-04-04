@@ -362,7 +362,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                              'row': {
                                  'vlan_bindings': [
                                      'map',
-                                     [['fake_vlan_id', [
+                                     [['fake_vlanid', [
                                          'uuid',
                                          'fake_logical_switch_uuid']]]]}},
                             commit_dict],
@@ -374,7 +374,7 @@ class TestOVSDBWriter(base.BaseTestCase):
             mock.patch.object(ovsdb_writer.LOG,
                               'debug'):
             self.fake_ovsdb.update_physical_port(
-                'fake_port_name', 'fake_vlan_id',
+                'fake_port_name', 'fake_vlanid',
                 'fake_logical_switch_uuid')
             get_rand.assert_called_with(128)
             send_n_receive.assert_called_with(query, self.op_id, True)
