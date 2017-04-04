@@ -325,9 +325,9 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        vlan_id = 1
+        vlanid = 1
         fossw_vlandriver.FOSSWVlanDriver().setup_vlan_with_lag(
-            vlan_id, llis, ip_mac_pairs)
+            vlanid, llis, ip_mac_pairs)
 
         # setup ovsdb for each physical port
         for lli in llis:
@@ -351,9 +351,9 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        vlan_id = 1
+        vlanid = 1
         fossw_vlandriver.FOSSWVlanDriver().clear_vlan_with_lag(
-            vlan_id, llis, ip_mac_pairs)
+            vlanid, llis, ip_mac_pairs)
 
         # Clear lag setting
         for lli in llis:

@@ -40,8 +40,3 @@ class FujitsuIsmDriverTestCase(test_ml2_plugin.Ml2PluginV2TestCase):
 
     def tearDown(self):
         super(FujitsuIsmDriverTestCase, self).tearDown()
-
-
-class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
-                                   FujitsuIsmDriverTestCase):
-    pass
