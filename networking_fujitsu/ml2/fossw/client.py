@@ -156,7 +156,7 @@ class FOSSWClient(object):
 
         """
         self.change_mode(MODE_VLAN)
-        cmd = self._format_command("vlan {vlan_id}", vlan_id=segmentation_id)
+        cmd = self._format_command("vlan {vlanid}", vlanid=segmentation_id)
         return self._exec_command(cmd)
 
     def delete_vlan(self, segmentation_id):
@@ -170,8 +170,7 @@ class FOSSWClient(object):
 
         """
         self.change_mode(MODE_VLAN)
-        cmd = self._format_command("no vlan {vlan_id}",
-                                   vlan_id=segmentation_id)
+        cmd = self._format_command("no vlan {vlanid}", vlanid=segmentation_id)
         if "Failed to delete" in self._exec_command(cmd):
             LOG.warning(_LW("VLAN(%s) has already deleted."), segmentation_id)
 
@@ -191,8 +190,8 @@ class FOSSWClient(object):
         self.change_mode(MODE_INTERFACE, port_id)
         LOG.debug(_("FOSSW client received: %s"),
                   self._exec_command("switchport mode access"))
-        cmd = self._format_command("switchport access vlan {vlan_id}",
-                                   vlan_id=segmentation_id)
+        cmd = self._format_command("switchport access vlan {vlanid}",
+                                   vlanid=segmentation_id)
         if "VLAN ID not found." in self._exec_command(cmd):
             LOG.exception(_LE("VLAN(%s) does not exist on FOS switch. "
                               "Please check vlan setting."), segmentation_id)
