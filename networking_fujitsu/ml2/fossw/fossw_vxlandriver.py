@@ -193,7 +193,7 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        if lli[0]:
+        if lli:
             target_name = lli[0]['switch_info']
             target_ip = ip_mac_pairs[lli[0]['switch_id']]
             port_id = lli[0]['port_id']
@@ -202,7 +202,6 @@ class FOSSWVxlanDriver(object):
             target_ip = ""
             # In this case, it will be a VM port, and we do not need to
             # care about port_id.
-
         target_tunnel_ip = self.type_vxlan.db_get_endpoint_ip_by_host(
             target_name)
         net_uuid = port_context["network_id"]
@@ -212,22 +211,17 @@ class FOSSWVxlanDriver(object):
         for fixed_ip in fixed_ips:
             port_ips.append(fixed_ip["ip_address"])
 
+        logical_switch_name = net_uuid.replace("-", "")
         if target_ip in self.fossw_ips:
             # Update Physical_Port table first.
-            ovsdb_client = ovsdb_writer.OVSDBWriter(target_ip,
-                                                    self.ovsdb_port)
-            logical_switch_name = net_uuid.replace("-", "")
+            ovsdb_client = ovsdb_writer.OVSDBWriter(target_ip, self.ovsdb_port)
             bind_ls_uuid = ovsdb_client.get_logical_switch_uuid(
                 logical_switch_name)
             binding_vid = ovsdb_client.get_binding_vid(bind_ls_uuid)
-            if binding_vid:
-                bind_vid = binding_vid
-            else:
-                bind_vid = (int(port_id[2:]) + 1 + self.ovsdb_vlanid_range_min
-                            - 2)
+            bind_vid = binding_vid if binding_vid else (
+                int(port_id[2:]) + self.ovsdb_vlanid_range_min - 1)
 
             ovsdb_client.update_physical_port(port_id, bind_vid, bind_ls_uuid)
-
             # After Physical_Port table has been updated, update
             # Ucast_Macs_Local table.
             # If any garbage exist, remove them first.
@@ -256,8 +250,8 @@ class FOSSWVxlanDriver(object):
         """Update Ucast_Macs_Remote table in all FOS switches OVSDB."""
         for fossw_ip in self.fossw_ips:
             if fossw_ip != target_ip:
-                ovsdb_client = ovsdb_writer.OVSDBWriter(fossw_ip,
-                                                        self.ovsdb_port)
+                ovsdb_client = ovsdb_writer.OVSDBWriter(
+                    fossw_ip, self.ovsdb_port)
                 ls_uuid = ovsdb_client.get_logical_switch_uuid(
                     logical_switch_name)
                 if ovsdb_client.get_ucast_macs_remote(port_mac):
@@ -289,7 +283,7 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        if lli[0]:
+        if lli:
             target_ip = ip_mac_pairs[lli[0]['switch_id']]
             port_id = lli[0]['port_id']
         else:
