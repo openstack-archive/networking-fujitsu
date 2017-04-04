@@ -223,8 +223,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                            '"fake_host_name","tunnel_ips":' \
                            '"fake_endpoint_ip"}]}],"error":null}'
         return_value = return_value_raw.replace(':null', ':None')
-        return_value_dict = ast.literal_eval(return_value)
-        self.fake_ovsdb.responses = [return_value_dict]
+        self.fake_ovsdb.response = ast.literal_eval(return_value)
         expected_result = ('fake_endpoint_ip', 'fake_host_name')
         with mock.patch.object(ovsdb_writer.OVSDBWriter, '_recv_data',
                                return_value=return_value_raw), \
@@ -277,8 +276,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                            '"description":"","tunnel_key":1,"_uuid":["uuid",' \
                            '"fake_logical_switch_uuid"]}]}],"error":null}'
         return_value = return_value_raw.replace(':null', ':None')
-        return_value_dict = ast.literal_eval(return_value)
-        self.fake_ovsdb.responses = [return_value_dict]
+        self.fake_ovsdb.response = ast.literal_eval(return_value)
         expected_result = 'fake_logical_switch_uuid'
         with mock.patch.object(ovsdb_writer.OVSDBWriter, '_recv_data',
                                return_value=return_value_raw), \
@@ -336,8 +334,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                            '"fake_logical_switch_uuid_22"]]]]}]}],' \
                            '"error":null}'
         return_value = return_value_raw.replace(':null', ':None')
-        return_value_dict = ast.literal_eval(return_value)
-        self.fake_ovsdb.responses = [return_value_dict]
+        self.fake_ovsdb.response = ast.literal_eval(return_value)
         expected_result = 21
         with mock.patch.object(ovsdb_writer.OVSDBWriter, '_recv_data',
                                return_value=return_value_raw), \
@@ -397,8 +394,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                            '"MAC":"fake_port_mac","ipaddr":""}]}],"error":' \
                            'null}'
         return_value = return_value_raw.replace(':null', ':None')
-        return_value_dict = ast.literal_eval(return_value)
-        self.fake_ovsdb.responses = [return_value_dict]
+        self.fake_ovsdb.response = ast.literal_eval(return_value)
         expected_result = [{'MAC': 'fake_port_mac',
                             '_uuid': ['uuid', 'fake_uuid'],
                             '_version': ['uuid', 'fake_v_uuid'],
@@ -453,8 +449,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                            '"fake_dst_ip","encapsulation_type":' \
                            '"vxlan_over_ipv4"}]}],"error":null}'
         return_value = return_value_raw.replace(':null', ':None')
-        return_value_dict = ast.literal_eval(return_value)
-        self.fake_ovsdb.responses = [return_value_dict]
+        self.fake_ovsdb.response = ast.literal_eval(return_value)
         expected_result = 'fake_physical_locator_uuid'
         with mock.patch.object(ovsdb_writer.OVSDBWriter, '_recv_data',
                                return_value=return_value_raw), \
@@ -546,8 +541,7 @@ class TestOVSDBWriter(base.BaseTestCase):
                            '}]}],"error":null}'
 
         return_value = return_value_raw.replace(':null', ':None')
-        return_value_dict = ast.literal_eval(return_value)
-        self.fake_ovsdb.responses = [return_value_dict]
+        self.fake_ovsdb.response = ast.literal_eval(return_value)
         expected_result = [{'MAC': 'fake_port_mac',
                             '_uuid': ['uuid', 'fake_uuid'],
                             '_version': ['uuid', 'fake_v_uuid'],

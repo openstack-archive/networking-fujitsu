@@ -12,7 +12,6 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-import copy
 import socket
 import time
 
@@ -40,7 +39,7 @@ class BaseConnection(object):
        Connects to an ovsdb server on a given host and TCP port.
     """
     def __init__(self, ovsdb_ip, ovsdb_port):
-        self.responses = []
+        self.response = {}
         self.cache = ""
         self.ovsdb_ip = ovsdb_ip
         self.ovsdb_port = ovsdb_port
@@ -89,12 +88,3 @@ class BaseConnection(object):
         LOG.exception(_LE("Could not send message to the OVSDB server."))
         self.disconnect()
         return False
-
-    def _response(self, operation_id):
-        x_copy = None
-        for x in self.responses:
-            if x['id'] != operation_id:
-                self.responses.remove(x)
-            else:
-                x_copy = copy.deepcopy(x)
-        return x_copy

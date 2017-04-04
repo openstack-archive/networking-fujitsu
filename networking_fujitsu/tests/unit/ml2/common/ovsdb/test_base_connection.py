@@ -114,11 +114,6 @@ class TestBaseConnection(base.BaseTestCase):
             self.assertTrue(logger_exc.called)
             self.assertTrue(sock_connect.called)
 
-    def test_response(self):
-        response = self.fake_ovsdb._response(self.op_id)
-        self.assertIsNotNone(response)
-        self.assertEqual(response, self.fake_message)
-
     def test_send(self):
         with mock.patch.object(self.fake_ovsdb.socket, 'send',
                                return_value=1):
