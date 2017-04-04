@@ -140,7 +140,7 @@ class OVSDBWriter(base_connection.BaseConnection):
                 LOG.exception(_LE("Exception while receiving the "
                                   "response for the write request: "
                                   "[%s]"), ex)
-        endpoint_ip = return_data['tunnel_ips'][1:-1] if return_data else ""
+        endpoint_ip = return_data['tunnel_ips'] if return_data else ""
         endpoint_hostname = return_data['name'] if return_data else ""
         return (endpoint_ip, endpoint_hostname)
 
