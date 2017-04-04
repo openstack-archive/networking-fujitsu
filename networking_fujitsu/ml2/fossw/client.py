@@ -34,6 +34,8 @@ READ_TIMEOUT = 5.0
 MAX_LOOP = 50
 MAX_VPC_ID = 63
 SHOW_PC_BRIEF = 'show port-channel brief'
+TERMINAL_LENGTH_0 = 'terminal length 0'
+RECV_BUF = 8192
 
 
 class FOSSWClient(object):
@@ -46,13 +48,29 @@ class FOSSWClient(object):
     def connect(self, ip):
         """Establish ssh connection for FOS switch.
 
+        If exists session for specified target, reuse it otherwise reconnect.
+        In order to get command result correctly, execute 'terminal length 0'
+        at the beginning of the session.
         :param ip: a ip address of FOS switch
         :type ip: string
-
         :returns: None
         :rtype: None
 
         """
+        if not self.lookup(ip):
+            self._reconnect(ip)
+        self._exec_command(TERMINAL_LENGTH_0)
+
+    def _reconnect(self, ip):
+        """Reconnect a new SSH session
+
+        :param ip: a ip address of FOS switch
+        :type ip: string
+        :returns: None
+        :rtypes: None
+
+        """
+        self.disconnect()
         method = "connect"
         retry_count = 0
         while retry_count < 5:
@@ -111,12 +129,12 @@ class FOSSWClient(object):
         try:
             raw_res = ""
             self.console.send(command + "\n")
-            LOG.debug(_("FOSSW client sending command: %s"), command)
+            LOG.debug(_("FOSSW client sent: %s"), command)
             i = 0
             while i < MAX_LOOP:
                 time.sleep(0.1)
                 if self.console.recv_ready():
-                    raw_res += self.console.recv(1024)
+                    raw_res += self.console.recv(RECV_BUF)
                 elif raw_res:
                     break
                 i += 1
@@ -145,6 +163,21 @@ class FOSSWClient(object):
             raise FOSSWClientException(method)
         return formatted
 
+    def lookup(self, target):
+        """Check exist session for specified IP.
+
+        :param target: IP address of a target host
+        :type target: string
+
+        :returns: exist(True) or not exist(False)
+        :rtype: bool
+
+        """
+        if self.ssh:
+            if self.ssh._host_keys:
+                return True if self.ssh._host_keys.lookup(target) else False
+        return False
+
     def create_vlan(self, segmentation_id):
         """Define VLAN with specified VLAN ID to FOS switch.
 
@@ -156,7 +189,7 @@ class FOSSWClient(object):
 
         """
         self.change_mode(MODE_VLAN)
-        cmd = self._format_command("vlan {vlan_id}", vlan_id=segmentation_id)
+        cmd = self._format_command("vlan {vlanid}", vlanid=segmentation_id)
         return self._exec_command(cmd)
 
     def delete_vlan(self, segmentation_id):
@@ -170,8 +203,7 @@ class FOSSWClient(object):
 
         """
         self.change_mode(MODE_VLAN)
-        cmd = self._format_command("no vlan {vlan_id}",
-                                   vlan_id=segmentation_id)
+        cmd = self._format_command("no vlan {vlanid}", vlanid=segmentation_id)
         if "Failed to delete" in self._exec_command(cmd):
             LOG.warning(_LW("VLAN(%s) has already deleted."), segmentation_id)
 
@@ -189,10 +221,9 @@ class FOSSWClient(object):
         """
         method = "set_vlan"
         self.change_mode(MODE_INTERFACE, port_id)
-        LOG.debug(_("FOSSW client received: %s"),
-                  self._exec_command("switchport mode access"))
-        cmd = self._format_command("switchport access vlan {vlan_id}",
-                                   vlan_id=segmentation_id)
+        self._exec_command("switchport mode access")
+        cmd = self._format_command("switchport access vlan {vlanid}",
+                                   vlanid=segmentation_id)
         if "VLAN ID not found." in self._exec_command(cmd):
             LOG.exception(_LE("VLAN(%s) does not exist on FOS switch. "
                               "Please check vlan setting."), segmentation_id)
@@ -398,17 +429,14 @@ class FOSSWClient(object):
         # Move to Privileged EXEC mode.
         prompt = self._exec_command(END)
         if ") >" in prompt:
-            prompt = self._exec_command(ENABLE)
-
-        if mode == MODE_GLOBAL:
-            prompt = self._exec_command(MODE_GLOBAL)
-        if mode == MODE_VLAN:
-            prompt = self._exec_command(MODE_VLAN)
-        if mode == MODE_INTERFACE:
-            prompt = self._exec_command(MODE_GLOBAL)
-            command = self._format_command(MODE_INTERFACE + " {ifname}",
-                                           ifname=ifname)
-            prompt = self._exec_command(command)
+            self._exec_command(ENABLE)
+        if mode in [MODE_GLOBAL, MODE_VLAN]:
+            self._exec_command(mode)
+        elif mode == MODE_INTERFACE:
+            self._exec_command(MODE_GLOBAL)
+            cmd = self._format_command(
+                MODE_INTERFACE + " {ifname}", ifname=ifname)
+            self._exec_command(cmd)
 
 
 class FOSSWClientException(Exception):

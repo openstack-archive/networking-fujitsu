@@ -18,7 +18,7 @@ import mock
 from neutron_lib.api.definitions import portbindings
 
 from collections import defaultdict
-from networking_fujitsu.ml2.common import utils as fj_util
+from networking_fujitsu.ml2.common import utils
 from neutron.tests import base
 
 
@@ -29,8 +29,11 @@ class FujitsuCommonUtilsTestCase(base.BaseTestCase):
         super(FujitsuCommonUtilsTestCase, self).setUp()
         self.net = mock.MagicMock()
 
-        self.net.network_segments = [{"network_type": "vlan",
-                                      "segmentation_id": 100}]
+        self.net.network_segments = [{
+            "provider:network_type": "vlan",
+            "provider:physical_network": 'physnet1',
+            "provider:segmentation_id": 100
+        }]
         self.port = defaultdict(lambda: {})
         self.port[portbindings.VNIC_TYPE] = portbindings.VNIC_BAREMETAL
         self.lli = [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "1/1/0/1",
@@ -46,136 +49,184 @@ class TestEliminateVal(FujitsuCommonUtilsTestCase):
     def test_definition_is_None(self):
         definition = None
         target = [1]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertIsNone(result)
 
     def test_found_the_lowest(self):
         definition = "1,2,3"
         target = [1]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("2,3", result)
 
     def test_found_the_highest(self):
         definition = "1,2,3"
         target = [3]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("1,2", result)
 
     def test_found_range_of_low(self):
         definition = "1-10"
         target = [1]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("2-10", result)
 
     def test_found_range_of_highest_next_to_lowest(self):
         definition = "1-2"
         target = [2]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("1", result)
 
     def test_found_range_of_lowest_next_to_highest(self):
         definition = "1-2"
         target = [1]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("2", result)
 
     def test_found_range_of_high(self):
         definition = "1-10"
         target = [10]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("1-9", result)
 
     def test_found_between_ranges(self):
         definition = "1-10"
         target = [5]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("1-4,6-10", result)
 
     def test_found_between_ranges_next_to_the_lowest(self):
         definition = "1-10"
         target = [2]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("1,3-10", result)
 
     def test_found_between_ranges_next_to_the_highest(self):
         definition = "1-10"
         target = [9]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("10,1-8", result)
 
     def test_found_between_ranges_next_to_the_lowest_and_highest(self):
         definition = "1-3"
         target = [2]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("1,3", result)
 
     def test_matches_only_one(self):
         definition = "100"
         target = [100]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("", result)
 
     def test_no_matched(self):
         definition = "10,11"
         target = [100]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("10,11", result)
 
     def test_no_matched_with_boundary(self):
         definition = "1-10"
         target = [100]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("1-10", result)
 
     def test_specify_target_with_list_and_include_1(self):
         definition = "1-5"
         target = [1, 10]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("2-5", result)
 
     def test_specify_target_with_list_and_include_2(self):
         definition = "1-5"
         target = [1, 2]
-        result = fj_util.eliminate_val(definition, target)
+        result = utils.eliminate_val(definition, target)
         self.assertEqual("3-5", result)
 
 
+class DummyNetwork(object):
+
+    def __init__(self, segments, current):
+        self.network_segments = segments
+        self.current = current
+
+
 class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
-    """Test class for get_network_segments and _validate_network"""
+    """Test class for following methods
 
-    def test_normal_case(self):
-        network_type, vlan_id = fj_util.get_network_segments(self.net)
-        self.assertEqual("vlan", network_type)
-        self.assertEqual(100, vlan_id)
+       * get_network_type
+       * get_segmentation_id
+       * get_physical_network
+    """
 
-    def test_segmentation_id_is_nothing(self):
-        self.net.network_segments[0]["segmentation_id"] = None
-        network_type, vlan_id = fj_util.get_network_segments(self.net)
-        self.assertEqual('vlan', network_type)
-        self.assertIsNone(vlan_id)
+    def setUp(self):
+        super(TestGetNetworkSegments, self).setUp()
 
-    def test_network_type_is_not_vlan(self):
-        self.net.network_segments[0]["network_type"] = "vxlan"
-        network_type, vlan_id = fj_util.get_network_segments(self.net)
-        self.assertEqual('vxlan', network_type)
-        self.assertEqual(100, vlan_id)
+        self.segments = [{
+            "network_type": "vlan",
+            "physical_network": 'physnet1',
+            "segmentation_id": 100
+        }]
+        self.current = {
+            "provider:network_type": "flat",
+            "provider:physical_network": 'physnet2',
+            "provider:segmentation_id": 200
+        }
+        self.net_ctx = DummyNetwork(self.segments, self.current)
+
+    def test_get_from_network_dict(self):
+        network = {
+            "provider:network_type": "vlan",
+            "provider:physical_network": 'physnet1',
+            "provider:segmentation_id": 100
+        }
+        self.assertEqual("vlan", utils.get_network_type(network))
+        self.assertEqual('physnet1', utils.get_physical_network(network))
+        self.assertEqual(100, utils.get_segmentation_id(network))
+
+    def test_get_from_network_dict_with_segments(self):
+        network = {
+            "segments": [{
+                "provider:network_type": "vlan",
+                "provider:physical_network": 'physnet1',
+                "provider:segmentation_id": 100
+            }]
+        }
+        self.assertEqual("vlan", utils.get_network_type(network))
+        self.assertEqual('physnet1', utils.get_physical_network(network))
+        self.assertEqual(100, utils.get_segmentation_id(network))
+
+    def test_get_from_network_context_with_segments(self):
+        self.assertEqual("vlan", utils.get_network_type(self.net_ctx))
+        self.assertEqual('physnet1', utils.get_physical_network(self.net_ctx))
+        self.assertEqual(100, utils.get_segmentation_id(self.net_ctx))
+
+    def test_get_from_network_context_with_segments_provider(self):
+        self.segments = [{
+            "provider:network_type": "vlan",
+            "provider:physical_network": 'physnet1',
+            "provider:segmentation_id": 100
+        }]
+        net_ctx = DummyNetwork(self.segments, None)
+        self.assertEqual("vlan", utils.get_network_type(net_ctx))
+        self.assertEqual('physnet1', utils.get_physical_network(net_ctx))
+        self.assertEqual(100, utils.get_segmentation_id(net_ctx))
 
 
 class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
     """Test class for get_physical_connectivity"""
 
     def test_get_correct_data(self):
-        local_link_info = fj_util.get_physical_connectivity(self.port)
+        local_link_info = utils.get_physical_connectivity(self.port)
         self.assertEqual(self.lli, local_link_info)
 
     def test_local_link_info_is_undefined(self):
         del self.port['binding:profile']['local_link_information']
-        local_link_info = fj_util.get_physical_connectivity(self.port)
+        local_link_info = utils.get_physical_connectivity(self.port)
         self.assertEqual([], local_link_info)
 
     def test_local_link_info_is_empty(self):
         self.port['binding:profile']['local_link_information'] = []
-        local_link_info = fj_util.get_physical_connectivity(self.port)
+        local_link_info = utils.get_physical_connectivity(self.port)
         self.assertEqual([], local_link_info)
 
     def test_some_key_in_local_link_info_is_missing(self):
@@ -183,7 +234,7 @@ class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
             tmp = copy.copy(self.lli[1])
             del tmp[missing]
             self.port['binding:profile']['local_link_information'] = [tmp]
-            local_link_info = fj_util.get_physical_connectivity(self.port)
+            local_link_info = utils.get_physical_connectivity(self.port)
             self.assertEqual([], local_link_info)
 
     def test_some_value_in_local_link_info_is_missing(self):
@@ -191,7 +242,7 @@ class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):
             tmp = copy.copy(self.lli[0])
             tmp[missing] = ""
             self.port['binding:profile']['local_link_information'] = [tmp]
-            local_link_info = fj_util.get_physical_connectivity(self.port)
+            local_link_info = utils.get_physical_connectivity(self.port)
             self.assertEqual([], local_link_info)
 
 
@@ -199,33 +250,33 @@ class TestIsBaremetalDeploy(FujitsuCommonUtilsTestCase):
     """Test class for is_baremetal_deploy"""
 
     def test_vnic_type_is_baremetal(self):
-        self.assertTrue(fj_util.is_baremetal(self.port))
+        self.assertTrue(utils.is_baremetal(self.port))
 
     def test_vnic_type_is_not_baremetal(self):
         self.port[portbindings.VNIC_TYPE] = portbindings.VNIC_NORMAL
-        self.assertFalse(fj_util.is_baremetal(self.port))
+        self.assertFalse(utils.is_baremetal(self.port))
 
         self.port[portbindings.VNIC_TYPE] = None
-        self.assertFalse(fj_util.is_baremetal(self.port))
+        self.assertFalse(utils.is_baremetal(self.port))
 
     def test_illegal_port_without_vnic_type(self):
-        self.assertFalse(fj_util.is_baremetal({}))
+        self.assertFalse(utils.is_baremetal({}))
 
     def test_illegal_argument_is_none(self):
-        self.assertRaises(AttributeError, fj_util.is_baremetal, None)
+        self.assertRaises(AttributeError, utils.is_baremetal, None)
 
     def test_illegal_argument_is_empty_list(self):
-        self.assertRaises(AttributeError, fj_util.is_baremetal, [])
+        self.assertRaises(AttributeError, utils.is_baremetal, [])
 
 
 class TestIsLag(FujitsuCommonUtilsTestCase):
     """Test class for is_lag"""
 
     def test_lli_is_one(self):
-        self.assertFalse(fj_util.is_lag([self.lli[0]]))
+        self.assertFalse(utils.is_lag([self.lli[0]]))
 
     def test_lli_is_more_than_2(self):
-        self.assertTrue(fj_util.is_lag(self.lli))
+        self.assertTrue(utils.is_lag(self.lli))
 
     def test_lli_is_empty(self):
-        self.assertFalse(fj_util.is_lag([]))
+        self.assertFalse(utils.is_lag([]))
