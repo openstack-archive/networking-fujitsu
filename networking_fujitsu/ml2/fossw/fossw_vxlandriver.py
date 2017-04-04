@@ -193,9 +193,9 @@ class FOSSWVxlanDriver(object):
         """
 
         if lli:
-            target_name = lli[0]['switch_info']
-            target_ip = ip_mac_pairs[lli[0]['switch_id']]
-            port_id = lli[0]['port_id']
+            target_name = lli['switch_info']
+            target_ip = ip_mac_pairs[lli['switch_id']]
+            port_id = lli['port_id']
         else:
             target_name = port_context['binding:host_id']
             target_ip = ""
@@ -325,14 +325,13 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        vlan_id = 1
+        vlanid = 1
         fossw_vlandriver.FOSSWVlanDriver().setup_vlan_with_lag(
-            vlan_id, llis, ip_mac_pairs)
+            vlanid, llis, ip_mac_pairs)
 
         # setup ovsdb for each physical port
         for lli in llis:
-            self.update_physical_port(vnid, lli, self.fossw_ips,
-                                      port_context, ip_mac_pairs)
+            self.update_physical_port(vnid, [lli], port_context, ip_mac_pairs)
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def reset_physical_port_with_lag(self, llis, port_context, ip_mac_pairs):
@@ -351,11 +350,10 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        vlan_id = 1
+        vlanid = 1
         fossw_vlandriver.FOSSWVlanDriver().clear_vlan_with_lag(
-            vlan_id, llis, ip_mac_pairs)
+            vlanid, llis, ip_mac_pairs)
 
         # Clear lag setting
         for lli in llis:
-            self.reset_physical_port(lli, self.fossw_ips,
-                                     port_context, ip_mac_pairs)
+            self.reset_physical_port([lli], port_context, ip_mac_pairs)

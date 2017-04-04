@@ -15,8 +15,9 @@
 
 from networking_fujitsu._i18n import _
 from networking_fujitsu._i18n import _LW
-from neutron.plugins.ml2 import driver_api
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.api.definitions import provider_net
+from neutron_lib.plugins.ml2 import api
 from oslo_log import log as logging
 import re
 
@@ -100,22 +101,69 @@ def eliminate_val(source, reject):
     return ','.join(rejected)
 
 
-def get_network_segments(network):
-    """Get network_type and segmentation_id from specified network.
+def _get_segment(net):
+    if isinstance(net, dict):
+        segment = net['segments'][0] if net.get('segments', None) else net
+    else:
+        segment = net.network_segments[0]
+    return segment
 
-    :param network: a network object
-    :type network: network object
 
-    :returns network type: 'vlan' or 'vxlan'
+def get_network_type(network):
+    """Get provider:network_type
+
+    :param network: NetworkContext or network dict
+    :type network: NetworkContext or dict
+
+    :returns network_type: 'vlan', 'vxlan', 'local', 'flat' and 'geneve'
     :rtype: string
-    :returns segmentation_id: VLANID or VNI
+    """
+
+    segment = _get_segment(network)
+    try:
+        # pattern1: network is network_segments with no 'provider:'
+        return segment[api.NETWORK_TYPE]
+    except (AttributeError, KeyError, TypeError):
+        # pattern2: network is network_segments with 'provider:'
+        return segment[provider_net.NETWORK_TYPE]
+
+
+def get_segmentation_id(network):
+    """Get provider:segmentation_id
+
+    :param network: NetworkContext or network dict
+    :type network: NetworkContext or dict
+
+    :returns segmentation_id: VLANID('vlan') or VNI('vxlan')
     :rtype: integer
     """
 
-    segment = network.network_segments[0]
-    network_type = segment[driver_api.NETWORK_TYPE]
-    segmentation_id = segment[driver_api.SEGMENTATION_ID]
-    return network_type, segmentation_id
+    segment = _get_segment(network)
+    try:
+        # pattern1: network is network_segments with no 'provider:'
+        return segment[api.SEGMENTATION_ID]
+    except (AttributeError, KeyError, TypeError):
+        # pattern2: network is network_segments with 'provider:'
+        return segment[provider_net.SEGMENTATION_ID]
+
+
+def get_physical_network(network):
+    """Get provider:physical_network
+
+    :param network: NetworkContext or network dict
+    :type network: NetworkContext or dict
+
+    :returns physical_network: physical network name for the network
+    :rtype: string
+    """
+
+    segment = _get_segment(network)
+    try:
+        # pattern1: network is network_segments with no 'provider:'
+        return segment[api.PHYSICAL_NETWORK]
+    except (AttributeError, KeyError, TypeError):
+        # pattern2: network is network_segments with 'provider:'
+        return segment[provider_net.PHYSICAL_NETWORK]
 
 
 def get_physical_connectivity(port):

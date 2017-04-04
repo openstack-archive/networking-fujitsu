@@ -344,7 +344,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                        self.fake_ip_mac_pairs)
             self.assertEqual(up_pp.call_count, 2)
             up_pp.assert_called_with(
-                'fake_vnid', mock.ANY, self.fake_switch_ips,
+                'fake_vnid', mock.ANY,
                 self.fake_port_context, self.fake_ip_mac_pairs)
 
     def test_reset_physical_port_with_lag(self):
@@ -360,5 +360,4 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                        self.fake_ip_mac_pairs)
             self.assertEqual(res_pp.call_count, 2)
             res_pp.assert_called_with(
-                mock.ANY, self.fake_switch_ips,
-                self.fake_port_context, self.fake_ip_mac_pairs)
+                mock.ANY, self.fake_port_context, self.fake_ip_mac_pairs)
