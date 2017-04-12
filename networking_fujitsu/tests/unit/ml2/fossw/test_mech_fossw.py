@@ -32,6 +32,11 @@ LLI = {'single': [{"switch_id": "00:00:4c:ee:e5:39", " port_id": "0/1",
                 {"switch_id": "00:00:4c:ee:e5:40", "port_id": "0/2",
                  "switch_info": "ET-764BRA-FOS"}]}
 
+ADDRESS = '192.168.100.1'
+ADDRESS2 = '192.168.100.2'
+USERNAME = 'fossw_user'
+PASSWORD = 'fossw_password'
+
 
 class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
     """Test Fujitsu mechanism driver.
@@ -51,15 +56,17 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
             self.skipTest("This test has already verified at neutron's test.")
 
         def mocked_initialize(self):
-            self._list_switch_info = [{"ip": "192.168.3.123", "port": 22,
-                                       "username": "admin", "password": "",
-                                       "timeout": 30},
-                                      {"ip": "192.168.3.124", "port": 22,
-                                       "username": "admin", "password": "",
-                                       "timeout": 30}]
-            self._driver = mock.MagicMock()
+            fossw_vlandriver.FOSSWVlanDriver = mock.Mock()
+            fossw_vxlandriver.FOSSWVxlanDriver = mock.Mock()
+            self._vlan_driver = mock.MagicMock()
+            self._vxlan_driver = mock.MagicMock()
+            self.ips = [ADDRESS]
+            self.switches_mac_ip_pair = {
+                "00:00:4c:ee:e5:39": ADDRESS,
+                "00:00:4c:ee:e5:40": ADDRESS2,
+            }
 
-            with mock.patch.object(mech_fossw.FujitsuMechanism,
+            with mock.patch.object(mech_fossw.FOSSWMechanismDriver,
                                    'initialize', new=mocked_initialize):
                 super(TestFujitsuMechDriverV2, self).setUp()
 
