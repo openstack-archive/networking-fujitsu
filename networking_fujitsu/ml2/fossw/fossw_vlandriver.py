@@ -57,10 +57,13 @@ class FOSSWVlanDriver(object):
         switches_mac_ip_pair = {}
         for ip in ips:
             self.client.connect(ip)
-            res_mac = self.client.get_switch_mac()
-            index = res_mac.rfind('. ') + 2
-            switch_mac = res_mac[index:(index + 17)]
-            switches_mac_ip_pair.update({switch_mac.lower(): ip})
+            mac = self.client.get_switch_mac()
+            if not mac:
+                self.client.disconnect()
+                LOG.exception(
+                    _LE('Cannot get MAC address from FOS switch(%s)'), ip)
+                raise client.FOSSWClientException('get_switch_mac_ip_pair')
+            switches_mac_ip_pair.update({mac: ip})
             self.client.disconnect()
         return switches_mac_ip_pair
 
@@ -161,11 +164,9 @@ class FOSSWVlanDriver(object):
 
         """
         method = "setup_vlan_with_lag"
-        mlag = None
-        switch_mac_list = []
-        for lli in llis:
-            switch_mac_list.append(lli['switch_id'])
-        unique_mac_list = set(switch_mac_list)
+        mlag = False
+        switch_mac_list = [lli['switch_id'] for lli in llis]
+        unique_mac_list = sorted(list(set(switch_mac_list)))
         if len(unique_mac_list) > 1:
             mlag = self.is_valid_mlag(unique_mac_list, ip_mac_pairs)
             if not mlag:
@@ -175,37 +176,41 @@ class FOSSWVlanDriver(object):
                 )
                 raise client.FOSSWClientException(method)
 
-        # setup vlan for each physical port
+        # Setup VLAN for each physical port
         for lli in llis:
-            arr_lli = []
-            arr_lli.append(lli)
-            self.setup_vlan(vlanid, arr_lli, ip_mac_pairs)
+            self.setup_vlan(vlanid, [lli], ip_mac_pairs)
 
         # Create lag resource
-        lag = {}
         for mac in unique_mac_list:
             target_ip = ip_mac_pairs[mac]
-
-            lag_ports = []
-            for lli in llis:
-                if lli['switch_id'] == mac:
-                    lag_ports.append(lli['port_id'])
-
-            lag.update({mac: lag_ports})
+            ports = [lli['port_id'] for lli in llis if lli['switch_id'] == mac]
             self.client.connect(target_ip)
-            lag_portname = self.client.get_free_logical_port()
-            for port in lag[mac]:
-                self.client.join_to_lag(port, lag_portname)
+            lag_port = self.client.get_lag_port()
+            if not lag_port:
+                self.client.disconnect()
+                LOG.exception(_LE("Could not find available logicalport in "
+                                  "switch(%s)."), target_ip)
+                raise client.FOSSWClientException(method)
+            for port in ports:
+                self.client.join_to_lag(port, lag_port)
             if mlag:
-                # Get free VPC id from fossw.
+                # Get available VPC id from FOS switch
                 vpcid = self.client.get_vpcid()
                 if vpcid:
-                    self.client.join_to_vpc(target_ip, lag_portname, vpcid)
+                    self.client.join_to_vpc(lag_port, vpcid)
                 else:
                     # All vpc is already used by other logical ports.
                     self.client.disconnect()
                     raise client.FOSSWClientException(method)
             self.client.disconnect()
+
+    def _validate_lli_macs_with_config(self, macs, ip_mac_pairs):
+        ips = [ip_mac_pairs.get(mac, None) for mac in macs]
+        if None in ips:
+            LOG.error(_LE("MAC(%s) in local_link_informatio doesn't match "
+                          "with FOS switches"), macs)
+            raise client.FOSSWClientException('_validate_lli_macs_with_config')
+        return ips
 
     def is_valid_mlag(self, macs, ip_mac_pairs):
         """Validates which given pair of MAC address is valid mlag pair or not.
@@ -220,21 +225,17 @@ class FOSSWVlanDriver(object):
         :rtype: Boolean
 
         """
-        method = "is_valid_mlag"
         try:
-            first_switch_ip = ip_mac_pairs[macs[0]]
-            self.client.connect(first_switch_ip)
-            mlag_partner_ip = self.client.get_peerlink_partner()
+            ips = self._validate_lli_macs_with_config(macs, ip_mac_pairs)
+            self.client.connect(ips[0])
+            partner_ip = self.client.get_peerlink_partner()
             self.client.disconnect()
-            if mlag_partner_ip == macs[1]:
-                return True
-            else:
-                return False
+            return (partner_ip in ips)
         except Exception as e:
             self.client.disconnect()
-            LOG.exception(_LE("An error occurred while validating specified "
-                              "FOS switches are VPC pair. %s"), e)
-            raise client.FOSSWClientException(method)
+            LOG.warning(_LW("An error occurred while validating specified "
+                            "FOS switches are VPC pair. %s"), e)
+            return False
 
     def clear_vlan(self, vlanid, lli, ip_mac_pairs):
         """Clear VLAN from FOS switch.
@@ -284,10 +285,8 @@ class FOSSWVlanDriver(object):
         """
         method = "clear_vlan_with_lag"
         mlag = None
-        switch_mac_list = []
-        for lli in llis:
-            switch_mac_list.append(lli['switch_id'])
-        unique_mac_list = set(switch_mac_list)
+        switch_mac_list = [lli['switch_id'] for lli in llis]
+        unique_mac_list = sorted(list(set(switch_mac_list)))
         if len(unique_mac_list) > 1:
             mlag = self.is_valid_mlag(unique_mac_list, ip_mac_pairs)
             if not mlag:
@@ -298,27 +297,27 @@ class FOSSWVlanDriver(object):
 
         for mac in unique_mac_list:
             target_ip = ip_mac_pairs[mac]
-            ports = []
-            for lli in llis:
-                if lli['switch_id'] == mac:
-                    ports.append(lli['port_id'])
+            ports = [lli['port_id'] for lli in llis if lli['switch_id'] == mac]
             self.client.connect(target_ip)
-            lag_portname = self.client.get_lag_port(ports[0])
-
-            if mlag:
-                vpcid = self.client.get_vpcid(lag_portname)
-                if vpcid:
-                    self.client.leave_from_vpc(lag_portname, vpcid)
-                else:
-                    LOG.warning(_LW("Specified logical port is not "
-                                    "associated with any VPC on the FOSSW. "
-                                    "skip leave from vpc."))
-            for port in ports:
-                self.client.leave_from_lag(port, lag_portname)
+            lag_port = self.client.get_lag_port(','.join(list(sorted(ports))))
+            if not lag_port:
+                LOG.warning(
+                    _LW("Specified logicalport has already cleared. Skip "
+                        "clearing LAG."))
+            else:
+                if mlag:
+                    vpcid = self.client.get_vpcid(lag_port)
+                    if vpcid:
+                        self.client.leave_from_vpc(lag_port, vpcid)
+                    else:
+                        LOG.warning(
+                            _LW("Specified logicalport has been already "
+                                "disssociated with any VPC on the switch(%s). "
+                                "skip leave_from_vpc."), target_ip)
+                for port in ports:
+                    self.client.leave_from_lag(port, lag_port)
             self.client.disconnect()
 
-        # Clear lag setting
+        # Clear VLAN for each physical port
         for lli in llis:
-            arr_lli = []
-            arr_lli.append(lli)
-            self.clear_vlan(vlanid, arr_lli, ip_mac_pairs)
+            self.clear_vlan(vlanid, [lli], ip_mac_pairs)

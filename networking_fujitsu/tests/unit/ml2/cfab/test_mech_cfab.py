@@ -94,6 +94,36 @@ class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
     pass
 
 
+class TestMechCFABIsSupported(helper.FujitsuMechanismHelper):
+
+    def test_is_supported_type_vlan(self):
+        ctx = self.prepare_dummy_context('network')
+        network = ctx.current
+        self.assertTrue(mech_cfab.is_supported(network))
+
+    def test_is_supported_not_support_type_flat(self):
+        ctx = self.prepare_dummy_context('network', net_type='flat')
+        network = ctx.current
+        self.assertFalse(mech_cfab.is_supported(network))
+
+    def test_is_supported_not_support_type_vxlan(self):
+        ctx = self.prepare_dummy_context('network', net_type='vxlan')
+        network = ctx.current
+        self.assertFalse(mech_cfab.is_supported(network))
+
+    def test_is_supported_illegal_seg_id_is_none(self):
+        ctx = self.prepare_dummy_context('network', net_type='vlan')
+        network = ctx.current
+        ctx.current['provider:segmentation_id'] = None
+        self.assertFalse(mech_cfab.is_supported(network))
+
+    def test_is_supported_illegal_seg_id_is_not_defined(self):
+        ctx = self.prepare_dummy_context('network', net_type='vlan')
+        network = ctx.current
+        del network['provider:segmentation_id']
+        self.assertFalse(mech_cfab.is_supported(network))
+
+
 class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
 
     def setUp(self):

@@ -15,6 +15,10 @@
 
 import mock
 
+from oslo_config import cfg
+from oslo_utils import importutils
+
+from networking_fujitsu.ml2.fossw import fossw_vlandriver
 from networking_fujitsu.ml2.fossw import mech_fossw
 from networking_fujitsu.tests.unit.ml2.common import helper
 
@@ -69,6 +73,49 @@ class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
     pass
 
 
+class TestFOSSWInitialize(helper.FujitsuMechanismHelper):
+
+    def setUp(self):
+        super(TestFOSSWInitialize, self).setUp()
+        ml2_config.cfg.CONF.set_override(
+            'tenant_network_types', ['vlan', 'vxlan'], 'ml2')
+        ml2_config.cfg.CONF.set_override(
+            'username', 'admin', 'fujitsu_fossw')
+        ml2_config.cfg.CONF.set_override(
+            'password', 'password', 'fujitsu_fossw')
+        ml2_config.cfg.CONF.set_override(
+            'fossw_ips', [ADDRESS, ADDRESS2], 'fujitsu_fossw')
+        importutils.import_object = mock.Mock()
+        fossw_vlandriver.FOSSWVlanDriver().get_switch_mac_ip_pair = mock.Mock()
+
+    def test_initialize_success(self):
+        self.mech = mech_fossw.FOSSWMechanismDriver()
+        self.assertEqual('admin', self.mech.username)
+        self.assertEqual('password', self.mech.password)
+        self.assertEqual('password', self.mech.password)
+        self.assertEqual(
+            mech_fossw.FOSSW_VLAN_DRIVER,
+            importutils.import_object.call_args_list[0][0][0])
+        self.assertEqual(
+            ml2_config.cfg.CONF,
+            importutils.import_object.call_args_list[0][0][1])
+        self.assertEqual(
+            mech_fossw.FOSSW_VXLAN_DRIVER,
+            importutils.import_object.call_args_list[1][0][0])
+        self.assertEqual(
+            ml2_config.cfg.CONF,
+            importutils.import_object.call_args_list[1][0][1])
+        self.mech._vlan_driver.get_switch_mac_ip_pair.assert_called_once_with(
+            [ADDRESS, ADDRESS2])
+
+    def test_initialize_with_no_ips(self):
+        ml2_config.cfg.CONF.set_override(
+            'fossw_ips', [], 'fujitsu_fossw')
+        self.assertRaises(
+            cfg.RequiredOptError,
+            mech_fossw.FOSSWMechanismDriver)
+
+
 class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
                                   helper.FujitsuMechanismHelper):
 
@@ -121,6 +168,13 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
             self.mech.switches_mac_ip_pair
         )
 
+    def test_bind_port_with_single_raises_setup_vlan(self):
+        ctx = self.prepare_dummy_context()
+        self.mech._vlan_driver.setup_vlan.side_effect = Exception
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.bind_port, ctx)
+
     def test_bind_port_with_lag(self):
         ctx = self.prepare_dummy_context(nic='lag')
         self.mech.bind_port(ctx)
@@ -130,6 +184,13 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
             params['local_link_info'],
             self.mech.switches_mac_ip_pair
         )
+
+    def test_bind_port_with_lag_raises_setup_vlan_with_lag(self):
+        ctx = self.prepare_dummy_context(nic='lag')
+        self.mech._vlan_driver.setup_vlan_with_lag.side_effect = Exception
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.bind_port, ctx)
 
     def test_bind_port_with_mlag(self):
         ctx = self.prepare_dummy_context(nic='mlag')
@@ -176,6 +237,22 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
             self.mech.switches_mac_ip_pair
         )
 
+    def test_delete_port_raises_driver_clear_vlan(self):
+        self.mech._vlan_driver.clear_vlan.side_effect = Exception
+        ctx = self.prepare_dummy_context(nic='single')
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.delete_port_postcommit, ctx)
+        self.mech._vxlan_driver.reset_physical_port.assert_not_called()
+
+    def test_delete_with_lag_raises_clear_vlan_with_lag(self):
+        self.mech._vlan_driver.clear_vlan_with_lag.side_effect = Exception
+        ctx = self.prepare_dummy_context(nic='lag')
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.delete_port_postcommit, ctx)
+        self.mech._vxlan_driver.reset_physical_port.assert_not_called()
+
 
 def params_for_driver(port, lag=False):
     return {
@@ -186,11 +263,50 @@ def params_for_driver(port, lag=False):
     }
 
 
+class TestFOSSWIsSupported(TestFujitsuMechDriverV2,
+                           helper.FujitsuMechanismHelper):
+    def setUp(self):
+        super(TestFOSSWIsSupported, self).setUp()
+
+    def test_is_supported_not_support_type(self):
+        ctx = self.prepare_dummy_context('network', net_type='flat')
+        network = ctx.current
+        self.assertFalse(mech_fossw.is_supported(network))
+
+    def test_is_supported_illegal_seg_id_is_none(self):
+        ctx = self.prepare_dummy_context('network', net_type='vlan')
+        network = ctx.current
+        ctx.current['provider:segmentation_id'] = None
+        self.assertFalse(mech_fossw.is_supported(network))
+
+    def test_is_supported_illegal_seg_id_is_not_defined(self):
+        ctx = self.prepare_dummy_context('network', net_type='vlan')
+        network = ctx.current
+        del network['provider:segmentation_id']
+        self.assertFalse(mech_fossw.is_supported(network))
+
+
 class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
                                    helper.FujitsuMechanismHelper):
 
     def setUp(self):
         super(TestFOSSWBaremetalPortsVxlan, self).setUp()
+
+    def test_is_supported_not_support_type(self):
+        ctx = self.prepare_dummy_context('network', net_type='flat')
+        network = ctx.current
+        self.assertFalse(mech_fossw.is_supported(network))
+
+    def test_is_supported_illegal_seg_id_is_none(self):
+        ctx = self.prepare_dummy_context('network', net_type='flat')
+        network = ctx.current
+        ctx.current['provider:segmentation_id'] = None
+        self.assertFalse(mech_fossw.is_supported(network))
+
+    def test_is_supported_illegal_seg_id_is_not_defined(self):
+        ctx = self.prepare_dummy_context('network', net_type='flat')
+        network = ctx.current
+        self.assertFalse(mech_fossw.is_supported(network))
 
     def test_create_network(self):
         ctx = self.prepare_dummy_context('network', net_type='vxlan')
@@ -266,6 +382,14 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
             self.mech.switches_mac_ip_pair
         )
 
+    def test_bind_port_with_lag_raises_driver_method(self):
+        ctx = self.prepare_dummy_context(net_type='vxlan', nic='lag')
+        self.mech._vxlan_driver.update_physical_port_with_lag.side_effect = \
+            Exception
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.bind_port, ctx)
+
     def test_update_port(self):
         ctx = self.prepare_dummy_context(net_type='vxlan')
         self.mech.update_port_postcommit(ctx)
@@ -293,6 +417,14 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
             self.mech.switches_mac_ip_pair
         )
 
+    def test_update_port_raises_update_physical_port(self):
+        ctx = self.prepare_dummy_context(
+            net_type='vxlan', vif_type='normal', vnic_type='ovs')
+        self.mech._vxlan_driver.update_physical_port.side_effect = Exception
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.update_port_postcommit, ctx)
+
     def test_delete_port(self):
         ctx = self.prepare_dummy_context(net_type='vxlan')
         self.mech.delete_port_postcommit(ctx)
@@ -307,6 +439,27 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
             ctx.current,
             self.mech.switches_mac_ip_pair
         )
+
+    def test_delete_port_raises_reset_physical_port(self):
+        ctx = self.prepare_dummy_context(net_type='vxlan', vif_type='normal')
+        self.mech._vxlan_driver.reset_physical_port.side_effect = Exception
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.delete_port_postcommit, ctx)
+
+    def test_delete_port_with_lag_raises_reset_physical_port_with_lag(self):
+        ctx = self.prepare_dummy_context(
+            net_type='vxlan', vif_type='normal', nic='lag')
+        self.mech._vlan_driver.clear_vlan_with_lag.side_effect = [
+            Exception, None]
+        self.mech._vxlan_driver.reset_physical_port_with_lag.side_effect = [
+            Exception, Exception]
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.delete_port_postcommit, ctx)
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.delete_port_postcommit, ctx)
 
     def test_delete_port_with_flat(self):
         ctx = self.prepare_dummy_context(net_type='flat')

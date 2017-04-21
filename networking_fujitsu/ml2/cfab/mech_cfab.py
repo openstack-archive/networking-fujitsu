@@ -108,16 +108,11 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
             try:
                 physical_network, vfab_id = entry.split(':')
             except ValueError:
-                LOG.exception(
-                    _LE("Fujitsu Mechanism: illegal physical_networks entry")
-                )
+                LOG.exception(_LE("Illegal physical_networks entry"))
                 raise ml2_exc.MechanismDriverError(method=method)
             if not (vfab_id == VFAB_ID_DEFAULT or
                     VFAB_ID_MIN <= int(vfab_id) <= VFAB_ID_MAX):
-                LOG.error(
-                    _LE("Fujitsu Mechanism: illegal vfab id in "
-                        "physical_networks entry")
-                )
+                LOG.exception(_LE("Illegal VFAB in physical_networks entry"))
                 raise ml2_exc.MechanismDriverError(method=method)
             self._physical_networks[physical_network] = vfab_id
 
@@ -128,8 +123,7 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
             vfab_id = self._physical_networks[physical_network]
         except KeyError:
             LOG.exception(
-                _LE("Fujitsu Mechanism: network cannot be found in the "
-                    "configured physical network"))
+                _LE("Network not found in the configured physical network"))
             raise ml2_exc.MechanismDriverError(method="_get_vfab_id")
         return vfab_id
 
@@ -154,7 +148,7 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         port_id = port['id']
         network_id = port['network_id']
         tenant_id = port['tenant_id']
-        interface_mac = port['mac_address']
+        mac = port['mac_address']
         vfab_id = self._get_vfab_id(utils.get_physical_network(network))
         vlanid = utils.get_segmentation_id(network)
 
@@ -165,12 +159,10 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                 self._switch['password'],
                 vfab_id,
                 vlanid,
-                interface_mac
+                mac
             )
         except Exception:
-            LOG.exception(
-                _LE("Fujitsu Mechanism: failed to associate mac %s")
-                % interface_mac)
+            LOG.exception(_LE("Failed to associate mac %s"), mac)
             raise ml2_exc.MechanismDriverError(method=method)
 
         LOG.info(
@@ -202,8 +194,8 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                 try:
                     self.clear_vlan(params)
                 except Exception:
-                    LOG.exception(_LE("Failed to clear vlan%s."),
-                                  params['vlanid'])
+                    LOG.exception(
+                        _LE("Failed to clear VLAN(%s)."), params['vlanid'])
                     raise ml2_exc.MechanismDriverError(method=method)
         elif not is_supported(network):
             pass
@@ -211,7 +203,7 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
             physical_network = utils.get_physical_network(network)
             vlanid = utils.get_segmentation_id(network)
             vfab_id = self._get_vfab_id(physical_network)
-            interface_mac = port['mac_address']
+            mac = port['mac_address']
 
             try:
                 self._driver.dissociate_mac_from_network(
@@ -220,11 +212,9 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                     self._switch['password'],
                     vfab_id,
                     vlanid,
-                    interface_mac)
+                    mac)
             except Exception:
-                LOG.exception(
-                    _LE("Fujitsu Mechanism: failed to dissociate MAC %s") %
-                    interface_mac)
+                LOG.exception(_LE("Failed to dissociate MAC %s"), mac)
                 raise ml2_exc.MechanismDriverError(method=method)
         LOG.info(
             _LI("delete port (postcommit): port_id=%(p_id)s "
@@ -249,10 +239,6 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         target = 'setup_vlan_with_lag' if params['lag'] else 'setup_vlan'
         try:
             setup_method = getattr(self._driver, target)
-        except AttributeError:
-            LOG.exception(_LE("Unexpected error happend."))
-            raise ml2_exc.MechanismDriverError(method='setup_vlan')
-        try:
             # This plugin supposes 1 C-Fabric(fabric_id) management.
             # Therefore, not to identify target IP address by using
             # switch_info(mac_address).
@@ -268,8 +254,7 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                 params['mac'],
             )
         except Exception:
-            LOG.exception(_LE("Fujitsu Mechanism: "
-                              "failed to setup vlan %s"), params['vlanid'])
+            LOG.exception(_LE("Failed to setup VLAN(%s)"), params['vlanid'])
             raise ml2_exc.MechanismDriverError(method='setup_vlan')
 
     @log_helpers.log_method_call
@@ -287,20 +272,14 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         @return  None
         """
 
-        target = 'clear_vlan_with_lag'
-        call_target = target if params['lag'] else 'clear_vlan'
+        target = 'clear_vlan_with_lag' if params['lag'] else 'clear_vlan'
         try:
-            clear_method = getattr(self._driver, call_target)
-        except AttributeError:
-            LOG.exception(_LE("Unexpected error happend."))
-            raise ml2_exc.MechanismDriverError(method="clear_vlan")
-
-        try:
+            clear_method = getattr(self._driver, target)
             # This plugin supposes 1 C-Fabric(fabric_id) management.
             # Therefore, not to identify target IP address by using
             # switch_info(mac_address).
-            LOG.info(_LI("call %(target)s.  params: %(params)s"),
-                     {'target': call_target, 'params': params})
+            LOG.info(_LI("Call %(target)s.  params: %(params)s"),
+                     {'target': target, 'params': params})
             clear_method(
                 params['address'],
                 params['username'],
@@ -311,9 +290,8 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                 params['mac'],
             )
         except Exception:
-            LOG.exception(_LE("Fujitsu Mechanism: "
-                              "failed to clear vlan %s"), params['vlanid'])
-            raise ml2_exc.MechanismDriverError(method="clear_vlan")
+            LOG.exception(_LE("Failed to clear VLAN(%s)"), params['vlanid'])
+            raise ml2_exc.MechanismDriverError(target)
 
     @log_helpers.log_method_call
     def get_physical_net_params(self, mech_context):
@@ -374,12 +352,12 @@ def is_supported(network):
             otherwise False
     """
 
-    seg_id = utils.get_segmentation_id(network)
     net_type = utils.get_network_type(network)
-    if (net_type in _SUPPORTED_NET_TYPES and seg_id):
-        return True
-    LOG.warning(_LW("%s is not supported. Skip it."), net_type)
-    return False
+    if net_type not in _SUPPORTED_NET_TYPES:
+        LOG.warning(_LW("Network type(%s) is not supported. Skip it."),
+                    net_type)
+        return False
+    return True if utils.get_segmentation_id(network) else False
 
 
 def validate_baremetal_deploy(mech_context):

@@ -15,6 +15,7 @@
 
 import copy
 import mock
+
 from neutron_lib.api.definitions import portbindings
 
 from collections import defaultdict
@@ -145,9 +146,8 @@ class TestEliminateVal(FujitsuCommonUtilsTestCase):
 
 class DummyNetwork(object):
 
-    def __init__(self, segments, current):
+    def __init__(self, segments):
         self.network_segments = segments
-        self.current = current
 
 
 class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
@@ -161,17 +161,20 @@ class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
     def setUp(self):
         super(TestGetNetworkSegments, self).setUp()
 
-        self.segments = [{
+        self.vlan_segments = [{
             "network_type": "vlan",
             "physical_network": 'physnet1',
-            "segmentation_id": 100
-        }]
-        self.current = {
-            "provider:network_type": "flat",
-            "provider:physical_network": 'physnet2',
-            "provider:segmentation_id": 200
-        }
-        self.net_ctx = DummyNetwork(self.segments, self.current)
+            "segmentation_id": 100}]
+        self.vxlan_segments = [{
+            "network_type": "vxlan",
+            "segmentation_id": 10000}]
+        self.flat_segments = [{
+            "network_type": "flat",
+            "physical_network": 'flatnet'}]
+        self.ctx_vlan = DummyNetwork(self.vlan_segments)
+        self.ctx_vxlan = DummyNetwork(self.vxlan_segments)
+        self.ctx_flat = DummyNetwork(self.flat_segments)
+        self.attrs = ['NETWORK_TYPE', 'PHYSICAL_NETWORK', 'SEGMENTATION_ID']
 
     def test_get_from_network_dict(self):
         network = {
@@ -179,37 +182,67 @@ class TestGetNetworkSegments(FujitsuCommonUtilsTestCase):
             "provider:physical_network": 'physnet1',
             "provider:segmentation_id": 100
         }
-        self.assertEqual("vlan", utils.get_network_type(network))
-        self.assertEqual('physnet1', utils.get_physical_network(network))
-        self.assertEqual(100, utils.get_segmentation_id(network))
+        retvals = [
+            utils._get_provider_attribute(network, attr) for attr in self.attrs
+        ]
+        self.assertEqual("vlan", retvals[0])
+        self.assertEqual('physnet1', retvals[1])
+        self.assertEqual(100, retvals[2])
 
     def test_get_from_network_dict_with_segments(self):
-        network = {
+        net_dict = {
             "segments": [{
                 "provider:network_type": "vlan",
                 "provider:physical_network": 'physnet1',
                 "provider:segmentation_id": 100
             }]
         }
-        self.assertEqual("vlan", utils.get_network_type(network))
-        self.assertEqual('physnet1', utils.get_physical_network(network))
-        self.assertEqual(100, utils.get_segmentation_id(network))
+        retvals = [
+            utils._get_provider_attribute(
+                net_dict, attr) for attr in self.attrs]
+        self.assertEqual("vlan", retvals[0])
+        self.assertEqual('physnet1', retvals[1])
+        self.assertEqual(100, retvals[2])
 
     def test_get_from_network_context_with_segments(self):
-        self.assertEqual("vlan", utils.get_network_type(self.net_ctx))
-        self.assertEqual('physnet1', utils.get_physical_network(self.net_ctx))
-        self.assertEqual(100, utils.get_segmentation_id(self.net_ctx))
+        retvals = [
+            utils._get_provider_attribute(
+                self.ctx_vlan, attr) for attr in self.attrs]
+        self.assertEqual("vlan", retvals[0])
+        self.assertEqual('physnet1', retvals[1])
+        self.assertEqual(100, retvals[2])
 
     def test_get_from_network_context_with_segments_provider(self):
-        self.segments = [{
-            "provider:network_type": "vlan",
-            "provider:physical_network": 'physnet1',
-            "provider:segmentation_id": 100
-        }]
-        net_ctx = DummyNetwork(self.segments, None)
-        self.assertEqual("vlan", utils.get_network_type(net_ctx))
-        self.assertEqual('physnet1', utils.get_physical_network(net_ctx))
-        self.assertEqual(100, utils.get_segmentation_id(net_ctx))
+        retvals = [
+            utils._get_provider_attribute(
+                self.ctx_vlan, attr) for attr in self.attrs]
+        self.assertEqual("vlan", retvals[0])
+        self.assertEqual('physnet1', retvals[1])
+        self.assertEqual(100, retvals[2])
+
+    def test_get_from_network_context_vxlan(self):
+        self.assertEqual('vxlan', utils.get_network_type(self.ctx_vxlan))
+        self.assertEqual(10000, utils.get_segmentation_id(self.ctx_vxlan))
+        self.assertIsNone(utils.get_physical_network(self.ctx_vxlan))
+
+    def test_get_from_network_context_flat(self):
+        self.assertEqual('flat', utils.get_network_type(self.ctx_flat))
+        self.assertEqual('flatnet', utils.get_physical_network(self.ctx_flat))
+        self.assertIsNone(utils.get_segmentation_id(self.ctx_flat))
+
+    def test_illegal_attrs_not_exist(self):
+        net_dict = {}
+        self.assertIsNone(utils.get_network_type(net_dict))
+        self.assertIsNone(utils.get_physical_network(net_dict))
+        self.assertIsNone(utils.get_segmentation_id(net_dict))
+
+    def test_illegal_unable_to_load_attributes(self):
+        for attr in [self.ctx_vlan, self.ctx_vxlan, self.ctx_flat]:
+            self.assertRaises(
+                AttributeError,
+                utils._get_provider_attribute,
+                attr,
+                'non_exist_attribute')
 
 
 class TestGetPhysicalConnectivity(FujitsuCommonUtilsTestCase):

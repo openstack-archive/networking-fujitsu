@@ -101,12 +101,21 @@ def eliminate_val(source, reject):
     return ','.join(rejected)
 
 
-def _get_segment(net):
+def _get_provider_attribute(net, net_attr):
     if isinstance(net, dict):
         segment = net['segments'][0] if net.get('segments', None) else net
     else:
         segment = net.network_segments[0]
-    return segment
+    try:
+        api_attr = getattr(driver_api, net_attr)
+        provider_attr = getattr(provider_net, net_attr)
+    except AttributeError as e:
+        msg = _('Attribute(%s) not found. A version of neutron-lib seems '
+                'not to match suitable one. Please check it.'), net_attr
+        LOG.critical(msg)
+        raise e
+    else:
+        return segment.get(api_attr, segment.get(provider_attr, None))
 
 
 def get_network_type(network):
@@ -118,14 +127,7 @@ def get_network_type(network):
     :returns network_type: 'vlan', 'vxlan', 'local', 'flat' and 'geneve'
     :rtype: string
     """
-
-    segment = _get_segment(network)
-    try:
-        # pattern1: network is network_segments with no 'provider:'
-        return segment[driver_api.NETWORK_TYPE]
-    except (AttributeError, KeyError, TypeError):
-        # pattern2: network is network_segments with 'provider:'
-        return segment[provider_net.NETWORK_TYPE]
+    return _get_provider_attribute(network, 'NETWORK_TYPE')
 
 
 def get_segmentation_id(network):
@@ -137,14 +139,7 @@ def get_segmentation_id(network):
     :returns segmentation_id: VLANID('vlan') or VNI('vxlan')
     :rtype: integer
     """
-
-    segment = _get_segment(network)
-    try:
-        # pattern1: network is network_segments with no 'provider:'
-        return segment[driver_api.SEGMENTATION_ID]
-    except (AttributeError, KeyError, TypeError):
-        # pattern2: network is network_segments with 'provider:'
-        return segment[provider_net.SEGMENTATION_ID]
+    return _get_provider_attribute(network, 'SEGMENTATION_ID')
 
 
 def get_physical_network(network):
@@ -156,14 +151,7 @@ def get_physical_network(network):
     :returns physical_network: physical network name for the network
     :rtype: string
     """
-
-    segment = _get_segment(network)
-    try:
-        # pattern1: network is network_segments with no 'provider:'
-        return segment[driver_api.PHYSICAL_NETWORK]
-    except (AttributeError, KeyError, TypeError):
-        # pattern2: network is network_segments with 'provider:'
-        return segment[provider_net.PHYSICAL_NETWORK]
+    return _get_provider_attribute(network, 'PHYSICAL_NETWORK')
 
 
 def get_physical_connectivity(port):
@@ -206,7 +194,7 @@ def is_baremetal(port):
     """
 
     vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
-    return True if (vnic_type == portbindings.VNIC_BAREMETAL) else False
+    return (vnic_type == portbindings.VNIC_BAREMETAL)
 
 
 def is_lag(local_link_information):
@@ -219,4 +207,4 @@ def is_lag(local_link_information):
     :rtype: boolean
     """
 
-    return True if len(local_link_information) > 1 else False
+    return (len(local_link_information) > 1)
