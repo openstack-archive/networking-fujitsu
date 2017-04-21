@@ -38,11 +38,9 @@ class BaseTestFOSSWClient(base.BaseTestCase):
             mech_fossw.ML2_FUJITSU_GROUP
         )
         cfg.CONF.set_override(
-            'username', DUMMY_USERNAME, 'fujitsu_fossw'
-        )
+            'username', DUMMY_USERNAME, 'fujitsu_fossw')
         cfg.CONF.set_override(
-            'fossw_ips', DUMMY_FOSSW_IPS, 'fujitsu_fossw'
-        )
+            'fossw_ips', DUMMY_FOSSW_IPS, 'fujitsu_fossw')
         self.cli = client.FOSSWClient(cfg.CONF)
         self.cli.console = mock.Mock()
 
@@ -50,47 +48,50 @@ class BaseTestFOSSWClient(base.BaseTestCase):
 class TestFOSSWClientConnect(BaseTestFOSSWClient):
     """Test FOSSW client for connect to FOS switch."""
 
+    def setUp(self):
+        paramiko.SSHClient = mock.Mock()
+        super(TestFOSSWClientConnect, self).setUp()
+        self.cli._exec_command = mock.Mock()
+        self.ip = cfg.CONF.fujitsu_fossw.fossw_ips[0]
+
     def test_connect(self):
-        with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-            ip = cfg.CONF.fujitsu_fossw.fossw_ips[0]
-            p_ssh.connect.return_value = None
-            self.cli._exec_command = mock.Mock()
+        self.cli.connect(self.ip)
+        self.cli.ssh.connect.assert_called_once_with(
+            self.ip,
+            password=cfg.CONF.fujitsu_fossw.password,
+            port=cfg.CONF.fujitsu_fossw.port,
+            timeout=cfg.CONF.fujitsu_fossw.timeout,
+            username=cfg.CONF.fujitsu_fossw.username
+        )
+        self.cli._exec_command.assert_called_once_with(
+            client.TERMINAL_LENGTH_0)
 
-            self.cli.connect(ip)
-            p_ssh.return_value.connect.assert_called_once_with(
-                ip,
-                password=cfg.CONF.fujitsu_fossw.password,
-                port=cfg.CONF.fujitsu_fossw.port,
-                timeout=cfg.CONF.fujitsu_fossw.timeout,
-                username=cfg.CONF.fujitsu_fossw.username
-            )
-            self.cli._exec_command.assert_called_once_with(
-                client.TERMINAL_LENGTH_0)
+    def test_connect_exists_session_and_reuse(self):
+        self.cli.ssh = mock.Mock()
+        self.cli.ssh._host_keys.lookup.return_value = True
+        self.cli._reconnect = mock.Mock()
+        self.cli.connect(self.ip)
 
-    def test_connect_exists_session(self):
-        with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-            ip = cfg.CONF.fujitsu_fossw.fossw_ips[0]
-            p_ssh.connect.return_value = None
-            self.cli._reconnect = mock.Mock()
-            self.cli.lookup = mock.Mock(return_value=True)
-            self.cli._exec_command = mock.Mock()
+        self.cli.ssh.connect.assert_not_called()
+        self.cli._exec_command.assert_not_called()
+        self.cli._reconnect.assert_not_called()
 
-            self.cli.connect(ip)
-            p_ssh.connect.assert_not_called()
-            self.cli._exec_command.assert_called_once_with(
-                client.TERMINAL_LENGTH_0)
-            self.cli.lookup.assert_called_once_with(ip)
-            self.cli._reconnect.assert_not_called()
+    def test_connect_exists_session_and_not_reuse(self):
+        self.cli.ssh = mock.Mock()
+        self.cli.ssh._host_keys.lookup.return_value = False
+        self.cli.connect(self.ip)
+
+        self.assertEqual(1, self.cli.ssh.connect.call_count)
+        self.cli._exec_command.assert_called_once_with(
+            client.TERMINAL_LENGTH_0)
 
     def test_connect_fail(self):
         with mock.patch(__name__ + ".client.paramiko.SSHClient") as p_ssh:
             self.cli._exec_command = mock.Mock()
-            err_io = IOError
-            err_hostkey = paramiko.ssh_exception.BadHostKeyException
-            err_auth = paramiko.ssh_exception.AuthenticationException
-            err_ssh = paramiko.ssh_exception.SSHException
-            err_socket = socket.error(9999, "fake_error")
-            errors = [err_io, err_hostkey, err_auth, err_ssh, err_socket]
+            errors = [IOError, paramiko.ssh_exception.BadHostKeyException,
+                      paramiko.ssh_exception.AuthenticationException,
+                      paramiko.ssh_exception.SSHException,
+                      socket.error(9999, "fake_error")]
             p_ssh.return_value.connect.side_effect = errors
 
             self.assertRaises(
@@ -244,9 +245,12 @@ class TestFOSSWClientDeleteVlan(BaseTestFOSSWClient):
         ret = "(ET-7648BRA-FOS) (Vlan)#"
         self.cli._exec_command.return_value = ret
         self.assertIsNone(self.cli.delete_vlan(10))
+
+    def test_delete_vlan_already_deleted(self):
         ret = ("Failed to delete one or more VLAN's. Please refer system log "
                "for more information.")
         self.cli._exec_command.return_value = ret
+        self.assertIsNone(self.cli.delete_vlan(10))
 
 
 class TestFOSSWClientSetVlan(BaseTestFOSSWClient):
@@ -283,29 +287,6 @@ class TestFOSSWClientClearVlan(BaseTestFOSSWClient):
         self.assertIsNone(self.cli.clear_vlan(10, 1))
 
 
-class TestFOSSWClientGetFreeLogicalPort(BaseTestFOSSWClient):
-    """Test FOSSW Client for get free logical port"""
-    def setUp(self):
-        super(TestFOSSWClientGetFreeLogicalPort, self).setUp()
-        self.cli._exec_command = mock.Mock(return_value=None)
-
-    def test_get_free_logical_port(self):
-        ret = ("3/1       ch1              1   Down       Disabled Static"
-               "3/2       ch2              1   Down       Disabled Static"
-               "3/3       ch3              1   Down       Disabled Static"
-               "3/4       ch4              1   Down       Disabled Static"
-               "3/5       ch5              1   Down       Disabled Static"
-               "3/6       ch6              1   Down       Disabled Static"
-               "3/7       ch7              1   Down       Disabled Static"
-               "3/8       ch8              1   Down       Disabled Static"
-               "3/9       ch9              1   Down       Disabled Static"
-               "3/10      ch10             1   Down       Disabled Static"
-               ""
-               "(ET-7648BRA-FOS) #")
-        self.cli._exec_command.return_value = ret
-        self.assertEqual("3/1", self.cli.get_free_logical_port())
-
-
 class TestFOSSWClientJoinToLag(BaseTestFOSSWClient):
     """Test FOSSW Client for join to lag"""
     def setUp(self):
@@ -318,6 +299,19 @@ class TestFOSSWClientJoinToLag(BaseTestFOSSWClient):
                "(ET-7648BRA-FOS) (Interface 0/1)#"]
         self.cli._exec_command.side_effect = ret
         self.assertIsNone(self.cli.join_to_lag("0/1", "3/1"))
+
+
+class TestFOSSWClientJoinToVPC(TestFOSSWClientJoinToLag):
+    """Test FOSSW Client for join to vpc"""
+
+    def test_join_to_vpc(self):
+        logicalport = '1'
+        vpcid = '10'
+        self.cli.join_to_vpc(logicalport, vpcid)
+        self.cli.change_mode.assert_called_once_with(
+            client.MODE_INTERFACE, ifname=logicalport)
+        self.cli._exec_command.assert_called_once_with(
+            "vpc {vpcid}".format(vpcid=vpcid))
 
 
 class TestFOSSWClientGetVPCId(BaseTestFOSSWClient):
@@ -364,20 +358,6 @@ class TestFOSSWClientGetVPCId(BaseTestFOSSWClient):
         self.assertIsNone(self.cli.get_vpcid("3/1"))
 
 
-class TestFOSSWClientJoinToVPC(BaseTestFOSSWClient):
-    """Test FOSSW Client for join to vpc"""
-    def setUp(self):
-        super(TestFOSSWClientJoinToVPC, self).setUp()
-        self.cli.change_mode = mock.Mock(return_value=None)
-        self.cli._exec_command = mock.Mock(return_value=None)
-
-    def test_join_to_lag(self):
-        ret = ["(ET-7648BRA-FOS) (Interface 3/1)#",
-               "(ET-7648BRA-FOS) (Interface 0/1)#"]
-        self.cli._exec_command.side_effect = ret
-        self.assertIsNone(self.cli.join_to_lag("0/1", "3/1"))
-
-
 class TestFOSSWClientGetPeerlinkPartner(BaseTestFOSSWClient):
     """Test FOSSW Client for get peerlink partner ip"""
     def setUp(self):
@@ -392,16 +372,90 @@ class TestFOSSWClientGetPeerlinkPartner(BaseTestFOSSWClient):
 
 class TestFOSSWClientGetLAGPort(BaseTestFOSSWClient):
     """Test FOSSW Client for get port-wqmemberport of port-channel."""
+
     def setUp(self):
         super(TestFOSSWClientGetLAGPort, self).setUp()
         self.cli._exec_command = mock.Mock()
 
-    def test_get_lag_port(self):
-        self.cli._exec_command.return_value = ("")
-        self.assertIsNone(self.cli.get_lag_port("0/1"))
+    def test_lag_lagport_found_with_portname(self):
+        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual("3/1", self.cli.get_lag_port('0/1,0/2'))
 
-        self.cli._exec_command.return_value = ("")
-        self.assertIsNone(self.cli.get_lag_port("0/1"))
+    def test_lag_lagport_found_without_portname(self):
+        ret = ("3/1   ch1   1   Down  Disabled Static 0/1,0/2\r\n"
+               "3/2   ch2   1   Down  Disabled Static 0/3,0/4\r\n"
+               "3/3   ch3   1   Down  Disabled Static\r\n"
+               "3/4   ch4   1   Down  Disabled Static 0/5,0/6\r\n"
+               "3/5   ch5   1   Down  Disabled Static  \r\n"
+               "3/6   ch6   1   Down  Disabled Static\n"
+               "3/7   ch7   1   Down  Disabled Static"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        # Returns earlier number of lagport
+        self.assertEqual("3/3", self.cli.get_lag_port())
+
+    def test_lag_all_lagport_are_dynamic_with_portname(self):
+        ret = ("3/2   ch2   1   Down  Disabled Dynamic 0/3,0/4\r\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual('3/2', self.cli.get_lag_port('0/3,0/4'))
+
+    def test_lag_all_lagport_are_dynamic_without_portname(self):
+        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
+               "3/2   ch2   1   Down  Disabled Dynamic 0/3,0/4\r\n"
+               "3/3   ch3   1   Down  Disabled Dynamic\r\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertIsNone(self.cli.get_lag_port())
+        self.cli._exec_command.assert_called_once_with(
+            'show port-channel brief | exclude Dynamic begin 3/')
+
+    def test_mlag_found_with_portname(self):
+        ret = ("3/2   ch2   1   Down  Disabled Dynamic 0/3\r\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual('3/2', self.cli.get_lag_port('0/3'))
+        self.cli._exec_command.assert_called_once_with(
+            'show port-channel brief | include 0/3')
+
+    def test_mlag_found_without_portname(self):
+        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1\r\n"
+               "3/2   ch2   1   Down  Disabled Dynamic 0/3\r\n"
+               "3/3   ch3   1   Down  Disabled Static\r\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual('3/3', self.cli.get_lag_port())
+        self.cli._exec_command.assert_called_once_with(
+            'show port-channel brief | exclude Dynamic begin 3/')
+
+    def test_mlag_not_found_with_portname(self):
+        ret = ("\r\n(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertIsNone(self.cli.get_lag_port())
+
+    def test_illegal_duplicate_target_found_with_portname(self):
+        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
+               "3/2   ch2   1   Down  Disabled Dynamic 0/1,0/2\r\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        # NOTE(yushiro): Returns earlier number of lagport
+        self.assertEqual("3/1", self.cli.get_lag_port('0/1,0/2'))
+        self.cli._exec_command.assert_called_once_with(
+            'show port-channel brief | include 0/1,0/2')
+
+    def test_illegal_duplicate_target_found_without_portname(self):
+        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
+               "3/2   ch2   1   Down  Disabled Static 0/1,0/2\r\n"
+               "3/3   ch3   1   Down  Disabled Static   \r\n"
+               "3/4   ch4   1   Down  Disabled Static\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        # NOTE(yushiro): Returns earlier lagport
+        self.assertEqual("3/1", self.cli.get_lag_port('0/1,0/2'))
+        self.cli._exec_command.assert_called_once_with(
+            'show port-channel brief | include 0/1,0/2')
 
 
 class TestFOSSWClientGetSwitchMAC(BaseTestFOSSWClient):
@@ -410,11 +464,48 @@ class TestFOSSWClientGetSwitchMAC(BaseTestFOSSWClient):
         super(TestFOSSWClientGetSwitchMAC, self).setUp()
         self.cli._exec_command = mock.Mock()
 
-    def test_get_switch_mac(self):
+    def test_returns_normal(self):
         ret = ("Base MAC Address............................... "
                "00:30:AB:F4:CA:DA(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
-        self.assertEqual(ret, self.cli.get_switch_mac())
+        self.assertEqual('00:30:ab:f4:ca:da', self.cli.get_switch_mac())
+
+    def test_returns_mac_and_any_return_codes(self):
+        ret = ("\r\n\r\n00:30:AB:F4:CA:DA\r\n\r\n")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual('00:30:ab:f4:ca:da', self.cli.get_switch_mac())
+
+    def test_returns_mac_all_capital(self):
+        ret = ("\r\n\r\nAA:AA:AA:AA:AA:AA\r\n\r\n")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual('aa:aa:aa:aa:aa:aa', self.cli.get_switch_mac())
+
+    def test_returns_mac_all_number(self):
+        ret = ("Base MAC Address............................... "
+               "00:30:22:44:55:66(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual('00:30:22:44:55:66', self.cli.get_switch_mac())
+
+    def test_returns_none(self):
+        self.cli._exec_command.return_value = None
+        self.assertIsNone(self.cli.get_switch_mac())
+
+    def test_returns_illegal_output(self):
+        ret = ("System is Busy. Please execute again................")
+        self.cli._exec_command.return_value = ret
+        self.assertIsNone(self.cli.get_switch_mac())
+
+    def test_returns_illegal_mac(self):
+        ret = ("Base MAC Address............................... "
+               "GG:GG:GG:GG:GG:GG(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertIsNone(self.cli.get_switch_mac())
+
+    def test_returns_illegal_mac_long(self):
+        ret = ("Base MAC Address............................... "
+               "00:30:AB:F4:CA:DA:8B(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        self.assertEqual('00:30:ab:f4:ca:da', self.cli.get_switch_mac())
 
 
 class TestFOSSWClientLeaveFromLAG(BaseTestFOSSWClient):

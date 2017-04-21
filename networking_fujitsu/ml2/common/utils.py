@@ -120,12 +120,9 @@ def get_network_type(network):
     """
 
     segment = _get_segment(network)
-    try:
-        # pattern1: network is network_segments with no 'provider:'
-        return segment[api.NETWORK_TYPE]
-    except (AttributeError, KeyError, TypeError):
-        # pattern2: network is network_segments with 'provider:'
-        return segment[provider_net.NETWORK_TYPE]
+    return segment.get(
+        api.NETWORK_TYPE,
+        segment.get(provider_net.NETWORK_TYPE, None))
 
 
 def get_segmentation_id(network):
@@ -139,12 +136,9 @@ def get_segmentation_id(network):
     """
 
     segment = _get_segment(network)
-    try:
-        # pattern1: network is network_segments with no 'provider:'
-        return segment[api.SEGMENTATION_ID]
-    except (AttributeError, KeyError, TypeError):
-        # pattern2: network is network_segments with 'provider:'
-        return segment[provider_net.SEGMENTATION_ID]
+    return segment.get(
+        api.SEGMENTATION_ID,
+        segment.get(provider_net.SEGMENTATION_ID, None))
 
 
 def get_physical_network(network):
@@ -158,12 +152,9 @@ def get_physical_network(network):
     """
 
     segment = _get_segment(network)
-    try:
-        # pattern1: network is network_segments with no 'provider:'
-        return segment[api.PHYSICAL_NETWORK]
-    except (AttributeError, KeyError, TypeError):
-        # pattern2: network is network_segments with 'provider:'
-        return segment[provider_net.PHYSICAL_NETWORK]
+    return segment.get(
+        api.PHYSICAL_NETWORK,
+        segment.get(provider_net.PHYSICAL_NETWORK, None))
 
 
 def get_physical_connectivity(port):
