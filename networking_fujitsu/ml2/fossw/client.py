@@ -14,6 +14,7 @@
 #
 
 import paramiko
+import re
 import socket
 import time
 
@@ -59,7 +60,7 @@ class FOSSWClient(object):
         """
         if not self.lookup(ip):
             self._reconnect(ip)
-        self._exec_command(TERMINAL_LENGTH_0)
+            self._exec_command(TERMINAL_LENGTH_0)
 
     def _reconnect(self, ip):
         """Reconnect a new SSH session
@@ -175,7 +176,9 @@ class FOSSWClient(object):
         """
         if self.ssh:
             if self.ssh._host_keys:
-                return True if self.ssh._host_keys.lookup(target) else False
+                if self.ssh._host_keys.lookup(target):
+                    LOG.debug('Reuse existing session for %s.', target)
+                    return True
         return False
 
     def create_vlan(self, segmentation_id):
@@ -245,17 +248,6 @@ class FOSSWClient(object):
         self._exec_command("no switchport access vlan")
         self._exec_command("no switchport mode")
 
-    def get_free_logical_port(self):
-        """Get logical port number which not used by any LAG configuration.
-
-        :returns: the number of logical port
-        :rtype: string
-
-        """
-        cmd = SHOW_PC_BRIEF + " | exclude Dynamic begin 3/"
-        res = self._exec_command(cmd)
-        return res[res.find('3/'):].split(" ")[0]
-
     def join_to_lag(self, port, logicalport):
         """Join specified port to LAG configuration.
 
@@ -287,6 +279,7 @@ class FOSSWClient(object):
         :returns: the ID of VPC or None.
         :rtype: string
         """
+        # TODO(yushiro): Replace regexp
         for i in iter(range(1, MAX_VPC_ID + 1)):
             cmd = 'show vpc {vid} | include "Port channel"'.format(vid=str(i))
             tmp_text = self._exec_command(cmd)
@@ -317,8 +310,8 @@ class FOSSWClient(object):
         :rtype: None
 
         """
-        self.changemode(MODE_INTERFACE, ifname=logicalport)
-        self._exec_commmand("vpc {vpcid}".format(vpcid=vpcid))
+        self.change_mode(MODE_INTERFACE, ifname=logicalport)
+        self._exec_command("vpc {vpcid}".format(vpcid=vpcid))
 
     def get_peerlink_partner(self):
         """Get peerlink partner switch's IP address.
@@ -327,27 +320,36 @@ class FOSSWClient(object):
         :rtype: string
 
         """
+        # TODO(yushiro): Replace regexp
         ret = self._exec_command('show vpc peer-keepalive | include "Peer '
                                  'IP address"')
         return ret[ret.find('. ') + 2:]
 
-    def get_lag_port(self, portname):
+    def get_lag_port(self, portname=None):
         """Get logicalport from FOS switch.
 
+        If portname is specified, returns logicalport which is associated
+        with portname. If portname is not specified, returns available
+        logicalport in FOS switch. 'available' means as follows:
+            1. Status is not 'Dynamic'
+            2. Portname Begins '3/'
+            3. No member port exists
         :param portname: the number of physical port on FOS switch
         :type portname: string
-
         :returns: the number of logical port which associated with specified
                   physical port
         :rtype: string
 
         """
-        key_charactors = [',', ' ']
-        for key in key_charactors:
-            cmd = SHOW_PC_BRIEF + " | include " + '"' + portname + key + '"'
-            res = self._exec_command(cmd)
-            if portname in res:
-                return res[:res.find(" ")]
+        cmd = SHOW_PC_BRIEF
+        if portname:
+            cmd += " | include %s" % portname
+            filters = r'(?:(3/(?:(\d+))).+Dynamic(\s+\d+/\d+))'
+        else:
+            cmd += " | exclude Dynamic begin 3/"
+            filters = r'(?:(3/(?:(\d+))).+Static(\s*\n|\r\n)(?!\s+\d+/\d+))'
+        ret = re.search(filters, self._exec_command(cmd))
+        return ret.group(1) if ret else None
 
     def get_switch_mac(self):
         """Get MAC address of FOS switch.
@@ -356,8 +358,11 @@ class FOSSWClient(object):
         :rtype: string
 
         """
-        return self._exec_command(
-            'show hardware eeprom | include "Base MAC Address"')
+        cmd = 'show hardware eeprom | include "Base MAC Address"'
+        res = self._exec_command(cmd)
+        if res:
+            mac = re.search(r'([0-9A-F]{2}(:[0-9A-F]{2}){5})', res)
+            return mac.group(0).lower() if mac else None
 
     def leave_from_lag(self, port, logicalport):
         """Leave a specified port from LAG configuration.
@@ -374,10 +379,8 @@ class FOSSWClient(object):
         self.change_mode(MODE_INTERFACE, ifname=port)
         res = self._exec_command(
             "deleteport {lo_port}".format(lo_port=logicalport))
-
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         self._exec_command("port-channel static")
-
         if "is not a member of port-channel" in res:
             LOG.warning(_LW("specified port(%(port)s) has already removed "
                             "from logical port(%(log_po)s)"),

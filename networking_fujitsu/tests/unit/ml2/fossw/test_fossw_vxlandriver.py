@@ -18,12 +18,13 @@ import socket
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
 from networking_fujitsu.ml2.common import type_vxlan
 from networking_fujitsu.ml2.fossw import fossw_vxlandriver
+from networking_fujitsu.ml2.fossw import mech_fossw
 from networking_fujitsu.tests.unit.ml2.common.ovsdb import (
     test_base_connection as base_test)
 
 from neutron.tests import base
-from oslo_config import cfg
 
+from oslo_config import cfg
 
 FOSSW_IPS = ["fake_switch_ip1", "fake_switch_ip2"]
 FAKE_SOCKET = base_test.SocketClass(None, None, None, '{"f_key":"f_value"}')
@@ -32,10 +33,14 @@ FAKE_SOCKET = base_test.SocketClass(None, None, None, '{"f_key":"f_value"}')
 class TestFOSSWVxlanDriver(base.BaseTestCase):
     def setUp(self):
         super(TestFOSSWVxlanDriver, self).setUp()
-        cfg.CONF.set_override('ovsdb_vlanid_range_min', 2,
-                              group='fujitsu_fossw')
-        cfg.CONF.set_override('fossw_ips', FOSSW_IPS,
-                              group='fujitsu_fossw')
+        cfg.CONF.register_opts(
+            mech_fossw.ML2_FUJITSU,
+            mech_fossw.ML2_FUJITSU_GROUP
+        )
+        cfg.CONF.set_override(
+            'ovsdb_vlanid_range_min', 2, group='fujitsu_fossw')
+        cfg.CONF.set_override('fossw_ips', FOSSW_IPS, group='fujitsu_fossw')
+        cfg.CONF.set_override('tenant_network_types', ['vlan', 'vxlan'], 'ml2')
 
         self.fake_ovsdb_port = 6640
         self.fake_udp_dest_port = 4789

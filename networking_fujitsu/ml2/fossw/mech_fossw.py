@@ -102,13 +102,12 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                 'fossw_ips', cfg.OptGroup(ML2_FUJITSU_GROUP))
         self.username = cfg.CONF.fujitsu_fossw.username
         self.password = cfg.CONF.fujitsu_fossw.password
-        self._vlan_driver = importutils.import_object(FOSSW_VLAN_DRIVER,
-                                                      cfg.CONF)
-        self._vxlan_driver = importutils.import_object(FOSSW_VXLAN_DRIVER,
-                                                       cfg.CONF)
+        self._vlan_driver = importutils.import_object(
+            FOSSW_VLAN_DRIVER, cfg.CONF)
+        self._vxlan_driver = importutils.import_object(
+            FOSSW_VXLAN_DRIVER, cfg.CONF)
         self.switches_mac_ip_pair = self._vlan_driver.get_switch_mac_ip_pair(
-            self.ips
-        )
+            self.ips)
         LOG.debug(_("Registered FOS switch's IP and MAC pairs: %s"),
                   self.switches_mac_ip_pair)
 
@@ -197,22 +196,18 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         """
 
         network = net_context.current
-        network_id = network['id']
+        net_id = network['id']
         tenant_id = network['tenant_id']
         network_type = utils.get_network_type(network)
         segmentation_id = utils.get_segmentation_id(network)
 
         if network_type == 'vlan' and segmentation_id:
             self.delete_network_postcommit_vlan(segmentation_id)
-        elif network_type == 'vxlan' and segmentation_id:
-            self.delete_network_postcommit_vxlan(network_id)
-        else:
-            return
-
+        if network_type == 'vxlan' and segmentation_id:
+            self.delete_network_postcommit_vxlan(net_id)
         LOG.info(
-            _LI("Deleted network (postcommit): network_id=%(network_id)s "
-                "tenant_id=%(tenant_id)s"),
-            {'network_id': network_id, 'tenant_id': tenant_id})
+            _LI("Deleted network (postcommit): network_id=%(net)s "
+                "tenant_id=%(tenant)s"), {'net': net_id, 'tenant': tenant_id})
 
     @log_helpers.log_method_call
     def delete_network_postcommit_vlan(self, vlanid):
@@ -246,7 +241,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
     @log_helpers.log_method_call
     def delete_port_postcommit(self, mech_context):
-        """Calls cleanup process for C-Fabric.
+        """Calls cleanup process for FOS switch.
 
         Case1: Baremetal deploy with VLAN
                    Clear VLAN/LAG for specified physical port.
@@ -366,13 +361,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         target = 'setup_vlan_with_lag' if params['lag'] else 'setup_vlan'
         try:
             setup_method = getattr(self._vlan_driver, target)
-        except AttributeError:
-            LOG.exception(_LE("Unexpected error happend."))
-            raise ml2_exc.MechanismDriverError(method='setup_vlan')
-        try:
-            # This plugin supposes 1 C-Fabric(fabric_id) management.
-            # Therefore, not to identify target IP address by using
-            # switch_info(mac_address).
             LOG.info(
                 _LI("Call %(target)s.  params: %(params)s"),
                 {'target': target, 'params': params}
@@ -404,17 +392,12 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         """
 
         target = 'clear_vlan_with_lag'
-        call_target = target if params['lag'] else 'clear_vlan'
         try:
+            call_target = target if params['lag'] else 'clear_vlan'
             clear_method = getattr(self._vlan_driver, call_target)
-        except AttributeError:
-            LOG.exception(_LE("Unexpected error happend."))
-            raise ml2_exc.MechanismDriverError(method="clear_vlan")
-
-        LOG.info(
-            _LI("call %(target)s.  params: %(params)s"),
-            {'target': call_target, 'params': params})
-        try:
+            LOG.info(
+                _LI("call %(target)s.  params: %(params)s"),
+                {'target': call_target, 'params': params})
             clear_method(
                 params['vlanid'],
                 params['local_link_info'],
@@ -504,17 +487,17 @@ def is_supported(network):
     :param network: a network object
     :type network: NetworkContext
 
-    :returns: True if network_type is 'VLAN' and segmentation_id is included
+    :returns: True if network_type is supported and segmentation_id is included
               otherwise False
     :rtype: boolean
     """
 
-    seg_id = utils.get_segmentation_id(network)
     net_type = utils.get_network_type(network)
-    if (net_type in _SUPPORTED_NET_TYPES and seg_id):
-        return True
-    LOG.warning(_LW("%s is not supported. Skip it."), net_type)
-    return False
+    if net_type not in _SUPPORTED_NET_TYPES:
+        LOG.warning(_LW("Network type(%s) is not supported. Skip it."),
+                    net_type)
+        return False
+    return True if utils.get_segmentation_id(network) else False
 
 
 def validate_baremetal_deploy(port_context):
