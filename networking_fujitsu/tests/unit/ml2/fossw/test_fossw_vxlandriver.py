@@ -16,6 +16,7 @@ import mock
 import socket
 
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
+from networking_fujitsu.ml2.common import tunnel_caller
 from networking_fujitsu.ml2.common import type_vxlan
 from networking_fujitsu.ml2.fossw import fossw_vxlandriver
 from networking_fujitsu.ml2.fossw import mech_fossw
@@ -69,6 +70,8 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                      {'ip_address': 'fake_ip_address2',
                                       'udp_port': 4789,
                                       'host': 'fake_host_name2'}]
+        self.fake_context = mock.MagicMock()
+        self.fake_request_id = "req-00000000-0000-0000-0000-000000000000"
 
         with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
             mock.patch.object(ovsdb_writer.OVSDBWriter,
@@ -222,8 +225,79 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
             mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
                               '_update_ucast_macs_remote') as _up_umr, \
             mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
-                              'save_all_fossw') as _save:
+                              'save_all_fossw') as _save, \
+            mock.patch.object(tunnel_caller.TunnelCaller,
+                              'trigger_tunnel_sync') as tun_sync, \
+                mock.patch(
+                    'networking_fujitsu.ml2.fossw.fossw_vxlandriver.context.'
+                    'Context', return_value=self.fake_context):
+            self.driver.update_physical_port("fake_vnid", self.fake_lli,
+                                             self.fake_port_context,
+                                             self.fake_ip_mac_pairs,
+                                             req_id=self.fake_request_id)
+            get_epbh.assert_called_with('fake_switch_name1')
+            get_ls_uuid.assert_called_with("aabbcc")
+            get_bvid.assert_called_with("fake_uuid")
+            up_pp.assert_called_with("0/2", 3, "fake_uuid")
+            get_uml.assert_called_with('fake_port_mac')
+            del_uml.assert_called_with('fake_port_mac')
+            self.assertEqual(1, get_sepi.call_count)
+            get_pluuid.assert_called_with("fake_locator_ip_local")
+            ins_uml.assert_called_with("fake_uuid",
+                                       "fake_locator_uuid_local",
+                                       "fake_port_mac")
+            self.assertFalse(ins_umlal.called)
+            _up_umr.assert_called_with(
+                'fake_switch_ip1', 'aabbcc', 'fake_port_mac',
+                'fake_target_tunnel_ip', ['fake_port_ip1', 'fake_port_ip2'])
+            self.assertEqual(1, _save.call_count)
+            tun_sync.assert_called_with(self.fake_context, 'fake_switch_ip1')
 
+    def test_update_physical_port_without_request_id(self):
+        """Test case to test update_physical_port."""
+        with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
+            mock.patch.object(type_vxlan.TypeVxlan,
+                              'db_get_endpoint_ip_by_host',
+                              return_value='fake_target_tunnel_ip'
+                              ) as get_epbh, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'get_logical_switch_uuid',
+                              return_value="fake_uuid") as get_ls_uuid, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'get_binding_vid',
+                              return_value=3) as get_bvid, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'update_physical_port') as up_pp, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'get_ucast_macs_local',
+                              return_value=['fake_ucast_macs_local_rows']
+                              ) as get_uml, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'delete_ucast_macs_local') as del_uml, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'get_sw_ep_info',
+                              return_value=('fake_locator_ip_local',
+                                            'fake_endpoint_hostname')
+                              ) as get_sepi, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'get_physical_locator_uuid',
+                              return_value='fake_locator_uuid_local'
+                              ) as get_pluuid, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'insert_ucast_macs_local'
+                              ) as ins_uml, \
+            mock.patch.object(ovsdb_writer.OVSDBWriter,
+                              'insert_ucast_macs_local_and_locator'
+                              ) as ins_umlal, \
+            mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
+                              '_update_ucast_macs_remote') as _up_umr, \
+            mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
+                              'save_all_fossw') as _save, \
+            mock.patch.object(tunnel_caller.TunnelCaller,
+                              'trigger_tunnel_sync') as tun_sync, \
+                mock.patch(
+                    'networking_fujitsu.ml2.fossw.fossw_vxlandriver.context.'
+                    'Context', return_value=self.fake_context):
             self.driver.update_physical_port("fake_vnid", self.fake_lli,
                                              self.fake_port_context,
                                              self.fake_ip_mac_pairs)
@@ -243,6 +317,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                 'fake_switch_ip1', 'aabbcc', 'fake_port_mac',
                 'fake_target_tunnel_ip', ['fake_port_ip1', 'fake_port_ip2'])
             self.assertEqual(1, _save.call_count)
+            tun_sync.assert_not_called()
 
     def test_update_ucast_macs_remote(self):
         """Test case to test _update_ucast_macs_remote."""
@@ -339,11 +414,12 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
             self.driver.update_physical_port_with_lag('fake_vnid',
                                                       self.fake_llis,
                                                       self.fake_port_context,
-                                                      self.fake_ip_mac_pairs)
+                                                      self.fake_ip_mac_pairs,
+                                                      self.fake_request_id)
             self.assertEqual(2, up_pp.call_count)
             up_pp.assert_called_with(
-                'fake_vnid', mock.ANY,
-                self.fake_port_context, self.fake_ip_mac_pairs)
+                'fake_vnid', mock.ANY, self.fake_port_context,
+                self.fake_ip_mac_pairs, self.fake_request_id)
 
     def test_reset_physical_port_with_lag(self):
         """Test case to test reset_physical_port_with_lag."""

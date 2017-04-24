@@ -18,6 +18,8 @@ try:
 except ImportError:
     import mock
 
+import copy
+
 from oslo_utils import uuidutils
 
 from neutron.plugins.ml2 import driver_context
@@ -81,6 +83,7 @@ class FujitsuMechanismHelper(test_ml2_plugin.Ml2PluginV2TestCase):
         plugin_context = mock.Mock()
         binding = mock.Mock()
         project_id = uuidutils.generate_uuid()
+        set_original = kwargs.get('set_original', False)
 
         net_params = {
             'network': {
@@ -114,11 +117,17 @@ class FujitsuMechanismHelper(test_ml2_plugin.Ml2PluginV2TestCase):
         port_data.update(baremetal)
         if vif_type:
             port_data.update({'binding:vif_type': vif_type})
+        if set_original:
+            original_port = copy.deepcopy(port_data)
+            port_data.update({'binding:vif_type': 'unbound'})
+        else:
+            original_port = None
         with mock.patch.object(driver_context.segments_db,
                                'get_network_segments') as segments:
             segments.return_value = [self.net_seg(network_type)]
             mock_ctx = driver_context.PortContext(
-                plugin, plugin_context, port_data, net, binding, None)
+                plugin, plugin_context, port_data, net, binding, None,
+                original_port=original_port)
             mock_ctx._segments_to_bind = [mock_ctx.network.current]
             return mock_ctx
 

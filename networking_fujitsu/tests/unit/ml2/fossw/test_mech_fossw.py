@@ -202,8 +202,35 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
             self.mech.switches_mac_ip_pair
         )
 
+    def test_bind_port_with_flat(self):
+        ctx = self.prepare_dummy_context(net_type='flat')
+        self.mech.bind_port(ctx)
+        self.mech._vlan_driver.setup_vlan.assert_not_called()
+        self.mech._vxlan_driver.update_physical_port.assert_not_called()
+
     def test_update_port(self):
-        ctx = self.prepare_dummy_context()
+        ctx = self.prepare_dummy_context(vif_type='other')
+        self.mech.update_port_postcommit(ctx)
+        self.mech._vlan_driver.clear_vlan.assert_not_called()
+
+    def test_update_port_for_baremetal_with_unbound(self):
+        ctx = self.prepare_dummy_context(vif_type='other', set_original=True)
+        self.mech.update_port_postcommit(ctx)
+        params = params_for_driver(ctx.original)
+        self.mech._vlan_driver.clear_vlan.assert_called_with(
+            params['segmentation_id'],
+            params['local_link_info'],
+            self.mech.switches_mac_ip_pair
+        )
+
+    def test_update_port_for_baremetal_with_unbound_flat(self):
+        ctx = self.prepare_dummy_context(net_type='flat', vif_type='other',
+                                         set_original=True)
+        self.mech.update_port_postcommit(ctx)
+        self.mech._vlan_driver.clear_vlan.assert_not_called()
+
+    def test_update_port_with_bound_not_baremetal(self):
+        ctx = self.prepare_dummy_context(vif_type='normal', vnic_type='ovs')
         self.mech.update_port_postcommit(ctx)
         self.mech._vlan_driver.associate_mac_to_network.assert_not_called()
 
@@ -355,7 +382,8 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
             params['segmentation_id'],
             params['local_link_info'],
             ctx.current,
-            self.mech.switches_mac_ip_pair
+            self.mech.switches_mac_ip_pair,
+            ctx.network._plugin_context.request_id
         )
 
     def test_bind_port_with_lag(self):
@@ -367,7 +395,8 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
             params['segmentation_id'],
             params['local_link_info'],
             ctx.current,
-            self.mech.switches_mac_ip_pair
+            self.mech.switches_mac_ip_pair,
+            ctx.network._plugin_context.request_id
         )
 
     def test_bind_port_with_mlag(self):
@@ -379,7 +408,8 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
             params['segmentation_id'],
             params['local_link_info'],
             ctx.current,
-            self.mech.switches_mac_ip_pair
+            self.mech.switches_mac_ip_pair,
+            ctx.network._plugin_context.request_id
         )
 
     def test_bind_port_with_lag_raises_driver_method(self):
@@ -391,12 +421,12 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
             self.mech.bind_port, ctx)
 
     def test_update_port(self):
-        ctx = self.prepare_dummy_context(net_type='vxlan')
+        ctx = self.prepare_dummy_context(net_type='vxlan', vif_type='other')
         self.mech.update_port_postcommit(ctx)
-        self.mech._vxlan_driver.update_physical_port.assert_not_called()
+        self.mech._vxlan_driver.reset_physical_port.assert_not_called()
 
     def test_update_port_with_flat(self):
-        ctx = self.prepare_dummy_context(net_type='flat')
+        ctx = self.prepare_dummy_context(net_type='flat', vif_type='other')
         self.mech.update_port_postcommit(ctx)
         self.mech._vxlan_driver.update_physical_port.assert_not_called()
 
@@ -404,6 +434,23 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
         ctx = self.prepare_dummy_context(net_type='vxlan', vif_type='normal')
         self.mech.update_port_postcommit(ctx)
         self.mech._vxlan_driver.update_physical_port.assert_not_called()
+
+    def test_update_port_for_baremetal_with_unbound(self):
+        ctx = self.prepare_dummy_context(net_type='vxlan', vif_type='other',
+                                         set_original=True)
+        self.mech.update_port_postcommit(ctx)
+        params = params_for_driver(ctx.original)
+        self.mech._vxlan_driver.reset_physical_port.assert_called_with(
+            params['local_link_info'],
+            ctx.original,
+            self.mech.switches_mac_ip_pair
+        )
+
+    def test_update_port_for_baremetal_with_unbound_flat(self):
+        ctx = self.prepare_dummy_context(net_type='flat', vif_type='other',
+                                         set_original=True)
+        self.mech.update_port_postcommit(ctx)
+        self.mech._vxlan_driver.clear_vxlan.assert_not_called()
 
     def test_update_port_with_bound_not_baremetal(self):
         ctx = self.prepare_dummy_context(
