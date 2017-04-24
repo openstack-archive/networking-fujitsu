@@ -18,8 +18,11 @@ from oslo_log import log as logging
 from networking_fujitsu._i18n import _LI
 from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
+from networking_fujitsu.ml2.common import tunnel_caller
 from networking_fujitsu.ml2.common import type_vxlan
 from networking_fujitsu.ml2.fossw import client
+
+from neutron_lib import context
 
 from neutron.common import utils
 
@@ -47,6 +50,7 @@ class FOSSWVxlanDriver(object):
         self.client = client.FOSSWClient(self._conf)
         self.type_vxlan = type_vxlan.TypeVxlan()
         self.vxlan_endpoint_ips = []
+        self.tunnel_caller = tunnel_caller.TunnelCaller()
         self.initialize()
 
     def initialize(self):
@@ -157,7 +161,8 @@ class FOSSWVxlanDriver(object):
         if save:
             self.save_all_fossw()
 
-    def update_physical_port(self, vni, lli, port, ip_mac_pairs, save=True):
+    def update_physical_port(self, vni, lli, port, ip_mac_pairs, req_id=None,
+                             save=True):
         """Update Physical_Port table in FOS switch OVSDB.
 
         There are 3 cases about port operation
@@ -224,6 +229,11 @@ class FOSSWVxlanDriver(object):
             else:
                 ovsdb_cli.insert_ucast_macs_local_and_locator(
                     bind_ls_uuid, locator_ip_local, mac)
+            # Create vxlan port for FOS Switch when this method was called with
+            # req_id.
+            if req_id:
+                ctxt = context.Context(request_id=req_id, is_admin=True)
+                self.tunnel_caller.trigger_tunnel_sync(ctxt, target_ip)
         # At last Ucast_Macs_Remote table of other switches.
         self._update_ucast_macs_remote(
             target_ip, ls_name, mac, tunnel_ip, port_ips)
@@ -283,7 +293,8 @@ class FOSSWVxlanDriver(object):
             self.save_all_fossw()
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def update_physical_port_with_lag(self, vni, llis, port, ip_mac_pairs):
+    def update_physical_port_with_lag(self, vni, llis, port, ip_mac_pairs,
+                                      req_id):
         """Call update_physical_port for all physical swtich ports.
 
         :param vni: The segment ID of Neutron network which the port belongs
@@ -297,12 +308,16 @@ class FOSSWVxlanDriver(object):
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
+        :param req_id: A request ID of network context which use for generate
+                       new context.
+        :type req_id: string
 
         :returns: None
         """
 
         for lli in llis:
-            self.update_physical_port(vni, [lli], port, ip_mac_pairs)
+            self.update_physical_port(
+                vni, [lli], port, ip_mac_pairs, req_id)
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def reset_physical_port_with_lag(self, llis, port, ip_mac_pairs):

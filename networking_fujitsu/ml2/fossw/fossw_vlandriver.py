@@ -17,6 +17,8 @@
 management.
 """
 
+import copy
+
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -165,8 +167,7 @@ class FOSSWVlanDriver(object):
         """
         method = "setup_vlan_with_lag"
         mlag = False
-        switch_mac_list = [lli['switch_id'] for lli in llis]
-        unique_mac_list = sorted(list(set(switch_mac_list)))
+        unique_mac_list = sorted(list(set([lli['switch_id'] for lli in llis])))
         if len(unique_mac_list) > 1:
             mlag = self.is_valid_mlag(unique_mac_list, ip_mac_pairs)
             if not mlag:
@@ -176,9 +177,14 @@ class FOSSWVlanDriver(object):
                 )
                 raise client.FOSSWClientException(method)
 
+        # NOTE(takanorimiyagishi): Currently this driver is hard-coded for
+        # LAG(802.3ad) setting for FOS switch. When logical ports on FOS switch
+        # are set as LAG interface, FOS switch skips VLAN setting of physical
+        # port.
+        #
         # Setup VLAN for each physical port
-        for lli in llis:
-            self.setup_vlan(vlanid, [lli], ip_mac_pairs)
+        # for lli in llis:
+        #     self.setup_vlan(vlanid, [lli], ip_mac_pairs)
 
         # Create lag resource
         for mac in unique_mac_list:
@@ -193,6 +199,12 @@ class FOSSWVlanDriver(object):
                 raise client.FOSSWClientException(method)
             for port in ports:
                 self.client.join_to_lag(port, lag_port)
+
+            # Setup VLAN for logical port
+            lag_lli = copy.deepcopy(llis[0])
+            lag_lli['port_id'] = lag_port
+            self.setup_vlan(vlanid, [lag_lli], ip_mac_pairs)
+
             if mlag:
                 # Get available VPC id from FOS switch
                 vpcid = self.client.get_vpcid()
@@ -285,8 +297,7 @@ class FOSSWVlanDriver(object):
         """
         method = "clear_vlan_with_lag"
         mlag = None
-        switch_mac_list = [lli['switch_id'] for lli in llis]
-        unique_mac_list = sorted(list(set(switch_mac_list)))
+        unique_mac_list = sorted(list(set([lli['switch_id'] for lli in llis])))
         if len(unique_mac_list) > 1:
             mlag = self.is_valid_mlag(unique_mac_list, ip_mac_pairs)
             if not mlag:
@@ -317,7 +328,15 @@ class FOSSWVlanDriver(object):
                 for port in ports:
                     self.client.leave_from_lag(port, lag_port)
             self.client.disconnect()
-
+            # Clear VLAN for logical port
+            lag_lli = copy.deepcopy(llis[0])
+            lag_lli['port_id'] = lag_port
+            self.clear_vlan(vlanid, [lag_lli], ip_mac_pairs)
+        # NOTE(takanorimiyagishi): Currently this driver is hard-coded for
+        # LAG(802.3ad) setting for FOS switch. When logical port on FOS switch
+        # are set as LAG interface, FOS switch ignores VLAN setting of physical
+        # port which belongs to the LAG interface.
+        #
         # Clear VLAN for each physical port
-        for lli in llis:
-            self.clear_vlan(vlanid, [lli], ip_mac_pairs)
+        # for lli in llis:
+        #     self.clear_vlan(vlanid, [lli], ip_mac_pairs)

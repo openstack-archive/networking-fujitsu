@@ -134,12 +134,12 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network_id = network['id']
         tenant_id = network['tenant_id']
         network_type = utils.get_network_type(network)
-        segmentation_id = utils.get_segmentation_id(network)
+        seg_id = utils.get_segmentation_id(network)
 
-        if network_type == 'vlan' and segmentation_id:
-            self.create_network_postcommit_vlan(segmentation_id)
-        elif network_type == 'vxlan' and segmentation_id:
-            self.create_network_postcommit_vxlan(network_id, segmentation_id)
+        if network_type == 'vlan' and seg_id:
+            self.create_network_postcommit_vlan(seg_id)
+        elif network_type == 'vxlan' and seg_id:
+            self.create_network_postcommit_vxlan(network_id, seg_id)
 
         LOG.info(
             _LI("created network (postcommit): network_id=%(network_id)s "
@@ -167,14 +167,14 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                 raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
-    def create_network_postcommit_vxlan(self, net_uuid, vni):
+    def create_network_postcommit_vxlan(self, net_uuid, seg_id):
         method = 'create_network_postcommit'
         try:
-            self._vxlan_driver.create_logical_switch(net_uuid, vni)
+            self._vxlan_driver.create_logical_switch(net_uuid, seg_id)
         except Exception:
             LOG.exception(
-                _LE("Failed to create vxlan(%(vni)s) on switch(%(ip)s)"),
-                {'vni': vni, 'ip': self.ips})
+                _LE("Failed to create vxlan(%(seg_id)s) on switch(%(ip)s)"),
+                {'seg_id': seg_id, 'ip': self.ips})
             raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
@@ -199,11 +199,11 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         net_id = network['id']
         tenant_id = network['tenant_id']
         network_type = utils.get_network_type(network)
-        segmentation_id = utils.get_segmentation_id(network)
+        seg_id = utils.get_segmentation_id(network)
 
-        if network_type == 'vlan' and segmentation_id:
-            self.delete_network_postcommit_vlan(segmentation_id)
-        if network_type == 'vxlan' and segmentation_id:
+        if network_type == 'vlan' and seg_id:
+            self.delete_network_postcommit_vlan(seg_id)
+        if network_type == 'vxlan' and seg_id:
             self.delete_network_postcommit_vxlan(net_id)
         LOG.info(
             _LI("Deleted network (postcommit): network_id=%(net)s "
@@ -257,7 +257,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :rtype: None
         """
 
-        method = 'delete_port_postcommit'
         port = mech_context.current
         network = mech_context.network
         port_id = port['id']
@@ -265,9 +264,9 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         tenant_id = port['tenant_id']
         network_type = utils.get_network_type(network)
         if (network_type == 'vlan' and utils.is_baremetal(port)):
-            self.delete_port_postcommit_vlan(mech_context, method)
+            self.clear_vlan(mech_context)
         elif network_type == 'vxlan':
-            self.delete_port_postcommit_vxlan(mech_context, method)
+            self.clear_vxlan(mech_context)
         else:
             return
         LOG.info(
@@ -276,69 +275,41 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             {'port_id': port_id, 'net_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
-    def delete_port_postcommit_vlan(self, context, method):
-        """Clear VLAN from specified physical port on switch.
-
-        :param context: context of port
-        :type context: PortContext
-        :param method: the name of method
-        :type method: string
-
-        :returns: None
-        :rtype: None
-
-         """
-        if validate_baremetal_deploy(context):
-            params = self.get_physical_net_params(context)
-            try:
-                self.clear_vlan(params)
-            except Exception:
-                LOG.exception(
-                    _LE("Failed to clear vlan(%s)."), params['vlanid'])
-                raise ml2_exc.MechanismDriverError(method=method)
-
-    @log_helpers.log_method_call
     def update_port_postcommit(self, context):
-        """Update VXLAN from specified physical port on switch."""
+        """Update specified physical port on switch."""
+        method = 'update_port_postcommit'
         port = context.current
-        if utils.is_baremetal(port):
-            return
         network = context.network
         vif_type = port['binding:vif_type']
         network_type = utils.get_network_type(network)
-        if network_type != 'vxlan' or vif_type == 'unbound':
-            return
-        vni = utils.get_segmentation_id(network)
-        try:
-            self._vxlan_driver.update_physical_port(
-                vni, [], port, self.switches_mac_ip_pair
-            )
-        except Exception:
-            LOG.exception(_LE("Failed to create VNI(%s)."), vni)
-            raise ml2_exc.MechanismDriverError(method='create_port_postcommit')
-
-    @log_helpers.log_method_call
-    def delete_port_postcommit_vxlan(self, context, method):
-        """Clear VXLAN from specified physical port on switch."""
-        port = context.current
-        network = context.network
-        vif_type = port['binding:vif_type']
-        if vif_type == 'unbound' or utils.get_network_type(network) == 'flat':
-            return
-        lli = utils.get_physical_connectivity(port)
-        try:
-            if utils.is_lag(lli):
-                self._vlan_driver.clear_vlan_with_lag(
-                    DEFAULT_VLAN, lli, self.switches_mac_ip_pair)
-                self._vxlan_driver.reset_physical_port_with_lag(
-                    lli, port, self.switches_mac_ip_pair)
-            else:
-                self._vxlan_driver.reset_physical_port(
-                    lli, port, self.switches_mac_ip_pair)
-        except Exception:
-            vni = utils.get_segmentation_id(network)
-            LOG.exception(_LE("Failed to clear VNI(%s)."), vni)
-            raise ml2_exc.MechanismDriverError(method=method)
+        seg_id = utils.get_segmentation_id(network)
+        if utils.is_baremetal(port):
+            if (vif_type == 'unbound' and
+                    context.original['binding:vif_type'] == 'other'):
+                try:
+                    # Clear vlan or vxlan from physical port for unbound port
+                    if network_type == 'vlan':
+                        self.clear_vlan(context, use_original=True)
+                    if network_type == 'vxlan':
+                        self.clear_vxlan(context, use_original=True)
+                except Exception:
+                    LOG.exception(_LE("Failed to clear %(network_type)s"
+                                      "(%(seg_id)s)."),
+                                  {'network_type': network_type,
+                                   'seg_id': seg_id})
+                    raise ml2_exc.MechanismDriverError(method=method)
+        else:
+            # Setup vxlan from specified physical port on switch.
+            if network_type != 'vxlan' or vif_type == 'unbound':
+                return
+            # currently supports only one segment per network
+            # Setup VXLAN for port which bound with DHCP, router, and vms.
+            try:
+                self._vxlan_driver.update_physical_port(
+                    seg_id, [], port, self.switches_mac_ip_pair)
+            except Exception:
+                LOG.exception(_LE("Failed to setup VNI(%s)."), seg_id)
+                raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
     def setup_vlan(self, params):
@@ -375,7 +346,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             raise ml2_exc.MechanismDriverError(method=target)
 
     @log_helpers.log_method_call
-    def clear_vlan(self, params):
+    def clear_vlan(self, context, use_original=False):
         """Clear VLAN with specified port(s).
 
         This method will select driver's method.
@@ -390,25 +361,50 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :returns: None
         :rtype: None
         """
-
+        if not validate_baremetal_deploy(context, use_original):
+            return
+        params = self.get_physical_net_params(context, use_original)
         target = 'clear_vlan_with_lag'
         try:
             call_target = target if params['lag'] else 'clear_vlan'
             clear_method = getattr(self._vlan_driver, call_target)
             LOG.info(
-                _LI("call %(target)s.  params: %(params)s"),
+                _LI("call %(target)s. params: %(params)s"),
                 {'target': call_target, 'params': params})
             clear_method(
                 params['vlanid'],
                 params['local_link_info'],
-                self.switches_mac_ip_pair,
-            )
+                self.switches_mac_ip_pair)
         except Exception:
             LOG.exception(_LE("Failed to clear vlan(%s)"), params['vlanid'])
             raise ml2_exc.MechanismDriverError(method=target)
 
     @log_helpers.log_method_call
-    def get_physical_net_params(self, mech_context):
+    def clear_vxlan(self, context, use_original=False):
+        """Clear VXLAN from specified physical port on switch."""
+        method = "clear_vxlan"
+        port = context.original if use_original else context.current
+        network = context.network
+        vif_type = port['binding:vif_type']
+        if vif_type == 'unbound' or utils.get_network_type(network) == 'flat':
+            return
+        lli = utils.get_physical_connectivity(port)
+        try:
+            if utils.is_lag(lli):
+                self._vlan_driver.clear_vlan_with_lag(
+                    DEFAULT_VLAN, lli, self.switches_mac_ip_pair)
+                self._vxlan_driver.reset_physical_port_with_lag(
+                    lli, port, self.switches_mac_ip_pair)
+            else:
+                self._vxlan_driver.reset_physical_port(
+                    lli, port, self.switches_mac_ip_pair)
+        except Exception:
+            seg_id = utils.get_segmentation_id(network)
+            LOG.exception(_LE("Failed to clear VNI(%s)."), seg_id)
+            raise ml2_exc.MechanismDriverError(method=method)
+
+    @log_helpers.log_method_call
+    def get_physical_net_params(self, context, use_original=False):
         """Validate physical network parameters for baremetal deployment.
 
         Validates network & port params and returns dictionary.
@@ -421,15 +417,17 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             'switch_info': A string of switch name.
                          This value is equal to 'system_name' from LLDP TLV.
 
-        :param mech_context: a Context instance
-        :type mech_context: PortContext
+        :param port: a dictionary of port
+        :type port: dictionary
+        :param network: a network object
+        :type network: NetworkContext
 
         :returns: A dictionary parameters for baremetal deploy
         :rtype: dictionary
         """
-
-        port = mech_context.current
-        vlanid = utils.get_segmentation_id(mech_context.network)
+        port = context.original if use_original else context.current
+        network = context.network
+        vlanid = utils.get_segmentation_id(network)
         local_link_info = utils.get_physical_connectivity(port)
         return {
             "local_link_info": local_link_info,
@@ -443,42 +441,50 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         port = context.current
         network = context.network
+        if not is_supported(network):
+            return
         vnic_type = port['binding:vnic_type']
         LOG.debug("Attempting to bind port %(port)s with vnic_type "
                   "%(vnic_type)s on network %(network)s",
                   {'port': port['id'], 'vnic_type': vnic_type,
-                   'network': context.network.current['id']})
+                   'network': network.current['id']})
 
         network_type = utils.get_network_type(network)
-        if network_type == 'vlan' and utils.is_baremetal(port):
-            self.setup_vlan(self.get_physical_net_params(context))
+        to_bind = False
+
         if network_type == 'vxlan':
-            self.bind_port_vxlan(context)
-        if utils.is_baremetal(port):
-            segments = context.segments_to_bind
-            context.set_binding(segments[0][api.ID],
+            # vxlan driver handles not only baremetal port, but vm, dhcp,
+            # router ports.
+            self.setup_vxlan(context)
+            to_bind = True
+        if utils.is_baremetal(port) and network_type == 'vlan':
+            self.setup_vlan(self.get_physical_net_params(context))
+            to_bind = True
+        if to_bind:
+            context.set_binding(context.segments_to_bind[0][api.ID],
                                 portbindings.VIF_TYPE_OTHER, {},
                                 status=constants.PORT_STATUS_ACTIVE)
 
     @log_helpers.log_method_call
-    def bind_port_vxlan(self, context):
+    def setup_vxlan(self, context):
         """Update VXLAN from specified physical port on switch."""
         # currently supports only one segment per network
         port = context.current
-        vni = utils.get_segmentation_id(context.network)
+        seg_id = utils.get_segmentation_id(context.network)
         lli = utils.get_physical_connectivity(port)
+        req_id = context.network._plugin_context.request_id
         try:
             if utils.is_lag(lli):
                 self._vlan_driver.setup_vlan_with_lag(
                     DEFAULT_VLAN, lli, self.switches_mac_ip_pair)
                 self._vxlan_driver.update_physical_port_with_lag(
-                    vni, lli, port, self.switches_mac_ip_pair)
+                    seg_id, lli, port, self.switches_mac_ip_pair, req_id)
             else:
                 self._vxlan_driver.update_physical_port(
-                    vni, lli, port, self.switches_mac_ip_pair)
+                    seg_id, lli, port, self.switches_mac_ip_pair, req_id)
         except Exception:
-            LOG.exception(_LE("Failed to setup VNI(%s)."), vni)
-            raise ml2_exc.MechanismDriverError(method='bind_port_vxlan')
+            LOG.exception(_LE("Failed to setup VNI(%s)."), seg_id)
+            raise ml2_exc.MechanismDriverError(method='setup_vxlan')
 
 
 def is_supported(network):
@@ -500,7 +506,7 @@ def is_supported(network):
     return True if utils.get_segmentation_id(network) else False
 
 
-def validate_baremetal_deploy(port_context):
+def validate_baremetal_deploy(port_context, use_original=False):
     """Validate baremetal deploy.
 
     :param port_context: a PortContext object
@@ -510,6 +516,6 @@ def validate_baremetal_deploy(port_context):
     :rtype: boolean
     """
 
-    port = port_context.current
+    port = port_context.original if use_original else port_context.current
     network = port_context.network
     return utils.is_baremetal(port) and is_supported(network)
