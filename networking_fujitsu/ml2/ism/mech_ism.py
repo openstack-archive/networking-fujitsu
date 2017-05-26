@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from neutron_lib.plugins.ml2 import api
-
-from oslo_log import helpers as log_helpers
-from oslo_log import log as logging
-
 from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common import utils as fj_util
+from neutron.plugins.common import constants as p_const
+from neutron.plugins.ml2 import driver_api
+from oslo_log import helpers as log_helpers
+from oslo_log import log as logging
 
 
 LOG = logging.getLogger(__name__)
@@ -27,7 +26,7 @@ ISM_DRIVER = 'networking_fujitsu.ml2.ism.ism_base'
 _SUPPORTED_NET_TYPES = ['vlan']
 
 
-class ISMMechanismDriver(api.MechanismDriver):
+class ISMMechanismDriver(driver_api.MechanismDriver):
     """Ml2 Mechanism driver for Fujitsu ISM. """
 
     def __init__(self):
@@ -40,10 +39,10 @@ class ISMMechanismDriver(api.MechanismDriver):
     @classmethod
     def create_ism_base(self, network_type, segmentation_id):
 
-        if (network_type == 'vlan'):
+        if (network_type == p_const.TYPE_VLAN):
             ism = self._driver.IsmVlanBase(network_type, segmentation_id)
             return ism
-        elif (network_type == 'vxlan'):
+        elif (network_type == p_const.TYPE_VXLAN):
             ism = self._driver.IsmVxlanBase(network_type, segmentation_id)
             return ism
 
@@ -86,8 +85,8 @@ class ISMMechanismDriver(api.MechanismDriver):
         """
 
         segment = network.network_segments[0]
-        seg_id = segment[api.SEGMENTATION_ID]
-        net_type = segment[api.NETWORK_TYPE]
+        seg_id = segment[driver_api.SEGMENTATION_ID]
+        net_type = segment[driver_api.NETWORK_TYPE]
         if (net_type in _SUPPORTED_NET_TYPES and seg_id):
             return True
         LOG.warning(_LW("Only network type vlan is supported."))

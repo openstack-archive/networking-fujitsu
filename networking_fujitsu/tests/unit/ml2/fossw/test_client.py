@@ -44,6 +44,7 @@ class BaseTestFOSSWClient(base.BaseTestCase):
             'fossw_ips', DUMMY_FOSSW_IPS, 'fujitsu_fossw'
         )
         self.cli = client.FOSSWClient(cfg.CONF)
+        self.cli.ssh = mock.Mock()
         self.cli.console = mock.Mock()
 
 
@@ -52,39 +53,18 @@ class TestFOSSWClientConnect(BaseTestFOSSWClient):
 
     def test_connect(self):
         with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-            ip = cfg.CONF.fujitsu_fossw.fossw_ips[0]
             p_ssh.connect.return_value = None
-            self.cli._exec_command = mock.Mock()
-
-            self.cli.connect(ip)
+            self.cli.connect(cfg.CONF.fujitsu_fossw.fossw_ips[0])
             p_ssh.return_value.connect.assert_called_once_with(
-                ip,
+                cfg.CONF.fujitsu_fossw.fossw_ips[0],
                 password=cfg.CONF.fujitsu_fossw.password,
                 port=cfg.CONF.fujitsu_fossw.port,
                 timeout=cfg.CONF.fujitsu_fossw.timeout,
                 username=cfg.CONF.fujitsu_fossw.username
             )
-            self.cli._exec_command.assert_called_once_with(
-                client.TERMINAL_LENGTH_0)
-
-    def test_connect_exists_session(self):
-        with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
-            ip = cfg.CONF.fujitsu_fossw.fossw_ips[0]
-            p_ssh.connect.return_value = None
-            self.cli._reconnect = mock.Mock()
-            self.cli.lookup = mock.Mock(return_value=True)
-            self.cli._exec_command = mock.Mock()
-
-            self.cli.connect(ip)
-            p_ssh.connect.assert_not_called()
-            self.cli._exec_command.assert_called_once_with(
-                client.TERMINAL_LENGTH_0)
-            self.cli.lookup.assert_called_once_with(ip)
-            self.cli._reconnect.assert_not_called()
 
     def test_connect_fail(self):
         with mock.patch(__name__ + ".client.paramiko.SSHClient") as p_ssh:
-            self.cli._exec_command = mock.Mock()
             err_io = IOError
             err_hostkey = paramiko.ssh_exception.BadHostKeyException
             err_auth = paramiko.ssh_exception.AuthenticationException
@@ -92,7 +72,6 @@ class TestFOSSWClientConnect(BaseTestFOSSWClient):
             err_socket = socket.error(9999, "fake_error")
             errors = [err_io, err_hostkey, err_auth, err_ssh, err_socket]
             p_ssh.return_value.connect.side_effect = errors
-
             self.assertRaises(
                 client.FOSSWClientException,
                 self.cli.connect,
@@ -107,8 +86,6 @@ class TestFOSSWClientDisconnect(BaseTestFOSSWClient):
     def test_disconnect(self):
         with mock.patch.object(paramiko, 'SSHClient') as p_ssh:
             p_ssh.connect.return_value = None
-            self.cli._exec_command = mock.Mock()
-
             self.cli.connect(cfg.CONF.fujitsu_fossw.fossw_ips[0])
             self.cli.disconnect()
             self.assertIsNone(self.cli.ssh)
@@ -127,17 +104,15 @@ class TestFOSSWClientExecCommand(BaseTestFOSSWClient):
         cmd = 'configure'
         self.cli.console.recv.return_value = (
             '\r\n(ET-7648BRA-FOS) #%s\r\n(ET-7648BRA-FOS) (Config)#' % cmd)
-
         result = self.cli._exec_command(cmd)
         self.cli.console.send.assert_called_with(cmd + '\n')
         self.cli.console.recv_ready.assert_called_with()
-        self.cli.console.recv.assert_called_once_with(client.RECV_BUF)
+        self.cli.console.recv.assert_called_once_with(1024)
         self.assertEqual('(ET-7648BRA-FOS) (Config)#', result)
 
     def test_socket_timeout_with_send(self):
         cmd = 'configure'
         self.cli.console.send.side_effect = socket.timeout
-
         self.assertRaises(
             client.FOSSWClientException, self.cli._exec_command, cmd)
         self.cli.disconnect.assert_called_once_with()
@@ -145,7 +120,6 @@ class TestFOSSWClientExecCommand(BaseTestFOSSWClient):
     def test_socket_timeout_with_maximum_retry(self):
         self.cli.console.recv_ready = mock.Mock(return_value=False)
         cmd = 'configure'
-
         self.assertRaises(
             client.FOSSWClientException, self.cli._exec_command, cmd)
         self.cli.disconnect.assert_called_once_with()
@@ -159,11 +133,10 @@ class TestFOSSWClientFormatCommand(BaseTestFOSSWClient):
 
     def test__format_command(self):
         self.assertEqual(
-            "vlan 2", self.cli._format_command("vlan {vlanid}", vlanid=2))
+            "vlan 2", self.cli._format_command("vlan {vlan_id}", vlan_id=2))
 
     def test__format_command_fails(self):
-        raw_cmd = "vlan {vlanid}"
-
+        raw_cmd = "vlan {vlan_id}"
         self.assertRaises(
             client.FOSSWClientException, self.cli._format_command, raw_cmd)
         self.assertRaises(
@@ -171,53 +144,7 @@ class TestFOSSWClientFormatCommand(BaseTestFOSSWClient):
             vlan=2)
         self.assertRaises(
             client.FOSSWClientException, self.cli._format_command, raw_cmd,
-            vlanid=None)
-
-
-class TestFOSSWClientChangeMode(BaseTestFOSSWClient):
-    """Test FOSSW client for format command"""
-
-    def setUp(self):
-        super(TestFOSSWClientChangeMode, self).setUp()
-        self.cli._exec_command = mock.Mock(return_value=') #')
-
-    def test_non_admin_mode_after_end(self):
-        self.cli._exec_command.return_value = ') >'
-
-        self.cli.change_mode('configure')
-        self.assertEqual(3, self.cli._exec_command.call_count)
-        actual = [arg[0][0] for arg in self.cli._exec_command.call_args_list]
-        self.assertEqual(['end', 'enable', 'configure'], actual)
-
-    def test_mode_global(self):
-        self.cli.change_mode('configure')
-
-        self.assertEqual(2, self.cli._exec_command.call_count)
-        actual = [arg[0][0] for arg in self.cli._exec_command.call_args_list]
-        self.assertEqual(['end', 'configure'], actual)
-
-    def test_mode_vlan(self):
-        self.cli.change_mode('vlan database')
-
-        self.assertEqual(2, self.cli._exec_command.call_count)
-        actual = [arg[0][0] for arg in self.cli._exec_command.call_args_list]
-        self.assertEqual(['end', 'vlan database'], actual)
-
-    def test_mode_interface_with_ifname(self):
-        self.cli.change_mode('interface', ifname='0/30')
-
-        self.assertEqual(3, self.cli._exec_command.call_count)
-        actual = [arg[0][0] for arg in self.cli._exec_command.call_args_list]
-        self.assertEqual(['end', 'configure', 'interface 0/30'], actual)
-
-    def test_illegal_mode_interface_only(self):
-        self.assertRaises(
-            client.FOSSWClientException,
-            self.cli.change_mode, 'interface')
-
-    def test_illegal_undefined_mode(self):
-        self.cli.change_mode('undefined')
-        self.cli._exec_command.assert_called_once_with(client.END)
+            vlan_id=None)
 
 
 class TestFOSSWClientCreateVlan(BaseTestFOSSWClient):
@@ -397,10 +324,12 @@ class TestFOSSWClientGetLAGPort(BaseTestFOSSWClient):
         self.cli._exec_command = mock.Mock()
 
     def test_get_lag_port(self):
-        self.cli._exec_command.return_value = ("")
+        self.cli._exec_command.return_value = (
+            "")
         self.assertIsNone(self.cli.get_lag_port("0/1"))
 
-        self.cli._exec_command.return_value = ("")
+        self.cli._exec_command.return_value = (
+            "")
         self.assertIsNone(self.cli.get_lag_port("0/1"))
 
 

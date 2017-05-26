@@ -16,16 +16,33 @@
 import mock
 import os
 
+from oslo_utils import uuidutils
+
 from networking_fujitsu.ml2.cfab import cfabdriver
 from networking_fujitsu.ml2.cfab import mech_cfab
-from networking_fujitsu.tests.unit.ml2.common import helper
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
-USERNAME = 'admin'
-PASSWORD = 'admin'
-ADDRESS = '192.168.100.1'
-PHYSICAL_NET = ["physnet1:1"]
+LLI = {
+    'single': [{
+        "switch_id": "00:00:4c:ee:e5:39",
+        "port_id": "1/1/0/1",
+        "switch_info": "CFX2000R"}],
+    'lag': [{
+        "switch_id": "00:00:4c:ee:e5:39",
+        "port_id": "1/1/0/2",
+        "switch_info": "CFX2000R"}, {
+        "switch_id": "00:00:4c:ee:e5:39",
+        "port_id": "1/1/0/3",
+        "switch_info": "CFX2000R"}],
+    'mlag': [{
+        "switch_id": "00:00:4c:ee:e5:39",
+        "port_id": "1/1/0/2",
+        "switch_info": "CFX2000R"}, {
+        "switch_id": "00:00:4c:ee:e5:40",
+        "port_id": "1/1/0/2",
+        "switch_info": "CFX2000R"}]
+}
 
 
 class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
@@ -52,8 +69,6 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
 
         ml2_config.cfg.CONF.set_override(
             'tenant_network_types', ['vlan'], 'ml2')
-        ml2_config.cfg.CONF.set_override(
-            'type_drivers', ['vlan'], 'ml2')
 
         if self._testMethodName in self._skip:
             self.skipTest("This test has already verified at neutron's test.")
@@ -94,129 +109,70 @@ class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
     pass
 
 
-class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
+class TestFujitsuMechDriverBaremetalPortsV2(TestFujitsuMechDriverV2):
 
-    def setUp(self):
-        ml2_fujitsu_opts = {
-            'username': USERNAME,
-            'password': PASSWORD,
-            'address': ADDRESS,
-            'physical_networks': PHYSICAL_NET,
-            'pprofile_prefix': 'test-'
-        }
-        for opt, val in ml2_fujitsu_opts.items():
-            ml2_config.cfg.CONF.set_override(opt, val, "fujitsu_cfab")
-        self.mech = mech_cfab.CFABMechanismDriver()
-        self.mech._driver = mock.Mock()
-        super(TestFujitsuMechDriverBaremetalPortsV2, self).setUp()
+    def setup_net_and_port(self, method='create', net={}, port={},
+                           phy_port='single'):
 
-    def test_create_port(self):
-        ctx = self.prepare_dummy_context()
-        self.mech.create_port_postcommit(ctx)
-        self.mech._driver.associate_mac_to_network.assert_not_called()
+        def call_method(arg):
+            return 'new_' + arg + '_request'
+        target = call_method(method)
+        with self.network() as network:
+            net_id = network['network']['id']
+            self._create_subnet(self.fmt, net_id, '172.16.1.0/24')
+            port_data = {
+                'port': {
+                    'network_id': network['network']['id'],
+                    'tenant_id': network['network']['tenant_id'],
+                    'name': 'prov-port',
+                    'admin_state_up': 1,
+                    'binding:vnic_type': 'baremetal',
+                    'binding:profile': {
+                        'local_link_information': LLI[phy_port]
+                    }
+                }
+            }
+            if method in ['update', 'delete']:
+                port = self.deserialize(
+                    self.fmt, self.new_create_request(
+                        'ports', port_data).get_response(self.api))
+                p_id = port['port']['id']
+                call_target = getattr(self, target)
+                if method is 'update':
+                    body = {
+                        'port': {'binding:host_id': uuidutils.generate_uuid()}
+                    }
+                    call_target('ports', p_id, str(body)).get_response(
+                        self.api)
+                else:
+                    call_target('ports', p_id).get_response(self.api)
+            else:
+                call_target = getattr(self, target)
+                call_target('ports', port_data).get_response(self.api)
 
-    def test_bind_port_with_single(self):
-        ctx = self.prepare_dummy_context()
-        self.mech.bind_port(ctx)
-        params = params_for_setup_vlan(ctx.current)
-        self.mech._driver.setup_vlan.assert_called_once_with(
-            params['address'],
-            params['username'],
-            params['password'],
-            params['vfab_id'],
-            params['vlanid'],
-            params['ports'],
-            params['mac_address'],
-        )
+    def test_create_with_single_NIC(self):
+        self.setup_net_and_port()
 
-    def test_bind_port_with_lag(self):
-        ctx = self.prepare_dummy_context(nic='lag')
-        self.mech.bind_port(ctx)
-        params = params_for_setup_vlan(ctx.current, lag=True)
-        self.mech._driver.setup_vlan_with_lag.assert_called_once_with(
-            params['address'],
-            params['username'],
-            params['password'],
-            params['vfab_id'],
-            params['vlanid'],
-            params['ports'],
-            params['mac_address'],
-        )
+    def test_create_with_lag(self):
+        self.setup_net_and_port(phy_port='lag')
 
-    def test_bind_port_with_mlag(self):
-        ctx = self.prepare_dummy_context(nic='mlag')
-        self.mech.bind_port(ctx)
-        params = params_for_setup_vlan(ctx.current, lag=True)
-        self.mech._driver.setup_vlan_with_lag.assert_called_once_with(
-            params['address'],
-            params['username'],
-            params['password'],
-            params['vfab_id'],
-            params['vlanid'],
-            params['ports'],
-            params['mac_address'],
-        )
+    def test_create_with_mlag(self):
+        self.setup_net_and_port(phy_port='mlag')
 
-    def test_update_port(self):
-        ctx = self.prepare_dummy_context()
-        self.mech.update_port_postcommit(ctx)
-        self.mech._driver.associate_mac_to_network.assert_not_called()
+    def test_update_with_single_NIC(self):
+        self.setup_net_and_port(method="update")
 
-    def test_delete_port_with_single(self):
-        ctx = self.prepare_dummy_context(nic='single')
-        self.mech.delete_port_postcommit(ctx)
-        params = params_for_setup_vlan(ctx.current)
-        self.mech._driver.clear_vlan.assert_called_with(
-            params['address'],
-            params['username'],
-            params['password'],
-            params['vfab_id'],
-            params['vlanid'],
-            params['ports'],
-            params['mac_address'],
-        )
-        self.mech._driver.dissociate_mac_from_network.assert_not_called()
+    def test_update_with_lag(self):
+        self.setup_net_and_port(method='update', phy_port='lag')
+
+    def test_update_with_mlag(self):
+        self.setup_net_and_port(method='update', phy_port='mlag')
+
+    def test_delete_with_single_NIC(self):
+        self.setup_net_and_port(method='delete')
 
     def test_delete_with_lag(self):
-        ctx = self.prepare_dummy_context(nic='lag')
-        self.mech.delete_port_postcommit(ctx)
-        params = params_for_setup_vlan(ctx.current, lag=True)
-        self.mech._driver.clear_vlan_with_lag.assert_called_with(
-            params['address'],
-            params['username'],
-            params['password'],
-            params['vfab_id'],
-            params['vlanid'],
-            params['ports'],
-            params['mac_address'],
-        )
-        self.mech._driver.dissociate_mac_from_network.assert_not_called()
+        self.setup_net_and_port(method='delete', phy_port='lag')
 
     def test_delete_with_mlag(self):
-        ctx = self.prepare_dummy_context(nic='mlag')
-        self.mech.delete_port_postcommit(ctx)
-        params = params_for_setup_vlan(ctx.current, lag=True)
-        self.mech._driver.clear_vlan_with_lag.assert_called_with(
-            params['address'],
-            params['username'],
-            params['password'],
-            params['vfab_id'],
-            params['vlanid'],
-            params['ports'],
-            params['mac_address'],
-        )
-        self.mech._driver.dissociate_mac_from_network.assert_not_called()
-
-
-def params_for_setup_vlan(port, lag=False):
-    lli = port['binding:profile']['local_link_information']
-    return {
-        'address': ADDRESS,
-        'username': USERNAME,
-        'password': PASSWORD,
-        'vfab_id': '1',
-        'vlanid': 1111,
-        'ports': ','.join(p['port_id'] for p in lli),
-        'mac_address': port['mac_address'],
-        'lag': lag
-    }
+        self.setup_net_and_port(method='delete', phy_port='mlag')
