@@ -7,4 +7,3 @@ oslo.log>=3.11.0 # Apache-2.0
 oslo.utils>=3.18.0 # Apache-2.0
 paramiko>=2.0 # LGPLv2.1+
 pbr>=1.8 # Apache-2.0
-Babel>=2.3.4 # BSD
