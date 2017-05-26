@@ -279,7 +279,7 @@ class OVSDBWriter(base_connection.BaseConnection):
                     break
         return binding_vid
 
-    def update_physical_port(self, port_name, vlanid, logical_switch_uuid,
+    def update_physical_port(self, port_name, vlan_id, logical_switch_uuid,
                              rcv_required=True):
         """Update a ROW in Physical_Port OVSDB table.
 
@@ -291,9 +291,9 @@ class OVSDBWriter(base_connection.BaseConnection):
                           format: <slot/port>
                           example: 0/2
         :type port_name: string
-        :param vlanid: Identifier of physical port and logical switch binding.
+        :param vlan_id: Identifier of physical port and logical switch binding.
                         Must be in range 0 to 4095.
-        :type vlanid: integer
+        :type vlan_id: integer
         :param logical_switch_uuid: UUID of logical_switch in the binding-pair
                                     mapping.
         :type logical_switch_uuid: uuid
@@ -311,8 +311,8 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'row': {
                                  'vlan_bindings': [
                                      'map',
-                                     [[vlanid, ['uuid',
-                                                logical_switch_uuid]]]]}},
+                                     [[vlan_id, ['uuid',
+                                                 logical_switch_uuid]]]]}},
                             commit_dict],
                  'id': op_id}
         LOG.debug(_("update_physical_port: query: %s"), query)
