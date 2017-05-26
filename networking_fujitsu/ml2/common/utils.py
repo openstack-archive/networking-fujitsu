@@ -15,8 +15,8 @@
 
 from networking_fujitsu._i18n import _
 from networking_fujitsu._i18n import _LW
-from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
+from neutron_lib.api.definitions import portbindings
 from oslo_log import log as logging
 import re
 
