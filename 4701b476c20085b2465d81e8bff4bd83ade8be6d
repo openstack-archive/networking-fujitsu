@@ -1,0 +1,9 @@
+Code-Review+1: Alfredo Moralejo <amoralej@redhat.com>
+Code-Review+2: Takao Indoh <indou.takao@jp.fujitsu.com>
+Workflow+1: Takao Indoh <indou.takao@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 28 May 2017 23:55:34 +0000
+Reviewed-on: https://review.openstack.org/468359
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
