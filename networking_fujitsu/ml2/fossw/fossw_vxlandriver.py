@@ -20,7 +20,6 @@ from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
 from networking_fujitsu.ml2.common import type_vxlan
 from networking_fujitsu.ml2.fossw import client
-from networking_fujitsu.ml2.fossw import fossw_vlandriver
 
 from neutron.common import utils
 
@@ -63,7 +62,7 @@ class FOSSWVxlanDriver(object):
                                        for vxlan_endpoint in
                                        self.type_vxlan.get_endpoints()]
 
-    def _save_all_fossw(self):
+    def save_all_fossw(self):
         """Save running-config to startup-config in all FOS switches."""
         for fossw_ip in self.fossw_ips:
             self.client.connect(fossw_ip)
@@ -77,9 +76,9 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        for target_ip in self.fossw_ips:
-            ovsdb_client = ovsdb_writer.OVSDBWriter(target_ip, self.ovsdb_port)
-            sw_ep_ip, sw_ep_host = ovsdb_client.get_sw_ep_info()
+        for fossw_ip in self.fossw_ips:
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(fossw_ip, self.ovsdb_port)
+            sw_ep_ip, sw_ep_host = ovsdb_cli.get_sw_ep_info()
             if not sw_ep_host:
                 sw_ep_host = "FOSSW"
             if sw_ep_ip:
@@ -115,31 +114,30 @@ class FOSSWVxlanDriver(object):
                               'port': self.udp_dest_port})
             else:
                 LOG.warning(_LW("Unable to get endpoint information from "
-                                "switch (IP = %s). Skip."), target_ip)
+                                "switch (IP = %s). Skip."), fossw_ip)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def create_logical_switch(self, net_uuid, vnid):
+    def create_logical_switch(self, net_uuid, vni, save=True):
         """Create a row in Logical_Switch table in FOS switch OVSDB.
 
-        We consider net_uuid is always unique, and both vnid and net_uuid
+        We consider net_uuid is always unique, and both vni and net_uuid
         must be immutable. So there is not a update case.
         :param net_uuid: The uuid of Neutron network.
         :type net_uuid: string
-        :param vnid: The segment ID of Neutron network.
-        :type vnid: integer
+        :param vni: The segment ID of Neutron network.
+        :type vni: integer
 
         :returns: None
         """
 
-        logical_switch_name = net_uuid.replace("-", "")
-        for switch_ip in self.fossw_ips:
-            ovsdb_client = ovsdb_writer.OVSDBWriter(switch_ip,
-                                                    self.ovsdb_port)
-            ovsdb_client.insert_logical_switch(vnid, logical_switch_name)
-        self._save_all_fossw()
+        for fossw_ip in self.fossw_ips:
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(fossw_ip, self.ovsdb_port)
+            ovsdb_cli.insert_logical_switch(vni, net_uuid.replace("-", ""))
+        if save:
+            self.save_all_fossw()
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def delete_logical_switch(self, net_uuid):
+    def delete_logical_switch(self, net_uuid, save=True):
         """Delete row in Logical_Switch table in FOS switch OVSDB.
 
         We only consider deleting the existing Logical_Switch ROW.
@@ -150,17 +148,16 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        logical_switch_name = net_uuid.replace("-", "")
-        for switch_ip in self.fossw_ips:
-            ovsdb_client = ovsdb_writer.OVSDBWriter(switch_ip,
-                                                    self.ovsdb_port)
-            logical_switch_uuid = ovsdb_client.get_logical_switch_uuid(
-                logical_switch_name)
-            if logical_switch_uuid:
-                ovsdb_client.delete_logical_switch(logical_switch_uuid)
-        self._save_all_fossw()
+        ls_name = net_uuid.replace("-", "")
+        for fossw_ip in self.fossw_ips:
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(fossw_ip, self.ovsdb_port)
+            ls_uuid = ovsdb_cli.get_logical_switch_uuid(ls_name)
+            if ls_uuid:
+                ovsdb_cli.delete_logical_switch(ls_uuid)
+        if save:
+            self.save_all_fossw()
 
-    def update_physical_port(self, vnid, lli, port_context, ip_mac_pairs):
+    def update_physical_port(self, vni, lli, port, ip_mac_pairs, save=True):
         """Update Physical_Port table in FOS switch OVSDB.
 
         There are 3 cases about port operation
@@ -177,14 +174,14 @@ class FOSSWVxlanDriver(object):
         around Neutron network. In this case, all FOS switches should do the
         same thing as in Case 2.
 
-        :param vnid: The segment ID of Neutron network which the port belongs
+        :param vni: The segment ID of Neutron network which the port belongs
                      to.
-        :type vnid: integer
+        :type vni: integer
         :param lli: The local_link_information of the port.
                     If it is a VM port, then [{}] should be given.
         :type lli: list
-        :param port_context: Context of the port.
-        :type port_context: dictionary
+        :param port: Dictionary of a port
+        :type port: dictionary
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
@@ -192,79 +189,66 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
+        ls_name = port["network_id"].replace("-", "")
+        mac = port["mac_address"]
+        port_ips = [fixed_ip['ip_address'] for fixed_ip in port["fixed_ips"]]
+        host_id = port['binding:host_id']
+        target_ip = ip_mac_pairs[lli[0]['switch_id']] if lli else None
+        target = lli[0]['switch_info'] if lli else host_id
+        tunnel_ip = self.type_vxlan.db_get_endpoint_ip_by_host(target)
+
         if lli:
-            target_name = lli[0]['switch_info']
-            target_ip = ip_mac_pairs[lli[0]['switch_id']]
-            port_id = lli[0]['port_id']
-        else:
-            target_name = port_context['binding:host_id']
-            target_ip = ""
-            # In this case, it will be a VM port, and we do not need to
-            # care about port_id.
-        target_tunnel_ip = self.type_vxlan.db_get_endpoint_ip_by_host(
-            target_name)
-        net_uuid = port_context["network_id"]
-        port_mac = port_context["mac_address"]
-        fixed_ips = port_context["fixed_ips"]
-        port_ips = []
-        for fixed_ip in fixed_ips:
-            port_ips.append(fixed_ip["ip_address"])
-
-        logical_switch_name = net_uuid.replace("-", "")
-        if target_ip in self.fossw_ips:
+            sw_port = lli[0]['port_id']
             # Update Physical_Port table first.
-            ovsdb_client = ovsdb_writer.OVSDBWriter(target_ip, self.ovsdb_port)
-            bind_ls_uuid = ovsdb_client.get_logical_switch_uuid(
-                logical_switch_name)
-            binding_vid = ovsdb_client.get_binding_vid(bind_ls_uuid)
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(target_ip, self.ovsdb_port)
+            bind_ls_uuid = ovsdb_cli.get_logical_switch_uuid(ls_name)
+            binding_vid = ovsdb_cli.get_binding_vid(bind_ls_uuid)
             bind_vid = binding_vid if binding_vid else (
-                int(port_id[2:]) + self.ovsdb_vlanid_range_min - 1)
+                int(sw_port[2:]) + self.ovsdb_vlanid_range_min - 1)
 
-            ovsdb_client.update_physical_port(port_id, bind_vid, bind_ls_uuid)
+            ovsdb_cli.update_physical_port(sw_port, bind_vid, bind_ls_uuid)
             # After Physical_Port table has been updated, update
             # Ucast_Macs_Local table.
             # If any garbage exist, remove them first.
-            if ovsdb_client.get_ucast_macs_local(port_mac):
-                ovsdb_client.delete_ucast_macs_local(port_mac)
+            if ovsdb_cli.get_ucast_macs_local(mac):
+                ovsdb_cli.delete_ucast_macs_local(mac)
             # Then add what we want to the Ucast_Macs_Local table.
-            locator_ip_local, sw_ep_host = ovsdb_client.get_sw_ep_info()
-            locator_uuid_local = ovsdb_client.get_physical_locator_uuid(
+            locator_ip_local, sw_ep_host = ovsdb_cli.get_sw_ep_info()
+            locator_uuid_local = ovsdb_cli.get_physical_locator_uuid(
                 locator_ip_local)
             # We do not care about port IP address. We only forward using port
             # MAC address.
             if locator_uuid_local:
-                ovsdb_client.insert_ucast_macs_local(
-                    bind_ls_uuid, locator_uuid_local, port_mac)
+                ovsdb_cli.insert_ucast_macs_local(
+                    bind_ls_uuid, locator_uuid_local, mac)
             else:
-                ovsdb_client.insert_ucast_macs_local_and_locator(
-                    bind_ls_uuid, locator_ip_local, port_mac)
-
+                ovsdb_cli.insert_ucast_macs_local_and_locator(
+                    bind_ls_uuid, locator_ip_local, mac)
         # At last Ucast_Macs_Remote table of other switches.
-        self._update_ucast_macs_remote(target_ip, logical_switch_name,
-                                       port_mac, target_tunnel_ip, port_ips)
-        self._save_all_fossw()
+        self._update_ucast_macs_remote(
+            target_ip, ls_name, mac, tunnel_ip, port_ips)
+        if save:
+            self.save_all_fossw()
 
-    def _update_ucast_macs_remote(self, target_ip, logical_switch_name,
-                                  port_mac, target_tunnel_ip, port_ips):
+    def _update_ucast_macs_remote(self, target_ip, logical_switch_name, mac,
+                                  tunnel_ip, port_ips):
         """Update Ucast_Macs_Remote table in all FOS switches OVSDB."""
         for fossw_ip in self.fossw_ips:
-            if fossw_ip != target_ip:
-                ovsdb_client = ovsdb_writer.OVSDBWriter(
-                    fossw_ip, self.ovsdb_port)
-                ls_uuid = ovsdb_client.get_logical_switch_uuid(
-                    logical_switch_name)
-                if ovsdb_client.get_ucast_macs_remote(port_mac):
-                    ovsdb_client.delete_ucast_macs_remote(port_mac)
-                locator_uuid = ovsdb_client.get_physical_locator_uuid(
-                    target_tunnel_ip)
-                if locator_uuid:
-                    ovsdb_client.insert_ucast_macs_remote(
-                        ls_uuid, port_mac, port_ips, locator_uuid)
-                else:
-                    ovsdb_client.insert_ucast_macs_remote_and_locator(
-                        ls_uuid, port_mac, port_ips, target_tunnel_ip)
+            if target_ip == fossw_ip:
+                continue
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(fossw_ip, self.ovsdb_port)
+            ls_uuid = ovsdb_cli.get_logical_switch_uuid(logical_switch_name)
+            if ovsdb_cli.get_ucast_macs_remote(mac):
+                ovsdb_cli.delete_ucast_macs_remote(mac)
+            locator_uuid = ovsdb_cli.get_physical_locator_uuid(tunnel_ip)
+            if locator_uuid:
+                ovsdb_cli.insert_ucast_macs_remote(
+                    ls_uuid, mac, port_ips, locator_uuid)
+            else:
+                ovsdb_cli.insert_ucast_macs_remote_and_locator(
+                    ls_uuid, mac, port_ips, tunnel_ip)
 
-    def reset_physical_port(self, lli, port_context, ip_mac_pairs):
+    def reset_physical_port(self, lli, port, ip_mac_pairs, save=True):
         """Remove setting of raw of Physical_Port table in FOS switch OVSDB.
 
         ROWs with the same MAC address in Ucast_Macs_Local table and
@@ -272,8 +256,8 @@ class FOSSWVxlanDriver(object):
 
         :param lli: The local_link_information of the port.
         :type lli: list
-        :param port_context: Context of the port.
-        :type port_context: dictionary
+        :param port: Context of the port.
+        :type port: dictionary
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
@@ -282,42 +266,34 @@ class FOSSWVxlanDriver(object):
         """
 
         if lli:
-            target_ip = ip_mac_pairs[lli[0]['switch_id']]
+            target = ip_mac_pairs[lli[0]['switch_id']]
             port_id = lli[0]['port_id']
-        else:
-            target_ip = ""
-            # In this case, it will be a VM port, and we do not need to
-            # care about port_id.
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(target, self.ovsdb_port)
+            ovsdb_cli.reset_physical_port(port_id)
 
-        port_mac = port_context["mac_address"]
+        mac = port["mac_address"]
 
-        if target_ip in self.fossw_ips:
-            ovsdb_client = ovsdb_writer.OVSDBWriter(target_ip,
-                                                    self.ovsdb_port)
-            ovsdb_client.reset_physical_port(port_id)
         for fossw_ip in self.fossw_ips:
             # All Ucast_Macs_Remote and Ucast_Macs_Local tables in all
             # FOS switches will delete the ROW with the MAC address.
-            ovsdb_client = ovsdb_writer.OVSDBWriter(fossw_ip,
-                                                    self.ovsdb_port)
-            ovsdb_client.delete_ucast_macs_local(port_mac)
-            ovsdb_client.delete_ucast_macs_remote(port_mac)
-        self._save_all_fossw()
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(fossw_ip, self.ovsdb_port)
+            ovsdb_cli.delete_ucast_macs_local(mac)
+            ovsdb_cli.delete_ucast_macs_remote(mac)
+        if save:
+            self.save_all_fossw()
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def update_physical_port_with_lag(self, vnid, llis, port_context,
-                                      ip_mac_pairs):
-        """Update Physical_Port table in FOS switch OVSDB.
+    def update_physical_port_with_lag(self, vni, llis, port, ip_mac_pairs):
+        """Call update_physical_port for all physical swtich ports.
 
-        (lag case)
-        :param vnid: The segment ID of Neutron network which the port belongs
+        :param vni: The segment ID of Neutron network which the port belongs
                      to.
-        :type vnid: integer
+        :type vni: integer
         :param llis: `local_link_information' of 'binding:profile' for the port
                      multiple physical ports(dict) should be given.
         :type llis: list
-        :param port_context: Context of the port.
-        :type port_context: dictionary
+        :param port: Dictionary of the port.
+        :type port: dictionary
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
@@ -325,25 +301,18 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        vlan_id = 1
-        fossw_vlandriver.FOSSWVlanDriver().setup_vlan_with_lag(
-            vlan_id, llis, ip_mac_pairs)
-
-        # setup ovsdb for each physical port
         for lli in llis:
-            self.update_physical_port(vnid, lli, self.fossw_ips,
-                                      port_context, ip_mac_pairs)
+            self.update_physical_port(vni, [lli], port, ip_mac_pairs)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def reset_physical_port_with_lag(self, llis, port_context, ip_mac_pairs):
-        """Remove setting of raw of Physical_Port table in FOS switch OVSDB.
+    def reset_physical_port_with_lag(self, llis, port, ip_mac_pairs):
+        """Call reset_physical_port for all physical switch ports.
 
-        (lag case)
         :param llis: `local_link_information' of 'binding:profile' for the port
                      multiple physical ports(dict) should be given.
         :type llis: list
-        :param port_context: Context of the port.
-        :type port_context: dictionary
+        :param port: Dictionary of the port.
+        :type port: dictionary
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
@@ -351,11 +320,5 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        vlan_id = 1
-        fossw_vlandriver.FOSSWVlanDriver().clear_vlan_with_lag(
-            vlan_id, llis, ip_mac_pairs)
-
-        # Clear lag setting
         for lli in llis:
-            self.reset_physical_port(lli, self.fossw_ips,
-                                     port_context, ip_mac_pairs)
+            self.reset_physical_port([lli], port, ip_mac_pairs)
