@@ -13,12 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from networking_fujitsu._i18n import _LW
-from networking_fujitsu.ml2.common import utils as fj_util
-from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import driver_api
+
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
+
+from networking_fujitsu._i18n import _LW
+from networking_fujitsu.ml2.common import utils as fj_util
 
 
 LOG = logging.getLogger(__name__)
@@ -39,10 +40,10 @@ class ISMMechanismDriver(driver_api.MechanismDriver):
     @classmethod
     def create_ism_base(self, network_type, segmentation_id):
 
-        if (network_type == p_const.TYPE_VLAN):
+        if (network_type == 'vlan'):
             ism = self._driver.IsmVlanBase(network_type, segmentation_id)
             return ism
-        elif (network_type == p_const.TYPE_VXLAN):
+        elif (network_type == 'vxlan'):
             ism = self._driver.IsmVxlanBase(network_type, segmentation_id)
             return ism
 

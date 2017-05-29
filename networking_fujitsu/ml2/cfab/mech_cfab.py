@@ -1,4 +1,4 @@
-# Copyright 2015-2016 FUJITSU LIMITED
+# Copyright 2015-2017 FUJITSU LIMITED
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -16,22 +16,22 @@
 
 """Implementation of Fujitsu ML2 Mechanism driver for ML2 Plugin."""
 
+from networking_fujitsu._i18n import _
+from networking_fujitsu._i18n import _LE
+from networking_fujitsu._i18n import _LI
+from networking_fujitsu._i18n import _LW
+from networking_fujitsu.ml2.common import utils
+
 from neutron_lib.api.definitions import portbindings
+from neutron_lib import constants
+
+from neutron.plugins.ml2.common import exceptions as ml2_exc
+from neutron.plugins.ml2 import driver_api
 
 from oslo_config import cfg
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
 from oslo_utils import importutils
-
-from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LI
-from networking_fujitsu._i18n import _LW
-from networking_fujitsu.ml2.common import utils as fj_util
-
-from neutron.common import constants as const
-from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron.plugins.ml2 import driver_api
 
 
 LOG = logging.getLogger(__name__)
@@ -89,20 +89,21 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         """Initialize of variables needed by this class."""
 
         self._parse_physical_networks()
-        self._switch = {'address': cfg.CONF.fujitsu_cfab.address,
-                        'username': cfg.CONF.fujitsu_cfab.username,
-                        'password': cfg.CONF.fujitsu_cfab.password
-                        }
+        self._switch = {
+            'address': cfg.CONF.fujitsu_cfab.address,
+            'username': cfg.CONF.fujitsu_cfab.username,
+            'password': cfg.CONF.fujitsu_cfab.password
+        }
 
         if not self._switch['address']:
             raise cfg.RequiredOptError(
                 'address', cfg.OptGroup(ML2_FUJITSU_GROUP))
-
         self._driver = importutils.import_object(CFAB_DRIVER, cfg.CONF)
 
     def _parse_physical_networks(self):
         """Interpret physical_networks as physical_network:vfab_id entries."""
 
+        method = "_parse_physical_networks"
         for entry in cfg.CONF.fujitsu_cfab.physical_networks:
             try:
                 physical_network, vfab_id = entry.split(':')
@@ -110,16 +111,14 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                 LOG.exception(
                     _LE("Fujitsu Mechanism: illegal physical_networks entry")
                 )
-                raise ml2_exc.MechanismDriverError(
-                    method="_parse_physical_networks")
+                raise ml2_exc.MechanismDriverError(method=method)
             if not (vfab_id == VFAB_ID_DEFAULT or
                     VFAB_ID_MIN <= int(vfab_id) <= VFAB_ID_MAX):
                 LOG.error(
                     _LE("Fujitsu Mechanism: illegal vfab id in "
                         "physical_networks entry")
                 )
-                raise ml2_exc.MechanismDriverError(
-                    method="_parse_physical_networks")
+                raise ml2_exc.MechanismDriverError(method=method)
             self._physical_networks[physical_network] = vfab_id
 
     def _get_vfab_id(self, physical_network):
@@ -143,34 +142,31 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         Case2: Otherwise
                    Associate the assigned MAC address to the portprofile.
         """
-
-        if fj_util.is_baremetal(mech_context.current):
+        port = mech_context.current
+        network = mech_context.network
+        if utils.is_baremetal(port):
             return
 
-        if not is_supported(mech_context.network):
+        if not is_supported(network):
             return
 
         method = 'create_port_postcommit'
-        port = mech_context.current
         port_id = port['id']
         network_id = port['network_id']
         tenant_id = port['tenant_id']
-        segments = mech_context.network.network_segments
-        # currently supports only one segment per network
-        segment = segments[0]
-
-        vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
-        vlanid = segment[driver_api.SEGMENTATION_ID]
-
         interface_mac = port['mac_address']
+        vfab_id = self._get_vfab_id(utils.get_physical_network(network))
+        vlanid = utils.get_segmentation_id(network)
 
         try:
-            self._driver.associate_mac_to_network(self._switch['address'],
-                                                  self._switch['username'],
-                                                  self._switch['password'],
-                                                  vfab_id,
-                                                  vlanid,
-                                                  interface_mac)
+            self._driver.associate_mac_to_network(
+                self._switch['address'],
+                self._switch['username'],
+                self._switch['password'],
+                vfab_id,
+                vlanid,
+                interface_mac
+            )
         except Exception:
             LOG.exception(
                 _LE("Fujitsu Mechanism: failed to associate mac %s")
@@ -195,10 +191,12 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
 
         method = 'delete_port_postcommit'
         port = mech_context.current
+        network = mech_context.network
         port_id = port['id']
         network_id = port['network_id']
         tenant_id = port['tenant_id']
-        if fj_util.is_baremetal(port):
+
+        if utils.is_baremetal(port):
             if validate_baremetal_deploy(mech_context):
                 params = self.get_physical_net_params(mech_context)
                 try:
@@ -207,14 +205,12 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                     LOG.exception(_LE("Failed to clear vlan%s."),
                                   params['vlanid'])
                     raise ml2_exc.MechanismDriverError(method=method)
-        elif not is_supported(mech_context.network):
+        elif not is_supported(network):
             pass
         else:
-            segments = mech_context.network.network_segments
-            # currently supports only one segment per network
-            segment = segments[0]
-            vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
-            vlanid = segment[driver_api.SEGMENTATION_ID]
+            physical_network = utils.get_physical_network(network)
+            vlanid = utils.get_segmentation_id(network)
+            vfab_id = self._get_vfab_id(physical_network)
             interface_mac = port['mac_address']
 
             try:
@@ -231,10 +227,9 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
                     interface_mac)
                 raise ml2_exc.MechanismDriverError(method=method)
         LOG.info(
-            _LI("delete port (postcommit): port_id=%(port_id)s "
-                "network_id=%(network_id)s tenant_id=%(tenant_id)s"),
-            {'port_id': port_id,
-             'network_id': network_id, 'tenant_id': tenant_id})
+            _LI("delete port (postcommit): port_id=%(p_id)s "
+                "network_id=%(net_id)s tenant_id=%(tenant_id)s"),
+            {'p_id': port_id, 'net_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
     def setup_vlan(self, params):
@@ -339,21 +334,17 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
         """
 
         port = mech_context.current
-        # currently supports only one segment per network
-        segment = mech_context.network.network_segments[0]
-        vfab_id = self._get_vfab_id(segment[driver_api.PHYSICAL_NETWORK])
-        vlanid = segment[driver_api.SEGMENTATION_ID]
-        local_link_info = fj_util.get_physical_connectivity(port)
-        physical_ports = ','.join(p['port_id'] for p in local_link_info)
+        network = mech_context.network
+        local_link_info = utils.get_physical_connectivity(port)
         return {
             "address": self._switch['address'],
             "username": self._switch['username'],
             "password": self._switch['password'],
-            "ports": physical_ports,
-            "vfab_id": vfab_id,
-            "vlanid": vlanid,
+            "ports": ','.join(p['port_id'] for p in local_link_info),
+            "vfab_id": self._get_vfab_id(utils.get_physical_network(network)),
+            "vlanid": utils.get_segmentation_id(network),
             "mac": port['mac_address'],
-            "lag": fj_util.is_lag(local_link_info)
+            "lag": utils.is_lag(local_link_info)
         }
 
     @log_helpers.log_method_call
@@ -372,7 +363,7 @@ class CFABMechanismDriver(driver_api.MechanismDriver):
             self.setup_vlan(params)
             context.set_binding(segments[0][driver_api.ID],
                                 portbindings.VIF_TYPE_OTHER, {},
-                                status=const.PORT_STATUS_ACTIVE)
+                                status=constants.PORT_STATUS_ACTIVE)
 
 
 def is_supported(network):
@@ -383,9 +374,8 @@ def is_supported(network):
             otherwise False
     """
 
-    segment = network.network_segments[0]
-    seg_id = segment[driver_api.SEGMENTATION_ID]
-    net_type = segment[driver_api.NETWORK_TYPE]
+    seg_id = utils.get_segmentation_id(network)
+    net_type = utils.get_network_type(network)
     if (net_type in _SUPPORTED_NET_TYPES and seg_id):
         return True
     LOG.warning(_LW("%s is not supported. Skip it."), net_type)
@@ -401,7 +391,7 @@ def validate_baremetal_deploy(mech_context):
 
     port = mech_context.current
     network = mech_context.network
-    if (fj_util.is_baremetal(port) and
-       is_supported(network) and fj_util.get_physical_connectivity(port)):
+    if (utils.is_baremetal(port) and
+       is_supported(network) and utils.get_physical_connectivity(port)):
         return True
     return False
