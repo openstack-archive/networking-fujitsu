@@ -127,7 +127,7 @@ class TestFOSSWClientExecCommand(BaseTestFOSSWClient):
     def test_normal(self):
         cmd = 'configure'
         self.cli.console.recv.return_value = (
-            '\r\n(ET-7648BRA-FOS) #%s\r\n(ET-7648BRA-FOS) (Config)#' % cmd)
+            '\n(ET-7648BRA-FOS) #%s\n(ET-7648BRA-FOS) (Config)#' % cmd)
 
         result = self.cli._exec_command(cmd)
         self.cli.console.send.assert_called_with(cmd + '\n')
@@ -284,7 +284,7 @@ class TestFOSSWClientClearVlan(BaseTestFOSSWClient):
     def test_clear_vlan(self):
         ret = "(ET-7648BRA-FOS) (Interface 0/1)#"
         self.cli._exec_command.side_effect = ret
-        self.assertIsNone(self.cli.clear_vlan(10, 1))
+        self.assertIsNone(self.cli.clear_vlan(1))
 
 
 class TestFOSSWClientJoinToLag(BaseTestFOSSWClient):
@@ -378,17 +378,18 @@ class TestFOSSWClientGetLAGPort(BaseTestFOSSWClient):
         self.cli._exec_command = mock.Mock()
 
     def test_lag_lagport_found_with_portname(self):
-        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
+        ret = ("addport 3/1\n"
+               "exit\n"
                "(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
-        self.assertEqual("3/1", self.cli.get_lag_port('0/1,0/2'))
+        self.assertEqual("3/1", self.cli.get_lag_port('0/1'))
 
     def test_lag_lagport_found_without_portname(self):
-        ret = ("3/1   ch1   1   Down  Disabled Static 0/1,0/2\r\n"
-               "3/2   ch2   1   Down  Disabled Static 0/3,0/4\r\n"
-               "3/3   ch3   1   Down  Disabled Static\r\n"
-               "3/4   ch4   1   Down  Disabled Static 0/5,0/6\r\n"
-               "3/5   ch5   1   Down  Disabled Static  \r\n"
+        ret = ("3/1   ch1   1   Down  Disabled Static 0/1,0/2\n"
+               "3/2   ch2   1   Down  Disabled Static 0/3,0/4\n"
+               "3/3   ch3   1   Down  Disabled Static\n"
+               "3/4   ch4   1   Down  Disabled Static 0/5,0/6\n"
+               "3/5   ch5   1   Down  Disabled Static  \n"
                "3/6   ch6   1   Down  Disabled Static\n"
                "3/7   ch7   1   Down  Disabled Static"
                "(ET-7648BRA-FOS) #")
@@ -397,15 +398,15 @@ class TestFOSSWClientGetLAGPort(BaseTestFOSSWClient):
         self.assertEqual("3/3", self.cli.get_lag_port())
 
     def test_lag_all_lagport_are_dynamic_with_portname(self):
-        ret = ("3/2   ch2   1   Down  Disabled Dynamic 0/3,0/4\r\n"
+        ret = ("addport 3/2\n"
                "(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
-        self.assertEqual('3/2', self.cli.get_lag_port('0/3,0/4'))
+        self.assertEqual('3/2', self.cli.get_lag_port('0/3'))
 
     def test_lag_all_lagport_are_dynamic_without_portname(self):
-        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
-               "3/2   ch2   1   Down  Disabled Dynamic 0/3,0/4\r\n"
-               "3/3   ch3   1   Down  Disabled Dynamic\r\n"
+        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\n"
+               "3/2   ch2   1   Down  Disabled Dynamic 0/3,0/4\n"
+               "3/3   ch3   1   Down  Disabled Dynamic\n"
                "(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
         self.assertIsNone(self.cli.get_lag_port())
@@ -413,17 +414,17 @@ class TestFOSSWClientGetLAGPort(BaseTestFOSSWClient):
             'show port-channel brief | exclude Dynamic begin 3/')
 
     def test_mlag_found_with_portname(self):
-        ret = ("3/2   ch2   1   Down  Disabled Dynamic 0/3\r\n"
+        ret = ("addport 3/2\n"
                "(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
         self.assertEqual('3/2', self.cli.get_lag_port('0/3'))
         self.cli._exec_command.assert_called_once_with(
-            'show port-channel brief | include 0/3')
+            'show running-config interface 0/3')
 
     def test_mlag_found_without_portname(self):
-        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1\r\n"
-               "3/2   ch2   1   Down  Disabled Dynamic 0/3\r\n"
-               "3/3   ch3   1   Down  Disabled Static\r\n"
+        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1\n"
+               "3/2   ch2   1   Down  Disabled Dynamic 0/3\n"
+               "3/3   ch3   1   Down  Disabled Static\n"
                "(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
         self.assertEqual('3/3', self.cli.get_lag_port())
@@ -431,31 +432,38 @@ class TestFOSSWClientGetLAGPort(BaseTestFOSSWClient):
             'show port-channel brief | exclude Dynamic begin 3/')
 
     def test_mlag_not_found_with_portname(self):
-        ret = ("\r\n(ET-7648BRA-FOS) #")
+        ret = ("\n(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
         self.assertIsNone(self.cli.get_lag_port())
 
     def test_illegal_duplicate_target_found_with_portname(self):
-        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
-               "3/2   ch2   1   Down  Disabled Dynamic 0/1,0/2\r\n"
+        ret = ("addport 3/1 \n"
                "(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
-        # NOTE(yushiro): Returns earlier number of lagport
-        self.assertEqual("3/1", self.cli.get_lag_port('0/1,0/2'))
+        # Returns earlier number of lagport
+        self.assertEqual("3/1", self.cli.get_lag_port('0/1'))
         self.cli._exec_command.assert_called_once_with(
-            'show port-channel brief | include 0/1,0/2')
+            'show running-config interface 0/1')
 
     def test_illegal_duplicate_target_found_without_portname(self):
-        ret = ("3/1   ch1   1   Down  Disabled Dynamic 0/1,0/2\r\n"
-               "3/2   ch2   1   Down  Disabled Static 0/1,0/2\r\n"
-               "3/3   ch3   1   Down  Disabled Static   \r\n"
+        ret = ("3/2   ch2   1   Down  Disabled Static  0/1,0/2\n"
+               "3/3   ch3   1   Down  Disabled Static   \n"
                "3/4   ch4   1   Down  Disabled Static\n"
                "(ET-7648BRA-FOS) #")
         self.cli._exec_command.return_value = ret
-        # NOTE(yushiro): Returns earlier lagport
-        self.assertEqual("3/1", self.cli.get_lag_port('0/1,0/2'))
-        self.cli._exec_command.assert_called_once_with(
-            'show port-channel brief | include 0/1,0/2')
+        # Returns earlier lagport
+        self.assertEqual("3/3", self.cli.get_lag_port())
+
+    def test_illegal_static_lag_port_exists(self):
+        ret = ("3/1   ch1   1   Down  Disabled Static  0/1,0/2,\n"
+               "3/2   ch2   1   Down  Disabled Static 0/5,0/6\n"
+               "3/3   ch3   1   Down  Disabled Dynamic\n"
+               "3/4   ch4   1   Down  Disabled Static \n"
+               "3/5   ch5   1   Down  Disabled Static\n"
+               "(ET-7648BRA-FOS) #")
+        self.cli._exec_command.return_value = ret
+        # Returns earlier lagport
+        self.assertEqual("3/4", self.cli.get_lag_port())
 
 
 class TestFOSSWClientGetSwitchMAC(BaseTestFOSSWClient):
@@ -471,12 +479,12 @@ class TestFOSSWClientGetSwitchMAC(BaseTestFOSSWClient):
         self.assertEqual('00:30:ab:f4:ca:da', self.cli.get_switch_mac())
 
     def test_returns_mac_and_any_return_codes(self):
-        ret = ("\r\n\r\n00:30:AB:F4:CA:DA\r\n\r\n")
+        ret = ("\n\n00:30:AB:F4:CA:DA\n\n")
         self.cli._exec_command.return_value = ret
         self.assertEqual('00:30:ab:f4:ca:da', self.cli.get_switch_mac())
 
     def test_returns_mac_all_capital(self):
-        ret = ("\r\n\r\nAA:AA:AA:AA:AA:AA\r\n\r\n")
+        ret = ("\n\nAA:AA:AA:AA:AA:AA\n\n")
         self.cli._exec_command.return_value = ret
         self.assertEqual('aa:aa:aa:aa:aa:aa', self.cli.get_switch_mac())
 
