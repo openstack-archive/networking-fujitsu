@@ -263,12 +263,10 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network_id = port['network_id']
         tenant_id = port['tenant_id']
         network_type = utils.get_network_type(network)
-        if (network_type == 'vlan' and utils.is_baremetal(port)):
+        if network_type == 'vlan' and utils.is_baremetal(port):
             self.clear_vlan(mech_context)
-        elif network_type == 'vxlan':
+        if network_type == 'vxlan':
             self.clear_vxlan(mech_context)
-        else:
-            return
         LOG.info(
             _LI("Delete port (postcommit): port_id=%(port_id)s "
                 "network_id=%(net_id)s tenant_id=%(tenant_id)s"),
@@ -371,10 +369,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             LOG.info(
                 _LI("call %(target)s. params: %(params)s"),
                 {'target': call_target, 'params': params})
-            clear_method(
-                params['vlanid'],
-                params['local_link_info'],
-                self.switches_mac_ip_pair)
+            clear_method(params['local_link_info'], self.switches_mac_ip_pair)
         except Exception:
             LOG.exception(_LE("Failed to clear vlan(%s)"), params['vlanid'])
             raise ml2_exc.MechanismDriverError(method=target)
@@ -392,7 +387,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         try:
             if utils.is_lag(lli):
                 self._vlan_driver.clear_vlan_with_lag(
-                    DEFAULT_VLAN, lli, self.switches_mac_ip_pair)
+                    lli, self.switches_mac_ip_pair)
                 self._vxlan_driver.reset_physical_port_with_lag(
                     lli, port, self.switches_mac_ip_pair)
             else:

@@ -142,8 +142,8 @@ class FOSSWClient(object):
             if (i == MAX_LOOP):
                 LOG.error(_LE("No reply from FOS switch."))
                 raise socket.timeout
-            res = raw_res.replace('\r\n', '')
-            received = res[(res.find(command) + len(command)):]
+            index = raw_res.find(command)
+            received = raw_res[(index + len(command) + 1):]
         except socket.timeout:
             self.disconnect()
             LOG.exception(_LE('Socket timeout occured while executing '
@@ -152,7 +152,7 @@ class FOSSWClient(object):
         else:
             LOG.debug(_("FOSSW client received: %s"), received)
             # NOTE(yushiro) Validate received message here
-            return received
+            return received.replace('\r\n', '\n')
 
     def _format_command(self, command, **kwargs):
         method = "_format_command"
@@ -232,11 +232,9 @@ class FOSSWClient(object):
                               "Please check vlan setting."), segmentation_id)
             raise FOSSWClientException(method)
 
-    def clear_vlan(self, segmentaion_id, port_id):
+    def clear_vlan(self, port_id):
         """Disassociate VLAN from specified physical port on FOS switch.
 
-        :param segmentation_id: id of VLAN to be disassociated
-        :type segmentation_id: string
         :param port_id: the number of physical port on FOS switch
         :type port_id: string
 
@@ -341,14 +339,15 @@ class FOSSWClient(object):
         :rtype: string
 
         """
-        cmd = SHOW_PC_BRIEF
+        # Find related lag_port with specified portname
         if portname:
-            cmd += " | include %s" % portname
-            filters = r'(?:(3/(?:(\d+))).+Dynamic(\s+\d+/\d+))'
+            cmd = "show running-config interface %s" % portname
+            query = r'addport\s+(?:(\d+/(?:(\d+))))'
+        # Find free lag_port from all port-channel
         else:
-            cmd += " | exclude Dynamic begin 3/"
-            filters = r'(?:(3/(?:(\d+))).+Static(\s*\n|\r\n)(?!\s+\d+/\d+))'
-        ret = re.search(filters, self._exec_command(cmd))
+            cmd = SHOW_PC_BRIEF + " | exclude Dynamic begin 3/"
+            query = r'(?:(3/(?:(\d+))).+Static(?!\s+\d+\/\d+,\d+\/\d+))'
+        ret = re.search(query, self._exec_command(cmd))
         return ret.group(1) if ret else None
 
     def get_switch_mac(self):
@@ -382,7 +381,7 @@ class FOSSWClient(object):
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         self._exec_command("port-channel static")
         if "is not a member of port-channel" in res:
-            LOG.warning(_LW("specified port(%(port)s) has already removed "
+            LOG.warning(_LW("Specified port(%(port)s) has already removed "
                             "from logical port(%(log_po)s)"),
                         {"port": port, "log_po": logicalport})
 
@@ -401,7 +400,7 @@ class FOSSWClient(object):
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         res = self._exec_command("no vpc {vpcid}".format(vpcid=vpcid))
         if "Failed to remove" in res:
-            LOG.warning(_LW("specified logical port(%(log_po)s) has already "
+            LOG.warning(_LW("Specified logical port(%(log_po)s) has already "
                             "removed from VPC(%(vpc)s)."),
                         {"log_po": logicalport, "vpc": vpcid})
 

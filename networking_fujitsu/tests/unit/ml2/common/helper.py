@@ -119,7 +119,7 @@ class FujitsuMechanismHelper(test_ml2_plugin.Ml2PluginV2TestCase):
             port_data.update({'binding:vif_type': vif_type})
         if set_original:
             original_port = copy.deepcopy(port_data)
-            port_data.update({'binding:vif_type': 'unbound'})
+            original_port.update({'binding:vif_type': 'other'})
         else:
             original_port = None
         with mock.patch.object(driver_context.segments_db,
