@@ -1,0 +1,8 @@
+Code-Review+2: Takao Indoh <indou.takao@jp.fujitsu.com>
+Workflow+1: Takao Indoh <indou.takao@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 05 Jun 2017 09:54:13 +0000
+Reviewed-on: https://review.openstack.org/470896
+Project: openstack/networking-fujitsu
+Branch: refs/heads/stable/ocata
