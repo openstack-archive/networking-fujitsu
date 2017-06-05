@@ -189,7 +189,8 @@ class FOSSWVlanDriver(object):
         # Create lag resource
         for mac in unique_mac_list:
             target_ip = ip_mac_pairs[mac]
-            ports = [lli['port_id'] for lli in llis if lli['switch_id'] == mac]
+            mac_llis = [lli for lli in llis if lli['switch_id'] == mac]
+            ports = [m_lli['port_id'] for m_lli in mac_llis]
             self.client.connect(target_ip)
             lag_port = self.client.get_lag_port()
             if not lag_port:
@@ -197,11 +198,12 @@ class FOSSWVlanDriver(object):
                 LOG.exception(_LE("Could not find available logicalport in "
                                   "switch(%s)."), target_ip)
                 raise client.FOSSWClientException(method)
+
             for port in ports:
                 self.client.join_to_lag(port, lag_port)
 
             # Setup VLAN for logical port
-            lag_lli = copy.deepcopy(llis[0])
+            lag_lli = copy.deepcopy(mac_llis[0])
             lag_lli['port_id'] = lag_port
             self.setup_vlan(vlanid, [lag_lli], ip_mac_pairs)
 
@@ -249,11 +251,9 @@ class FOSSWVlanDriver(object):
                             "FOS switches are VPC pair. %s"), e)
             return False
 
-    def clear_vlan(self, vlanid, lli, ip_mac_pairs):
+    def clear_vlan(self, lli, ip_mac_pairs):
         """Clear VLAN from FOS switch.
 
-        :param vlanid: the ID of VLAN to be disassociated
-        :type vlanid: string
         :param lli: the local link information of ironic node
         :type lli: list
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
@@ -271,7 +271,7 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
         try:
             self.client.connect(target_ip)
-            self.client.clear_vlan(vlanid, port_id)
+            self.client.clear_vlan(port_id)
             self.client.disconnect()
         except Exception as e:
             self.client.disconnect()
@@ -280,11 +280,9 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def clear_vlan_with_lag(self, vlanid, llis, ip_mac_pairs):
+    def clear_vlan_with_lag(self, llis, ip_mac_pairs):
         """Clear VLAN and LAG from FOS switch.
 
-        :param vlanid: the ID of VLAN to be disassociated
-        :type vlanid: string
         :param llis: the local link informations of ironic node
         :type llis: list
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
@@ -308,14 +306,11 @@ class FOSSWVlanDriver(object):
 
         for mac in unique_mac_list:
             target_ip = ip_mac_pairs[mac]
-            ports = [lli['port_id'] for lli in llis if lli['switch_id'] == mac]
+            mac_llis = [lli for lli in llis if lli['switch_id'] == mac]
+            ports = [m_lli['port_id'] for m_lli in mac_llis]
             self.client.connect(target_ip)
-            lag_port = self.client.get_lag_port(','.join(list(sorted(ports))))
-            if not lag_port:
-                LOG.warning(
-                    _LW("Specified logicalport has already cleared. Skip "
-                        "clearing LAG."))
-            else:
+            lag_port = self.client.get_lag_port(mac_llis[0]['port_id'])
+            if lag_port:
                 if mlag:
                     vpcid = self.client.get_vpcid(lag_port)
                     if vpcid:
@@ -327,11 +322,16 @@ class FOSSWVlanDriver(object):
                                 "skip leave_from_vpc."), target_ip)
                 for port in ports:
                     self.client.leave_from_lag(port, lag_port)
+
+                # Clear VLAN for logical port
+                lag_lli = copy.deepcopy(mac_llis[0])
+                lag_lli['port_id'] = lag_port
+                self.clear_vlan([lag_lli], ip_mac_pairs)
+            else:
+                LOG.warning(
+                    _LW("Specified logicalport has already cleared. Skip "
+                        "clearing LAG."))
             self.client.disconnect()
-            # Clear VLAN for logical port
-            lag_lli = copy.deepcopy(llis[0])
-            lag_lli['port_id'] = lag_port
-            self.clear_vlan(vlanid, [lag_lli], ip_mac_pairs)
         # NOTE(takanorimiyagishi): Currently this driver is hard-coded for
         # LAG(802.3ad) setting for FOS switch. When logical port on FOS switch
         # are set as LAG interface, FOS switch ignores VLAN setting of physical
@@ -339,4 +339,4 @@ class FOSSWVlanDriver(object):
         #
         # Clear VLAN for each physical port
         # for lli in llis:
-        #     self.clear_vlan(vlanid, [lli], ip_mac_pairs)
+        #     self.clear_vlan([lli], ip_mac_pairs)
