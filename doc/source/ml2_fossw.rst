@@ -1,193 +1,174 @@
 How to Install
---------------
+^^^^^^^^^^^^^^
 
-1. Install the package::
+.. code-block:: bash
 
-    $ pip install networking-fujitsu
+    pip install networking-fujitsu
 
-2. Add ``fujitsu_fossw`` to mechanism_drivers option in
-   /etc/neutron/plugins/ml2/ml2_conf.ini, for example::
 
-    mechanism_drivers = openvswitch,fujitsu_fossw
-
-3. Modify ml2_conf_fujitsu_fossw.ini and make neutron-server to read it.
-
-   For RedHat, add the following options in ExecStart in
-   /usr/lib/systemd/system/neutron-server.service::
-
-    --config-file /etc/neutron/plugins/ml2/ml2_conf_fujitsu_fossw.ini
-
-   For Ubuntu, add the following line to /etc/default/neutron-server::
-
-    NEUTRON_PLUGIN_ML2_CONFIG="/etc/neutron/plugins/ml2/ml2_conf_fujitsu_fossw.ini"
-
-   and add the following line before 'exec start-stop-daemon ...' in
-   /etc/init/neutron-server.conf::
-
-    [ -r "$NEUTRON_PLUGIN_ML2_CONFIG" ] && CONF_ARG="${CONF_ARG} --config-file $NEUTRON_PLUGIN_ML2_CONFIG"
-
-Configuration
--------------
-
-Both VLAN and VXLAN network type are supported (ie. both ``type_drivers`` and
-``tenant_network_types`` in ``[ml2]`` section of configuration files
-should include ``vlan`` or ``vxlan``).
-
-The following parameters can be specified in ``[fujitsu_fossw]``
-section of configuration files (such as ml2_conf_fujitsu_fossw.ini).
-
-``fossw_ips`` (Mandatory)
-  The List of IP addresses of all FOS switches. This is a mandatory parameter.
-
-  Example::
-
-    fossw_ips = 192.168.0.1,192.168.0.2,...
+Neutron Configuration
+^^^^^^^^^^^^^^^^^^^^^
 
 .. NOTE::
 
-  Following configurations are common to all FOS switches in fossw_ips.
+    Please edit **/etc/neutron/plugins/ml2/ml2_conf.ini** as follows:
+    Following configurations are common to all FOS switches in **fossw_ips**.
 
-``username`` (Mandatory)
+Add **fujitsu_fossw** to **mechanism_drivers** option.
+
+.. code-block:: ini
+
+    mechanism_drivers = openvswitch,fujitsu_fossw
+
+Both **type_drivers** and **tenant_network_types** in **[ml2]** section
+should include **vlan** or **vxlan**.  (This driver supports VLAN and VXLAN
+of neutron network)
+
+.. code-block:: ini
+
+    [ml2]
+    type_drivers = vlan,vxlan
+    tenant_network_types = vlan,vxlan
+
+The following parameters should specify after **[fujitsu_fossw]**.
+
+**fossw_ips** (Mandatory)
+  The List of IP addresses of all FOS switches.
+
+.. code-block:: ini
+
+    fossw_ips = 192.168.0.1,192.168.0.2,...
+
+**username** (Mandatory)
   The FOS switches username to use. Please note that the user must have
-  administrator rights to configure FOS switches. This is a mandatory parameter.
+  administrator rights to configure FOS switches.
 
-  Example::
+.. code-block:: ini
 
     username = admin
 
-``password`` (Mandatory)
-  The FOS switches password to use. It has no default value. This is a mandatory parameter.
+**password** (Optional)
+  The FOS switches password to use.
 
-  Example::
+.. code-block:: ini
 
     password = admin
 
-``port`` (Optional)
+**port** (Optional)
   The port number which is used for SSH connection. The default value is 22.
 
-  Example::
+.. code-block:: ini
 
     port = 22
 
-``timeout`` (Optional)
+**timeout** (Optional)
   The timeout of SSH connection. The default value is 30.
 
-  Example::
+.. code-block:: ini
 
     timeout = 30
 
-``udp_dest_port`` (Optional)
-  The port number of VXLAN UDP destination on the FOS switches. All VXLANs on
-  the switches use this UDP port as the UDP destination port in the UDP header
-  when encapsulating. The default value is 4789.
+**udp_dest_port** (Optional)
+  The port number of VXLAN UDP destination on the FOS switches. All
+  VXLANs on the switches use this UDP port as the UDP destination port
+  in the UDP header when encapsulating. The default value is 4789.
 
-  Example::
+.. code-block:: ini
 
     udp_dest_port = 4789
 
-``ovsdb_vlanid_range_min`` (Optional)
-  The minimum VLAN ID in the range that is used for binding VNI and physical
-  port. The range of 78 VLAN IDs (starts from this value) will be reserved.
-  The default value is 2 (VLAN ID from 2 to 79 will be reserved).
+**ovsdb_vlanid_range_min** (Optional)
+  The minimum VLAN ID in the range that is used for binding VNI and
+  physical port. The range of 78 VLAN IDs (starts from this value) will
+  be reserved.  The default value is 2 (VLAN ID from 2 to 79 will be reserved).
 
-  Example::
+.. code-block:: ini
 
     ovsdb_vlanid_range_min = 2
 
 .. NOTE::
 
-  DO NOT include VLAN IDs specified by ``ovsdb_vlanid_range_min`` into
-  "network_vlan_ranges" in ml2_conf.ini.
+    DO NOT include VLAN IDs specified by **ovsdb_vlanid_range_min** into
+    **network_vlan_ranges** in **/etc/neutron/plugins/ml2/ml2_conf.ini**.
 
-``ovsdb_port`` (Optional)
-  The port number which OVSDB server on the FOS switches listen.  The default
-  value is 6640.
+**ovsdb_port** (Optional)
+  The port number which OVSDB server on the FOS switches listen.
+  The default value is 6640.
 
-  Example::
+.. code-block:: ini
 
     ovsdb_port = 6640
 
 FOS Switch Configuration
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following configurations are needed for all FOS switches. These are needed
-only for VXLAN. In the case of VLAN, any configurations is not needed.
+The following configurations are necessary for all FOS switches in case of
+**VXLAN** network.
 
-1. Log in to FOS switch.
+1. Enable IP routing.
 
-2. Enter configuration mode.
+   .. code-block:: ini
 
-   Example::
+       configure
+       ip routing
 
-    (ET-7648BRA-FOS) #configure
+2. Enable vxlan service.
 
-3. Enable IP routing.
+   .. code-block:: ini
 
-   Example::
+       vxlan enable
 
-    (ET-7648BRA-FOS) (Config)#ip routing
+3. Set VTEP IP address for switch side.
 
-4. Enable vxlan service.
+   .. code-block:: ini
 
-   Example::
+       vxlan vtep source-ip 192.167.3.111
 
-    (ET-7648BRA-FOS) (Config)#vxlan enable
+4. Set port number of VXLAN UDP destination, which is specified as
+   **udp_dest_port**
 
-5. Set VTEP IP address for switch side.
+   .. code-block:: ini
 
-   Example::
+       vxlan udp-dst-port 4789
 
-    (ET-7648BRA-FOS) (Config)#vxlan vtep source-ip 192.167.3.111
-
-6. Set port number of VXLAN UDP destination, which is specified as
-   ``udp_dest_port`` in the configuration file.
-
-   Example::
-
-    (ET-7648BRA-FOS) (Config)#vxlan udp-dst-port 4789
-
-7. Set IP address for physical port which is connected to OpenStack controller
+5. Set IP address for physical port which is connected to OpenStack controller
    node. The value of IP address equals to VTEP IP address of switch.
 
-   Example::
+   .. code-block:: ini
 
-    (ET-7648BRA-FOS) (Config)#interface 0/10
-    (ET-7648BRA-FOS) (Interface 0/10)#ip address 192.167.3.111 255.255.255.0
+       interface 0/10
+       ip address 192.167.3.111 255.255.255.0
 
+6. Enable routing of the physical port.
 
-8. Enable routing of the physical port.
+   .. code-block:: ini
 
-   Example::
+       routing
 
-    (ET-7648BRA-FOS) (Interface 0/10)#routing
+7. Return to Privileged EXEC mode.
 
-9. Return to Privileged EXEC mode and start ovsdb setup.
+   .. code-block:: ini
 
-   Example::
+       end
 
-    (ET-7648BRA-FOS) (Interface 0/10)#end
-    (ET-7648BRA-FOS) #ovsdb
+8. Set port number of OVSDB server in the FOS switch, which is specified as
+   **ovsdb_port**.
 
-10. Set port number of OVSDB server in the FOS switch, which is specified as
-    ``ovsdb_port`` in the configuration file.
+   .. code-block:: ini
 
-    Example::
+       ovsdb
+       ovsdb tcp port 6640
 
-     (ET-7648BRA-FOS) #ovsdb tcp port 6640
+9. Check **ovsdb_vlanid_range_min** and confirm that the VLAN ID within the
+   range from **ovsdb_vlanid_range_min** to **ovsdb_vlanid_range_min + 77**
+   are not defined.
 
-11. Check ``ovsdb_vlanid_range_min`` value in configuration file, and confirm
-    that the VLAN ID within the range from ``ovsdb_vlanid_range_min`` to
-    ``ovsdb_vlanid_range_min + 77`` are not used.
+   .. code-block:: ini
 
-    Example::
+       show vlan
 
-     (ET-7648BRA-FOS) #show vlan 3
-     VLAN does not exist.
+10. Save configurations.
 
-12. Save configurations.
+    .. code-block:: ini
 
-    Example::
-
-     (ET-7648BRA-FOS) #copy system:running-config nvram:startup-config
-
-13. Log out of FOS switch.
+        copy system:running-config nvram:startup-config
