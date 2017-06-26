@@ -1,30 +1,30 @@
-===============================
+==================
 networking-fujitsu
-===============================
+==================
 
 FUJITSU plugins/drivers for OpenStack Neutron.
-Following mechanism driver is available in this repository:
-
-* (ML2) Mechanism driver for FUJITSU Converged Fabric Switch(C-Fabric)
-* (ML2) Mechanism driver for FUJITSU FOS Switch
-
-.. NOTE::
-  This package also includes following plugin:
-
-  (ML2) Mechanism driver for FUJITSU Software ServerView Infrastructure Manager
-
-  This plugin is under development.  Therefore, PLEASE DO NOT ADD ``fujitsu_ism``
-  to mechanism_drivers option in /etc/neutron/plugins/ml2/ml2_conf.ini.
 
 * Free software: Apache license
 * Source: http://git.openstack.org/cgit/openstack/networking-fujitsu
 * Bugs: http://bugs.launchpad.net/networking-fujitsu
 
+ML2 driver for FUJITSU Converged Fabric Switch(CFX2000)
+-------------------------------------------------------
 
-Mechanism driver for FUJITSU Converged Fabric Switch(C-Fabric)
-==============================================================
+* Please refer [here](https://github.com/openstack/networking-fujitsu/blob/master/doc/source/ml2_cfab.rst).
+
 .. include:: ml2_cfab.rst
 
-Mechanism driver for FUJITSU FOS Switch
-=======================================
+ML2 driver for FUJITSU FOS Switch(Draft)
+----------------------------------------
+
+* Please refer [here](https://github.com/openstack/networking-fujitsu/blob/master/doc/source/ml2_fossw.rst).
+
 .. include:: ml2_fossw.rst
+
+.. NOTE::
+
+    This package also includes ML2 driver for FUJITSU Software ServerView
+    Infrastructure Manager(ISM).  This plugin is under development.  Therefore,
+    PLEASE DO NOT ADD **fujitsu_ism** to mechanism_drivers option in
+    /etc/neutron/plugins/ml2/ml2_conf.ini.
