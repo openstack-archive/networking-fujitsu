@@ -23,6 +23,7 @@ import copy
 from oslo_utils import uuidutils
 
 from neutron.plugins.ml2 import driver_context
+from neutron.plugins.ml2 import models
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
 LLI = {
@@ -79,9 +80,6 @@ class FujitsuMechanismHelper(test_ml2_plugin.Ml2PluginV2TestCase):
         network_type = kwargs.get('net_type', 'vlan')
         vif_type = kwargs.get('vif_type', None)
         vnic_type = kwargs.get('vnic_type', 'baremetal')
-        plugin = mock.Mock()
-        plugin_context = mock.Mock()
-        binding = mock.Mock()
         project_id = uuidutils.generate_uuid()
         set_original = kwargs.get('set_original', False)
 
@@ -122,6 +120,9 @@ class FujitsuMechanismHelper(test_ml2_plugin.Ml2PluginV2TestCase):
             original_port.update({'binding:vif_type': 'other'})
         else:
             original_port = None
+        plugin = mock.Mock()
+        plugin_context = mock.Mock()
+        binding = models.PortBinding()
         with mock.patch.object(driver_context.segments_db,
                                'get_network_segments') as segments:
             segments.return_value = [self.net_seg(network_type)]
