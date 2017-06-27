@@ -1,0 +1,9 @@
+Code-Review+2: Lujin Luo <luo.lujin@jp.fujitsu.com>
+Code-Review+2: Takao Indoh <indou.takao@jp.fujitsu.com>
+Workflow+1: Takao Indoh <indou.takao@jp.fujitsu.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 27 Jun 2017 06:03:56 +0000
+Reviewed-on: https://review.openstack.org/477746
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
