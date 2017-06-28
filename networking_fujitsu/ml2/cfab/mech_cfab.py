@@ -17,9 +17,6 @@
 """Implementation of Fujitsu ML2 Mechanism driver for ML2 Plugin."""
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu._i18n import _LE
-from networking_fujitsu._i18n import _LI
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common import utils
 
 from neutron_lib.api.definitions import portbindings
@@ -108,11 +105,11 @@ class CFABMechanismDriver(api.MechanismDriver):
             try:
                 physical_network, vfab_id = entry.split(':')
             except ValueError:
-                LOG.exception(_LE("Illegal physical_networks entry"))
+                LOG.exception("Illegal physical_networks entry")
                 raise ml2_exc.MechanismDriverError(method=method)
             if not (vfab_id == VFAB_ID_DEFAULT or
                     VFAB_ID_MIN <= int(vfab_id) <= VFAB_ID_MAX):
-                LOG.exception(_LE("Illegal VFAB in physical_networks entry"))
+                LOG.exception("Illegal VFAB in physical_networks entry")
                 raise ml2_exc.MechanismDriverError(method=method)
             self._physical_networks[physical_network] = vfab_id
 
@@ -123,7 +120,7 @@ class CFABMechanismDriver(api.MechanismDriver):
             vfab_id = self._physical_networks[physical_network]
         except KeyError:
             LOG.exception(
-                _LE("Network not found in the configured physical network"))
+                "Network not found in the configured physical network")
             raise ml2_exc.MechanismDriverError(method="_get_vfab_id")
         return vfab_id
 
@@ -162,12 +159,12 @@ class CFABMechanismDriver(api.MechanismDriver):
                 mac
             )
         except Exception:
-            LOG.exception(_LE("Failed to associate mac %s"), mac)
+            LOG.exception("Failed to associate mac %s", mac)
             raise ml2_exc.MechanismDriverError(method=method)
 
         LOG.info(
-            _LI("created port (postcommit): port_id=%(port_id)s "
-                "network_id=%(network_id)s tenant_id=%(tenant_id)s"),
+            "created port (postcommit): port_id=%(port_id)s "
+            "network_id=%(network_id)s tenant_id=%(tenant_id)s",
             {'port_id': port_id,
              'network_id': network_id, 'tenant_id': tenant_id})
 
@@ -194,8 +191,8 @@ class CFABMechanismDriver(api.MechanismDriver):
                 try:
                     self.clear_vlan(params)
                 except Exception:
-                    LOG.exception(
-                        _LE("Failed to clear VLAN(%s)."), params['vlanid'])
+                    LOG.exception("Failed to clear VLAN(%s).",
+                                  params['vlanid'])
                     raise ml2_exc.MechanismDriverError(method=method)
         elif not is_supported(network):
             pass
@@ -214,11 +211,11 @@ class CFABMechanismDriver(api.MechanismDriver):
                     vlanid,
                     mac)
             except Exception:
-                LOG.exception(_LE("Failed to dissociate MAC %s"), mac)
+                LOG.exception("Failed to dissociate MAC %s", mac)
                 raise ml2_exc.MechanismDriverError(method=method)
         LOG.info(
-            _LI("delete port (postcommit): port_id=%(p_id)s "
-                "network_id=%(net_id)s tenant_id=%(tenant_id)s"),
+            "delete port (postcommit): port_id=%(p_id)s "
+            "network_id=%(net_id)s tenant_id=%(tenant_id)s",
             {'p_id': port_id, 'net_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
@@ -242,7 +239,7 @@ class CFABMechanismDriver(api.MechanismDriver):
             # This plugin supposes 1 C-Fabric(fabric_id) management.
             # Therefore, not to identify target IP address by using
             # switch_info(mac_address).
-            LOG.info(_LI("call %(target)s.  params: %(params)s"),
+            LOG.info("call %(target)s.  params: %(params)s",
                      {'target': target, 'params': params})
             setup_method(
                 params['address'],
@@ -254,7 +251,7 @@ class CFABMechanismDriver(api.MechanismDriver):
                 params['mac'],
             )
         except Exception:
-            LOG.exception(_LE("Failed to setup VLAN(%s)"), params['vlanid'])
+            LOG.exception("Failed to setup VLAN(%s)", params['vlanid'])
             raise ml2_exc.MechanismDriverError(method='setup_vlan')
 
     @log_helpers.log_method_call
@@ -278,7 +275,7 @@ class CFABMechanismDriver(api.MechanismDriver):
             # This plugin supposes 1 C-Fabric(fabric_id) management.
             # Therefore, not to identify target IP address by using
             # switch_info(mac_address).
-            LOG.info(_LI("Call %(target)s.  params: %(params)s"),
+            LOG.info("Call %(target)s.  params: %(params)s",
                      {'target': target, 'params': params})
             clear_method(
                 params['address'],
@@ -290,7 +287,7 @@ class CFABMechanismDriver(api.MechanismDriver):
                 params['mac'],
             )
         except Exception:
-            LOG.exception(_LE("Failed to clear VLAN(%s)"), params['vlanid'])
+            LOG.exception("Failed to clear VLAN(%s)", params['vlanid'])
             raise ml2_exc.MechanismDriverError(target)
 
     @log_helpers.log_method_call
@@ -354,7 +351,7 @@ def is_supported(network):
 
     net_type = utils.get_network_type(network)
     if net_type not in _SUPPORTED_NET_TYPES:
-        LOG.warning(_LW("Network type(%s) is not supported. Skip it."),
+        LOG.warning("Network type(%s) is not supported. Skip it.",
                     net_type)
         return False
     return True if utils.get_segmentation_id(network) else False

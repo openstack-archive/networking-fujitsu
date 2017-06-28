@@ -20,7 +20,6 @@ import socket
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
-from networking_fujitsu._i18n import _LW
 from networking_fujitsu.ml2.common.ovsdb import base_connection
 from networking_fujitsu.ml2.common.ovsdb import constants as n_const
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
@@ -206,9 +205,8 @@ class TestOVSDBWriter(base.BaseTestCase):
                     self.ovsdb_ip, self.ovsdb_port)
                 result = fake_obj._recv_data()
                 self.assertIsNone(result)
-                fake_warn.assert_called_with(
-                    _LW("Did not receive any reply from the OVSDB "
-                        "server"))
+                fake_warn.assert_called_with("Did not receive any reply from "
+                                             "the OVSDB server")
 
     def test_get_sw_ep_info(self):
         """Test case to test get_sw_ep_info."""
