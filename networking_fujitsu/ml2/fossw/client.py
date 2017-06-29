@@ -146,7 +146,7 @@ class FOSSWClient(object):
             self.disconnect()
             LOG.exception('Socket timeout occurred while executing '
                           'commands to FOS Switch.')
-            raise FOSSWClientException('_exec_command')
+            raise FOSSWClientException(method='_exec_command')
         else:
             LOG.debug("FOSSW client received: %s", received)
             # NOTE(yushiro) Validate received message here
