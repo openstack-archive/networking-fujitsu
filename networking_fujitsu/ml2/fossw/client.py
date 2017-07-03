@@ -86,6 +86,8 @@ class FOSSWClient(object):
                 self.console = self.ssh.invoke_shell()
                 self.console.settimeout(READ_TIMEOUT)
                 return
+            except socket.error as e:
+                LOG.warning('A socket error occurred while connecting. %s', e)
             except IOError as e:
                 LOG.warning('Could not initialize SSH client. %s', e)
             except (paramiko.ssh_exception.BadHostKeyException,
@@ -93,11 +95,6 @@ class FOSSWClient(object):
                     paramiko.ssh_exception.SSHException) as e:
                 LOG.warning('Could not connect to FOS switch. An error'
                             'occurred while connecting. %s', e)
-            except socket.error as e:
-                e_no, e_str = e
-                LOG.warning('A socket error occurred while connecting.\n'
-                            '[Errno %(e_no)s] %(e_str)s',
-                            {'e_no': e_no, 'e_str': e_str})
             except Exception as e:
                 LOG.warning('Unexpected error occurred while connecting. '
                             '%s', e)
