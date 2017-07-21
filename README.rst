@@ -5,8 +5,8 @@ networking-fujitsu
 FUJITSU plugins/drivers for OpenStack Neutron.
 
 * Free software: Apache license
-* Source: http://git.openstack.org/cgit/openstack/networking-fujitsu
-* Bugs: http://bugs.launchpad.net/networking-fujitsu
+* Source: https://git.openstack.org/cgit/openstack/networking-fujitsu
+* Bugs: https://bugs.launchpad.net/networking-fujitsu
 
 ML2 driver for FUJITSU Converged Fabric Switch(CFX2000)
 -------------------------------------------------------
