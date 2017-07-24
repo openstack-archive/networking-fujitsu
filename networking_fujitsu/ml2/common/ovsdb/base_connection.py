@@ -15,6 +15,7 @@
 import socket
 import time
 
+from neutron_lib import exceptions
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
@@ -22,7 +23,6 @@ from oslo_utils import excutils
 from networking_fujitsu._i18n import _
 from networking_fujitsu.ml2.common.ovsdb import constants as n_const
 
-from neutron_lib import exceptions
 
 LOG = logging.getLogger(__name__)
 

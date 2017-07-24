@@ -13,9 +13,10 @@
 #   under the License.
 #
 
-
-"""Implementation of Fujitsu ML2 Mechanism driver for ML2 Plugin."""
-
+from neutron.plugins.ml2.common import exceptions as ml2_exc
+from neutron_lib.api.definitions import portbindings
+from neutron_lib import constants
+from neutron_lib.plugins.ml2 import api
 from oslo_config import cfg
 from oslo_log import helpers as log_helpers
 from oslo_log import log as logging
@@ -23,12 +24,6 @@ from oslo_utils import importutils
 
 from networking_fujitsu._i18n import _
 from networking_fujitsu.ml2.common import utils
-
-from neutron_lib.api.definitions import portbindings
-from neutron_lib import constants
-from neutron_lib.plugins.ml2 import api
-
-from neutron.plugins.ml2.common import exceptions as ml2_exc
 
 
 LOG = logging.getLogger(__name__)

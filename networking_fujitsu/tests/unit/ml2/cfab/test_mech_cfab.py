@@ -13,14 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
 import os
+
+import mock
+from neutron.plugins.ml2 import config as ml2_config
+from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
 from networking_fujitsu.ml2.cfab import cfabdriver
 from networking_fujitsu.ml2.cfab import mech_cfab
 from networking_fujitsu.tests.unit.ml2.common import helper
-from neutron.plugins.ml2 import config as ml2_config
-from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
+
 
 USERNAME = 'admin'
 PASSWORD = 'admin'

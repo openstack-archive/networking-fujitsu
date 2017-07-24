@@ -12,6 +12,8 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
+from neutron.common import utils
+from neutron_lib import context
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -20,9 +22,6 @@ from networking_fujitsu.ml2.common import tunnel_caller
 from networking_fujitsu.ml2.common import type_vxlan
 from networking_fujitsu.ml2.fossw import client
 
-from neutron_lib import context
-
-from neutron.common import utils
 
 LOG = logging.getLogger(__name__)
 _LOCK_NAME = 'fujitsu_fossw'

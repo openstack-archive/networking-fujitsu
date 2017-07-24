@@ -15,5 +15,6 @@
 
 import oslo_i18n as i18n
 
+
 _translators = i18n.TranslatorFactory(domain='networking-fujitsu')
 _ = _translators.primary

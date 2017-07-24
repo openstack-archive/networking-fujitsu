@@ -23,6 +23,7 @@ from oslo_utils import excutils
 from networking_fujitsu.ml2.common.ovsdb import base_connection
 from networking_fujitsu.ml2.common.ovsdb import constants as n_const
 
+
 LOG = logging.getLogger(__name__)
 
 

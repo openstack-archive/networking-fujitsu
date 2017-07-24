@@ -14,7 +14,9 @@
 # limitations under the License.
 
 import mock
-
+from neutron.plugins.ml2.common import exceptions as ml2_exc
+from neutron.plugins.ml2 import config as ml2_config
+from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 from oslo_config import cfg
 from oslo_utils import importutils
 
@@ -22,9 +24,6 @@ from networking_fujitsu.ml2.fossw import fossw_vlandriver
 from networking_fujitsu.ml2.fossw import mech_fossw
 from networking_fujitsu.tests.unit.ml2.common import helper
 
-from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron.plugins.ml2 import config as ml2_config
-from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
 ADDRESS = '192.168.100.1'
 ADDRESS2 = '192.168.100.2'

@@ -12,16 +12,17 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-import paramiko
 import socket
 import time
 
 import mock
+from neutron.tests import base
+from oslo_config import cfg
+import paramiko
 
 from networking_fujitsu.ml2.fossw import client
 from networking_fujitsu.ml2.fossw import mech_fossw
-from neutron.tests import base
-from oslo_config import cfg
+
 
 DUMMY_FOSSW_IPS = ['192.168.0.1']
 DUMMY_USERNAME = 'username'

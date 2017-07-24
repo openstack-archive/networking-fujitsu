@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.api.definitions import provider_net
 from neutron_lib.plugins.ml2 import api
 from oslo_log import log as logging
-import re
+
 
 LOG = logging.getLogger(__name__)
 RANGE_DEFINITION = re.compile(r'(\d+)-(\d+)')
