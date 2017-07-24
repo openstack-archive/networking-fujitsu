@@ -19,11 +19,11 @@ management.
 
 import copy
 
+from neutron.common import utils
 from oslo_config import cfg
 from oslo_log import log as logging
 
 from networking_fujitsu.ml2.fossw import client
-from neutron.common import utils
 
 LOG = logging.getLogger(__name__)
 _LOCK_NAME = 'fujitsu-fossw'

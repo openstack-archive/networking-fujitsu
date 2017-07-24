@@ -12,11 +12,11 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-from networking_fujitsu.ml2.common import type_vxlan
-
 from neutron.plugins.common import constants as p_const
 from neutron.tests.unit.plugins.ml2.drivers import base_type_tunnel
 from neutron.tests.unit import testlib_api
+
+from networking_fujitsu.ml2.common import type_vxlan
 
 
 class TestTypeVxlan(base_type_tunnel.TunnelTypeTestMixin,

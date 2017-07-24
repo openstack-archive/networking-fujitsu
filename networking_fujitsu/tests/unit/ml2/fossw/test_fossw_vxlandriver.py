@@ -12,8 +12,11 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-import mock
 import socket
+
+import mock
+from neutron.tests import base
+from oslo_config import cfg
 
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
 from networking_fujitsu.ml2.common import tunnel_caller
@@ -22,10 +25,6 @@ from networking_fujitsu.ml2.fossw import fossw_vxlandriver
 from networking_fujitsu.ml2.fossw import mech_fossw
 from networking_fujitsu.tests.unit.ml2.common.ovsdb import (
     test_base_connection as base_test)
-
-from neutron.tests import base
-
-from oslo_config import cfg
 
 FOSSW_IPS = ["fake_switch_ip1", "fake_switch_ip2"]
 FAKE_SOCKET = base_test.SocketClass(None, None, None, '{"f_key":"f_value"}')

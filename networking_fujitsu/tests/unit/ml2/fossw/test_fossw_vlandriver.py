@@ -13,12 +13,14 @@
 #   under the License.
 
 import copy
+
 import mock
+from neutron.tests import base
+from oslo_config import cfg
+
 from networking_fujitsu.ml2.fossw import client
 from networking_fujitsu.ml2.fossw import fossw_vlandriver
 from networking_fujitsu.ml2.fossw import mech_fossw
-from neutron.tests import base
-from oslo_config import cfg
 
 LLI = {'single': [{"switch_id": "00:00:4c:ee:e5:39", "port_id": "0/1",
                    "switch_info": "ET-7648BRA-FOS"}],

@@ -13,18 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-
 import copy
 
-from oslo_utils import uuidutils
-
+import mock
 from neutron.plugins.ml2 import driver_context
 from neutron.plugins.ml2 import models
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
+from oslo_utils import uuidutils
 
 LLI = {
     'single': [{

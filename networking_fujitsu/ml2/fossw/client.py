@@ -13,12 +13,12 @@
 #   under the License.
 #
 
-import paramiko
 import re
 import socket
 import time
 
 from oslo_log import log as logging
+import paramiko
 
 from networking_fujitsu._i18n import _
 

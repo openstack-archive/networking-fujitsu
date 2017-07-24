@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 import copy
-import mock
 
+import mock
+from neutron.tests import base
 from neutron_lib.api.definitions import portbindings
 
-from collections import defaultdict
 from networking_fujitsu.ml2.common import utils
-from neutron.tests import base
 
 
 class FujitsuCommonUtilsTestCase(base.BaseTestCase):

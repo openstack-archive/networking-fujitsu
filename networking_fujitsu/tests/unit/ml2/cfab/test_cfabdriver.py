@@ -13,21 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
 import os
 import re
 import select
 import socket
-import testtools
 import time
 
 from itertools import chain
-from networking_fujitsu.ml2.cfab import cfabdriver
-from networking_fujitsu.ml2.cfab.mech_cfab import cfg
+import mock
 from neutron.common import utils
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests import base
+import testtools
+
+from networking_fujitsu.ml2.cfab import cfabdriver
+from networking_fujitsu.ml2.cfab.mech_cfab import cfg
 
 FUJITSU_CFAB = "networking_fujitsu.ml2.cfab."
 _CFABDRIVER__CFABMANAGER = FUJITSU_CFAB + "cfabdriver._CFABManager"

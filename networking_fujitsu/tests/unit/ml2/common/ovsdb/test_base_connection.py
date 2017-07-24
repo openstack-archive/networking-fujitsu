@@ -16,11 +16,10 @@ import mock
 import socket
 import time
 
+from neutron.tests import base
 from oslo_log import log as logging
 
 from networking_fujitsu.ml2.common.ovsdb import base_connection
-
-from neutron.tests import base
 
 LOG = logging.getLogger(__name__)
 

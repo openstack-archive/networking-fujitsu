@@ -13,10 +13,11 @@
 #   under the License.
 
 import ast
-import mock
 import random
 import socket
 
+import mock
+from neutron.tests import base
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
@@ -25,8 +26,6 @@ from networking_fujitsu.ml2.common.ovsdb import constants as n_const
 from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
 from networking_fujitsu.tests.unit.ml2.common.ovsdb import (
     test_base_connection as base_test)
-
-from neutron.tests import base
 
 LOG = logging.getLogger(__name__)
 
