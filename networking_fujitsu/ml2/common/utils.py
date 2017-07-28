@@ -15,14 +15,13 @@
 
 import re
 
-from neutron_lib.api.definitions import portbindings
+from neutron_lib.api.definitions import portbindings as pb_def
 from neutron_lib.api.definitions import provider_net
 from neutron_lib.plugins.ml2 import api
 from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 RANGE_DEFINITION = re.compile(r'(\d+)-(\d+)')
-_SUPPORTED_NET_TYPES = ['vlan']
 
 
 def eliminate_val(source, reject):
@@ -191,8 +190,8 @@ def is_baremetal(port):
     :rtype: boolean
     """
 
-    vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
-    return (vnic_type == portbindings.VNIC_BAREMETAL)
+    vnic_type = port.get(pb_def.VNIC_TYPE, pb_def.VNIC_NORMAL)
+    return (vnic_type == pb_def.VNIC_BAREMETAL)
 
 
 def is_lag(local_link_information):

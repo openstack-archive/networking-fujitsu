@@ -14,6 +14,7 @@
 
 from neutron.db.models.plugins.ml2 import vxlanallocation as vxlan_model
 from neutron.plugins.ml2.drivers import type_tunnel
+from neutron_lib import constants
 
 
 class TypeVxlan(type_tunnel.EndpointTunnelTypeDriver):
@@ -22,7 +23,7 @@ class TypeVxlan(type_tunnel.EndpointTunnelTypeDriver):
                                         vxlan_model.VxlanEndpoints)
 
     def get_type(self):
-        return "vxlan"
+        return constants.TYPE_VXLAN
 
     def initialize(self):
         pass
