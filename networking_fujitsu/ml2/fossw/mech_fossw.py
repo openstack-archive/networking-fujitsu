@@ -14,8 +14,8 @@
 #
 
 from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron_lib.api.definitions import portbindings
-from neutron_lib import constants
+from neutron_lib.api.definitions import portbindings as pb_def
+from neutron_lib import constants as nl_const
 from neutron_lib.plugins.ml2 import api
 from oslo_config import cfg
 from oslo_log import helpers as log_helpers
@@ -31,7 +31,7 @@ FOSSW_VLAN_DRIVER = DRIVER + 'fossw.fossw_vlandriver.FOSSWVlanDriver'
 FOSSW_VXLAN_DRIVER = DRIVER + 'fossw.fossw_vxlandriver.FOSSWVxlanDriver'
 DEFAULT_VLAN = 1
 
-_SUPPORTED_NET_TYPES = ['vlan', 'vxlan']
+_SUPPORTED_NET_TYPES = [nl_const.TYPE_VLAN, nl_const.TYPE_VXLAN]
 
 ML2_FUJITSU_GROUP = "fujitsu_fossw"
 ML2_FUJITSU = [
@@ -127,9 +127,9 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network_type = utils.get_network_type(network)
         seg_id = utils.get_segmentation_id(network)
 
-        if network_type == 'vlan' and seg_id:
+        if network_type == nl_const.TYPE_VLAN and seg_id:
             self.create_network_postcommit_vlan(seg_id)
-        elif network_type == 'vxlan' and seg_id:
+        elif network_type == nl_const.TYPE_VXLAN and seg_id:
             self.create_network_postcommit_vxlan(network_id, seg_id)
 
         LOG.info(
@@ -192,9 +192,9 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network_type = utils.get_network_type(network)
         seg_id = utils.get_segmentation_id(network)
 
-        if network_type == 'vlan' and seg_id:
+        if network_type == nl_const.TYPE_VLAN and seg_id:
             self.delete_network_postcommit_vlan(seg_id)
-        if network_type == 'vxlan' and seg_id:
+        if network_type == nl_const.TYPE_VXLAN and seg_id:
             self.delete_network_postcommit_vxlan(net_id)
         LOG.info(
             "Deleted network (postcommit): network_id=%(net)s "
@@ -254,9 +254,9 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network_id = port['network_id']
         tenant_id = port['tenant_id']
         network_type = utils.get_network_type(network)
-        if network_type == 'vlan' and utils.is_baremetal(port):
+        if network_type == nl_const.TYPE_VLAN and utils.is_baremetal(port):
             self.clear_vlan(mech_context)
-        if network_type == 'vxlan':
+        if network_type == nl_const.TYPE_VXLAN:
             self.clear_vxlan(mech_context)
         LOG.info(
             "Delete port (postcommit): port_id=%(port_id)s "
@@ -269,17 +269,17 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         method = 'update_port_postcommit'
         port = context.current
         network = context.network
-        vif_type = port['binding:vif_type']
+        vif_type = port[pb_def.VIF_TYPE]
         network_type = utils.get_network_type(network)
         seg_id = utils.get_segmentation_id(network)
         if utils.is_baremetal(port):
-            if (vif_type == 'unbound' and
-                    context.original['binding:vif_type'] == 'other'):
+            if (vif_type == pb_def.VIF_TYPE_UNBOUND and context.original[
+                    pb_def.VIF_TYPE] == pb_def.VIF_TYPE_OTHER):
                 try:
                     # Clear vlan or vxlan from physical port for unbound port
-                    if network_type == 'vlan':
+                    if network_type == nl_const.TYPE_VLAN:
                         self.clear_vlan(context, use_original=True)
-                    if network_type == 'vxlan':
+                    if network_type == nl_const.TYPE_VXLAN:
                         self.clear_vxlan(context, use_original=True)
                 except Exception:
                     LOG.exception("Failed to clear %(network_type)s"
@@ -289,7 +289,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                     raise ml2_exc.MechanismDriverError(method=method)
         else:
             # Setup vxlan from specified physical port on switch.
-            if network_type != 'vxlan' or vif_type == 'unbound':
+            if network_type != nl_const.TYPE_VXLAN or vif_type == 'unbound':
                 return
             # currently supports only one segment per network
             # Setup VXLAN for port which bound with DHCP, router, and vms.
@@ -368,8 +368,9 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         method = "clear_vxlan"
         port = context.original if use_original else context.current
         network = context.network
-        vif_type = port['binding:vif_type']
-        if vif_type == 'unbound' or utils.get_network_type(network) == 'flat':
+        vif_type = port[pb_def.VIF_TYPE]
+        if (vif_type == pb_def.VIF_TYPE_UNBOUND or
+                utils.get_network_type(network) == nl_const.TYPE_FLAT):
             return
         lli = utils.get_physical_connectivity(port)
         try:
@@ -426,27 +427,26 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network = context.network
         if not is_supported(network):
             return
-        vnic_type = port['binding:vnic_type']
         LOG.debug("Attempting to bind port %(port)s with vnic_type "
                   "%(vnic_type)s on network %(network)s",
-                  {'port': port['id'], 'vnic_type': vnic_type,
-                   'network': network.current['id']})
+                  {'port': port['id'], 'vnic_type': port[pb_def.VNIC_TYPE],
+                   'network': port['network_id']})
 
         network_type = utils.get_network_type(network)
         to_bind = False
 
-        if network_type == 'vxlan':
+        if network_type == nl_const.TYPE_VXLAN:
             # vxlan driver handles not only baremetal port, but vm, dhcp,
             # router ports.
             self.setup_vxlan(context)
             to_bind = True
-        if utils.is_baremetal(port) and network_type == 'vlan':
+        if utils.is_baremetal(port) and network_type == nl_const.TYPE_VLAN:
             self.setup_vlan(self.get_physical_net_params(context))
             to_bind = True
         if to_bind:
             context.set_binding(context.segments_to_bind[0][api.ID],
-                                portbindings.VIF_TYPE_OTHER, {},
-                                status=constants.PORT_STATUS_ACTIVE)
+                                pb_def.VIF_TYPE_OTHER, {},
+                                status=nl_const.PORT_STATUS_ACTIVE)
 
     @log_helpers.log_method_call
     def setup_vxlan(self, context):

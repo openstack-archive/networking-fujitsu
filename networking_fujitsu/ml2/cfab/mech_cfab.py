@@ -14,7 +14,7 @@
 #
 
 from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron_lib.api.definitions import portbindings
+from neutron_lib.api.definitions import portbindings as pb_def
 from neutron_lib import constants
 from neutron_lib.plugins.ml2 import api
 from oslo_config import cfg
@@ -32,7 +32,7 @@ CFAB_DRIVER = FUJITSU_DRIVER + 'cfab.cfabdriver.CFABdriver'
 VFAB_ID_DEFAULT = "default"
 VFAB_ID_MIN = 1
 VFAB_ID_MAX = 3000
-_SUPPORTED_NET_TYPES = ['vlan']
+_SUPPORTED_NET_TYPES = [constants.TYPE_VLAN]
 
 ML2_FUJITSU_GROUP = "fujitsu_cfab"
 ML2_FUJITSU = [
@@ -320,18 +320,18 @@ class CFABMechanismDriver(api.MechanismDriver):
     def bind_port(self, context):
 
         port = context.current
-        vnic_type = port['binding:vnic_type']
         LOG.debug("Attempting to bind port %(port)s with vnic_type "
                   "%(vnic_type)s on network %(network)s",
-                  {'port': port['id'], 'vnic_type': vnic_type,
-                   'network': context.network.current['id']})
+                  {'port': port['id'],
+                   'vnic_type': port[pb_def.VIF_TYPE],
+                   'network': port['network_id']})
 
         if validate_baremetal_deploy(context):
             params = self.get_physical_net_params(context)
             segments = context.segments_to_bind
             self.setup_vlan(params)
             context.set_binding(segments[0][api.ID],
-                                portbindings.VIF_TYPE_OTHER, {},
+                                pb_def.VIF_TYPE_OTHER, {},
                                 status=constants.PORT_STATUS_ACTIVE)
 
 
