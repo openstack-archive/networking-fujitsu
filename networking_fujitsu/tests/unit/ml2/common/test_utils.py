@@ -42,6 +42,11 @@ class FujitsuCommonUtilsTestCase(base.BaseTestCase):
                     {"switch_id": "00:00:4c:ee:e5:40", "port_id": "1/1/0/2",
                      "switch_info": "CFX2000R"}]
         self.port['binding:profile']['local_link_information'] = self.lli
+        self.ctx = mock.MagicMock()
+        self.ctx.current = defaultdict(lambda: {})
+        self.ctx.original = defaultdict(lambda: {})
+        self.ctx.current[portbindings.VIF_TYPE] = portbindings.VIF_TYPE_UNBOUND
+        self.ctx.original[portbindings.VIF_TYPE] = portbindings.VIF_TYPE_OTHER
 
 
 class TestEliminateVal(FujitsuCommonUtilsTestCase):
@@ -313,3 +318,14 @@ class TestIsLag(FujitsuCommonUtilsTestCase):
 
     def test_lli_is_empty(self):
         self.assertFalse(utils.is_lag([]))
+
+
+class TestIsUnbound(FujitsuCommonUtilsTestCase):
+    """Test class for is_local_link_info_clear"""
+
+    def test_is_unbound(self):
+        self.assertTrue(utils.is_unbound(self.ctx))
+
+    def test_is_not_unbound(self):
+        self.ctx.current[portbindings.VIF_TYPE] = portbindings.VIF_TYPE_OTHER
+        self.assertFalse(utils.is_unbound(self.ctx))
