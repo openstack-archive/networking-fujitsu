@@ -205,3 +205,16 @@ def is_lag(local_link_information):
     """
 
     return (len(local_link_information) > 1)
+
+
+def is_unbound(context):
+    """Judge current port object is unbound or not.
+
+    :param context: port context
+    :type context: PortContext object
+
+    :returns: True(port is unbound) or False(otherwise)
+    :rtype: boolean
+    """
+    return (context.current[pb_def.VIF_TYPE] == pb_def.VIF_TYPE_UNBOUND and
+            context.original[pb_def.VIF_TYPE] == pb_def.VIF_TYPE_OTHER)

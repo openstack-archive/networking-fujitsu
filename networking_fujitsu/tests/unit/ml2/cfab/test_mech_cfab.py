@@ -189,7 +189,7 @@ class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
         )
 
     def test_update_port(self):
-        ctx = self.prepare_dummy_context()
+        ctx = self.prepare_dummy_context(set_original=True)
         self.mech.update_port_postcommit(ctx)
         self.mech._driver.associate_mac_to_network.assert_not_called()
 
