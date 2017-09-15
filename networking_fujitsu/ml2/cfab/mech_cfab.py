@@ -163,6 +163,26 @@ class CFABMechanismDriver(api.MechanismDriver):
              'network_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
+    def update_port_postcommit(self, mech_context):
+        """Update specified physical port on switch."""
+        method = 'update_port_postcommit'
+        port = mech_context.current
+        network = mech_context.network
+
+        if utils.is_baremetal(port):
+            if validate_baremetal_deploy(mech_context):
+                if utils.is_unbound(mech_context):
+                    params = self.get_physical_net_params(mech_context)
+                    try:
+                        self.clear_vlan(params)
+                    except Exception:
+                        LOG.exception("Failed to clear VLAN(%s)",
+                                      params['vlanid'])
+                        raise ml2_exc.MechanismDriverError(method=method)
+        elif not is_supported(network):
+            pass
+
+    @log_helpers.log_method_call
     def delete_port_postcommit(self, mech_context):
         """Calls cleanup process for C-Fabric.
 
