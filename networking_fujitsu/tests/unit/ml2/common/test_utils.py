@@ -313,3 +313,13 @@ class TestIsLag(FujitsuCommonUtilsTestCase):
 
     def test_lli_is_empty(self):
         self.assertFalse(utils.is_lag([]))
+
+
+class TestIsLocalLinkClear(FujitsuCommonUtilsTestCase):
+    """ Test class for is_local_link_info_clear"""
+
+    def test_lli_is_clear(self):
+        self.assertTrue(utils.is_local_link_info_clear([]))
+
+    def test_lli_is_not_clear(self):
+        self.assertFalse(utils.is_local_link_info_clear(self.lli))
