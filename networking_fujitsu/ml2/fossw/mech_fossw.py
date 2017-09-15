@@ -169,38 +169,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             raise ml2_exc.MechanismDriverError(method=method)
 
     @log_helpers.log_method_call
-    def delete_network_postcommit(self, net_context):
-        """Calls clean process for FOS switch.
-
-        Case1: Baremetal deploy with VLAN network
-                   Delete VLAN definition.
-        Case2: Baremetal deploy with VXLAN network
-                   Delete DCVPN definition.
-        Case3: Otherwise:
-                   Do nothing.
-
-        :param net_context: context of network
-        :type net_context: NetworkContext
-
-        :returns: None
-        :rtype: None
-        """
-
-        network = net_context.current
-        net_id = network['id']
-        tenant_id = network['tenant_id']
-        network_type = utils.get_network_type(network)
-        seg_id = utils.get_segmentation_id(network)
-
-        if network_type == nl_const.TYPE_VLAN and seg_id:
-            self.delete_network_postcommit_vlan(seg_id)
-        if network_type == nl_const.TYPE_VXLAN and seg_id:
-            self.delete_network_postcommit_vxlan(net_id)
-        LOG.info(
-            "Deleted network (postcommit): network_id=%(net)s "
-            "tenant_id=%(tenant)s", {'net': net_id, 'tenant': tenant_id})
-
-    @log_helpers.log_method_call
     def delete_network_postcommit_vlan(self, vlanid):
         """Calls clean vlan process for FOS switch.
 
