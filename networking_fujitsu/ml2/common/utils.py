@@ -205,3 +205,16 @@ def is_lag(local_link_information):
     """
 
     return (len(local_link_information) > 1)
+
+
+def is_local_link_info_clear(local_link_information):
+    """Judge local link information is cleared or not.
+
+    :param  local_link_information: physical connectivity information
+    :type local_link_information: list of dict
+
+    :returns: True(local_link_information is cleared) or False(otherwise)
+    :rtype: boolean
+    """
+
+    return False if local_link_information else True

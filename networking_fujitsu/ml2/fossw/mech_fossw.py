@@ -272,7 +272,9 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         vif_type = port[pb_def.VIF_TYPE]
         network_type = utils.get_network_type(network)
         seg_id = utils.get_segmentation_id(network)
-        if utils.is_baremetal(port):
+        lli = utils.get_physical_connectivity(port)
+        if utils.is_baremetal(port) and \
+            not utils.is_local_link_info_clear(lli):
             if (vif_type == pb_def.VIF_TYPE_UNBOUND and context.original[
                     pb_def.VIF_TYPE] == pb_def.VIF_TYPE_OTHER):
                 try:
