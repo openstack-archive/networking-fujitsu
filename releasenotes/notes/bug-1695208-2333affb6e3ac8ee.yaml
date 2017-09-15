@@ -1,0 +1,5 @@
+---
+fixes:
+  - In Pike release, a segment of network cannnot be referred.
+    To workaround this, delete_network_postcommit() and its
+    corresponding tests.
