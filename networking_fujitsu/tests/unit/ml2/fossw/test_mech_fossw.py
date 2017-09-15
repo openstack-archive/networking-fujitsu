@@ -127,27 +127,12 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
         self.mech._vxlan_driver.create_logical_switch.assert_not_called()
         self.assertEqual(2, self.mech._vlan_driver.create_vlan.call_count)
 
-    def test_delete_network(self):
-        ctx = self.prepare_dummy_context('network')
-        self.mech.delete_network_postcommit(ctx)
-        self.mech._vlan_driver.delete_vlan.assert_called()
-        self.mech._vxlan_driver.delete_logical_switch.assert_not_called()
-        self.assertEqual(2, self.mech._vlan_driver.delete_vlan.call_count)
-
     def test_create_network_raises_create_vlan(self):
         ctx = self.prepare_dummy_context('network')
         self.mech._vlan_driver.create_vlan.side_effect = Exception
         self.assertRaises(
             ml2_exc.MechanismDriverError,
             self.mech.create_network_postcommit, ctx
-        )
-
-    def test_delete_network_raises_delete_vlan(self):
-        ctx = self.prepare_dummy_context('network')
-        self.mech._vlan_driver.delete_vlan.side_effect = Exception
-        self.assertRaises(
-            ml2_exc.MechanismDriverError,
-            self.mech.delete_network_postcommit, ctx
         )
 
     def test_create_port(self):
@@ -353,28 +338,12 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
         self.mech._vxlan_driver.create_logical_switch.assert_called_with(
             net_id, vni)
 
-    def test_delete_network(self):
-        ctx = self.prepare_dummy_context('network', net_type='vxlan')
-        self.mech.delete_network_postcommit(ctx)
-        net_id = ctx.current['id']
-        self.mech._vlan_driver.delete_vlan.assert_not_called()
-        self.mech._vxlan_driver.delete_logical_switch.assert_called_with(
-            net_id)
-
     def test_create_network_raises_create_logical_switch(self):
         ctx = self.prepare_dummy_context('network', net_type='vxlan')
         self.mech._vxlan_driver.create_logical_switch.side_effect = Exception
         self.assertRaises(
             ml2_exc.MechanismDriverError,
             self.mech.create_network_postcommit, ctx
-        )
-
-    def test_delete_network_raises_delete_logical_switch(self):
-        ctx = self.prepare_dummy_context('network', net_type='vxlan')
-        self.mech._vxlan_driver.delete_logical_switch.side_effect = Exception
-        self.assertRaises(
-            ml2_exc.MechanismDriverError,
-            self.mech.delete_network_postcommit, ctx
         )
 
     def test_create_port(self):
