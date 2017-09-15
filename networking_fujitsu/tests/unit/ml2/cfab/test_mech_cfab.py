@@ -17,6 +17,7 @@ import os
 
 import mock
 from neutron.conf.plugins.ml2 import config
+from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
 from networking_fujitsu.ml2.cfab import cfabdriver
@@ -189,9 +190,40 @@ class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
         )
 
     def test_update_port(self):
-        ctx = self.prepare_dummy_context()
+        ctx = self.prepare_dummy_context(set_original=True)
         self.mech.update_port_postcommit(ctx)
         self.mech._driver.associate_mac_to_network.assert_not_called()
+        self.mech._driver.clear_vlan.assert_not_called()
+
+    def test_update_port_with_unbound(self):
+        ctx = self.prepare_dummy_context(set_original=True)
+        params = params_for_setup_vlan(ctx.original)
+        ctx.current['binding:profile'] = {}
+        self.mech.update_port_postcommit(ctx)
+        self.mech._driver.associate_mac_to_network.assert_not_called()
+        self.mech._driver.clear_vlan.assert_called_with(
+            params['address'],
+            params['username'],
+            params['password'],
+            params['vfab_id'],
+            params['vlanid'],
+            params['ports'],
+            params['mac_address'],
+        )
+
+    def test_update_port_network_type_is_not_vlan(self):
+        ctx = self.prepare_dummy_context(set_original=True, net_type='vxlan')
+        self.mech.update_port_postcommit(ctx)
+        self.mech._driver.associate_mac_to_network.assert_not_called()
+        self.mech._driver.clear_vlan.assert_not_called()
+
+    def test_update_port_and_raises_in_clear_vlan(self):
+        ctx = self.prepare_dummy_context(set_original=True)
+        ctx.current['binding:profile'] = {}
+
+        self.mech._driver.clear_vlan.side_effect = Exception
+        self.assertRaises(ml2_exc.MechanismDriverError,
+                          self.mech.update_port_postcommit, ctx)
 
     def test_delete_port_with_single(self):
         ctx = self.prepare_dummy_context(nic='single')

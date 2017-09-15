@@ -273,8 +273,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network_type = utils.get_network_type(network)
         seg_id = utils.get_segmentation_id(network)
         if utils.is_baremetal(port):
-            if (vif_type == pb_def.VIF_TYPE_UNBOUND and context.original[
-                    pb_def.VIF_TYPE] == pb_def.VIF_TYPE_OTHER):
+            if utils.is_unbound(context):
                 try:
                     # Clear vlan or vxlan from physical port for unbound port
                     if network_type == nl_const.TYPE_VLAN:
