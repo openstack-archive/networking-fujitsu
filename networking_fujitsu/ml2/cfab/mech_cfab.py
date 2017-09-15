@@ -163,6 +163,22 @@ class CFABMechanismDriver(api.MechanismDriver):
              'network_id': network_id, 'tenant_id': tenant_id})
 
     @log_helpers.log_method_call
+    def update_port_postcommit(self, context):
+        """Update specified physical port on switch."""
+
+        method = 'update_port_postcommit'
+        port = context.current
+
+        if (is_supported(context.network) and utils.is_baremetal(port) and
+            utils.is_unbound(context)):
+            params = self.get_physical_net_params(context, use_original=True)
+            try:
+                self.clear_vlan(params)
+            except Exception:
+                LOG.exception("Failed to clear VLAN(%s)", params['vlanid'])
+                raise ml2_exc.MechanismDriverError(method=method)
+
+    @log_helpers.log_method_call
     def delete_port_postcommit(self, mech_context):
         """Calls cleanup process for C-Fabric.
 
@@ -285,7 +301,7 @@ class CFABMechanismDriver(api.MechanismDriver):
             raise ml2_exc.MechanismDriverError(target)
 
     @log_helpers.log_method_call
-    def get_physical_net_params(self, mech_context):
+    def get_physical_net_params(self, context, use_original=False):
         """Validate physical network parameters for baremetal deployment.
 
         Validates network & port params and returns dictionary.
@@ -298,12 +314,19 @@ class CFABMechanismDriver(api.MechanismDriver):
             'switch_info': A string of switch name.
                          This value is equal to 'system_name' from LLDP TLV.
 
-        @param  mech_context  a Context instance
-        @return  A dictionary parameters for baremetal deploy
+        :param context: PortContext object
+        :type port: PortContext
+        :param network: a network object
+        :type network: NetworkContext
+        :param use_original: A flag to use context.original or not
+        :type use_original: boolean
+
+        :returns: A dictionary parameters for baremetal deploy
+        :rtype: dictionary
         """
 
-        port = mech_context.current
-        network = mech_context.network
+        port = context.original if use_original else context.current
+        network = context.network
         local_link_info = utils.get_physical_connectivity(port)
         return {
             "address": self._switch['address'],
