@@ -14,8 +14,8 @@
 # limitations under the License.
 
 import mock
+from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 from oslo_config import cfg
 from oslo_utils import importutils
@@ -39,7 +39,7 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
     _skip = ["test_create_router_port_and_fail_create_postcommit"]
 
     def setUp(self):
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'tenant_network_types', ['vlan', 'vxlan'], 'ml2')
 
         if self._testMethodName in self._skip:
@@ -75,13 +75,13 @@ class TestFOSSWInitialize(helper.FujitsuMechanismHelper):
 
     def setUp(self):
         super(TestFOSSWInitialize, self).setUp()
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'tenant_network_types', ['vlan', 'vxlan'], 'ml2')
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'username', 'admin', 'fujitsu_fossw')
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'password', 'password', 'fujitsu_fossw')
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'fossw_ips', [ADDRESS, ADDRESS2], 'fujitsu_fossw')
         importutils.import_object = mock.Mock()
         fossw_vlandriver.FOSSWVlanDriver().get_switch_mac_ip_pair = mock.Mock()
@@ -95,19 +95,19 @@ class TestFOSSWInitialize(helper.FujitsuMechanismHelper):
             mech_fossw.FOSSW_VLAN_DRIVER,
             importutils.import_object.call_args_list[0][0][0])
         self.assertEqual(
-            ml2_config.cfg.CONF,
+            config.cfg.CONF,
             importutils.import_object.call_args_list[0][0][1])
         self.assertEqual(
             mech_fossw.FOSSW_VXLAN_DRIVER,
             importutils.import_object.call_args_list[1][0][0])
         self.assertEqual(
-            ml2_config.cfg.CONF,
+            config.cfg.CONF,
             importutils.import_object.call_args_list[1][0][1])
         self.mech._vlan_driver.get_switch_mac_ip_pair.assert_called_once_with(
             [ADDRESS, ADDRESS2])
 
     def test_initialize_with_no_ips(self):
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'fossw_ips', [], 'fujitsu_fossw')
         self.assertRaises(
             cfg.RequiredOptError,

@@ -22,8 +22,8 @@ import time
 from itertools import chain
 import mock
 from neutron.common import utils
+from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron.plugins.ml2 import config as ml2_config
 from neutron.tests import base
 import testtools
 
@@ -232,9 +232,9 @@ class TestCFABManager(base.BaseTestCase):
         """
 
         try:
-            ml2_config.cfg.CONF.set_override('lock_path', "lock")
-        except ml2_config.cfg.NoSuchOptError:
-            ml2_config.cfg.CONF.set_override(
+            config.cfg.CONF.set_override('lock_path', "lock")
+        except config.cfg.NoSuchOptError:
+            config.cfg.CONF.set_override(
                 'lock_path', "lock", "oslo_concurrency")
 
     def setUp(self):

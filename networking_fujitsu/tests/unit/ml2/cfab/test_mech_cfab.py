@@ -16,7 +16,7 @@
 import os
 
 import mock
-from neutron.plugins.ml2 import config as ml2_config
+from neutron.conf.plugins.ml2 import config
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
 from networking_fujitsu.ml2.cfab import cfabdriver
@@ -51,9 +51,9 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
 
     def setUp(self):
 
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'tenant_network_types', ['vlan'], 'ml2')
-        ml2_config.cfg.CONF.set_override(
+        config.cfg.CONF.set_override(
             'type_drivers', ['vlan'], 'ml2')
 
         if self._testMethodName in self._skip:
@@ -71,7 +71,7 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
                 'pprofile_prefix': "test-"}
 
             for opt, val in ml2_fujitsu_opts.items():
-                ml2_config.cfg.CONF.set_override(opt, val, "fujitsu_cfab")
+                config.cfg.CONF.set_override(opt, val, "fujitsu_cfab")
 
             try:
                 cfabdriver.TELNET_PORT = int(
@@ -136,7 +136,7 @@ class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
             'pprofile_prefix': 'test-'
         }
         for opt, val in ml2_fujitsu_opts.items():
-            ml2_config.cfg.CONF.set_override(opt, val, "fujitsu_cfab")
+            config.cfg.CONF.set_override(opt, val, "fujitsu_cfab")
         self.mech = mech_cfab.CFABMechanismDriver()
         self.mech._driver = mock.Mock()
         super(TestFujitsuMechDriverBaremetalPortsV2, self).setUp()
