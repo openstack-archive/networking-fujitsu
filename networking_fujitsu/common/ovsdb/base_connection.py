@@ -21,7 +21,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import excutils
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu.ml2.common.ovsdb import constants as n_const
+from networking_fujitsu.common.ovsdb import constants as n_const
 
 LOG = logging.getLogger(__name__)
 

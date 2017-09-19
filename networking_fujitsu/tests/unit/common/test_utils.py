@@ -20,7 +20,7 @@ import mock
 from neutron.tests import base
 from neutron_lib.api.definitions import portbindings
 
-from networking_fujitsu.ml2.common import utils
+from networking_fujitsu.common import utils
 
 
 class FujitsuCommonUtilsTestCase(base.BaseTestCase):

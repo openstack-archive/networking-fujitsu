@@ -17,9 +17,9 @@ from neutron_lib.utils import runtime
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
-from networking_fujitsu.ml2.common import tunnel_caller
-from networking_fujitsu.ml2.common import type_vxlan
+from networking_fujitsu.common.ovsdb import ovsdb_writer
+from networking_fujitsu.common import tunnel_caller
+from networking_fujitsu.common import type_vxlan
 from networking_fujitsu.ml2.fossw import client
 
 LOG = logging.getLogger(__name__)

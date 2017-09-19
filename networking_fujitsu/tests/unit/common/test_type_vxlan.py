@@ -16,7 +16,7 @@ from neutron.plugins.common import constants as p_const
 from neutron.tests.unit.plugins.ml2.drivers import base_type_tunnel
 from neutron.tests.unit import testlib_api
 
-from networking_fujitsu.ml2.common import type_vxlan
+from networking_fujitsu.common import type_vxlan
 
 
 class TestTypeVxlan(base_type_tunnel.TunnelTypeTestMixin,

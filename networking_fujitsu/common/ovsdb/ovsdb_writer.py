@@ -20,8 +20,8 @@ import socket
 from oslo_log import log as logging
 from oslo_utils import excutils
 
-from networking_fujitsu.ml2.common.ovsdb import base_connection
-from networking_fujitsu.ml2.common.ovsdb import constants as n_const
+from networking_fujitsu.common.ovsdb import base_connection
+from networking_fujitsu.common.ovsdb import constants as n_const
 
 LOG = logging.getLogger(__name__)
 
