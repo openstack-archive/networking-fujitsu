@@ -21,7 +21,7 @@ from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 
 from networking_fujitsu.ml2.cfab import cfabdriver
 from networking_fujitsu.ml2.cfab import mech_cfab
-from networking_fujitsu.tests.unit.ml2.common import helper
+from networking_fujitsu.tests.unit.common import helper
 
 USERNAME = 'admin'
 PASSWORD = 'admin'

@@ -23,7 +23,7 @@ from oslo_log import log as logging
 from oslo_utils import importutils
 
 from networking_fujitsu._i18n import _
-from networking_fujitsu.ml2.common import utils
+from networking_fujitsu.common import utils
 
 LOG = logging.getLogger(__name__)
 DRIVER = 'networking_fujitsu.ml2.'

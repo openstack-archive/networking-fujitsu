@@ -22,7 +22,7 @@ from oslo_utils import importutils
 
 from networking_fujitsu.ml2.fossw import fossw_vlandriver
 from networking_fujitsu.ml2.fossw import mech_fossw
-from networking_fujitsu.tests.unit.ml2.common import helper
+from networking_fujitsu.tests.unit.common import helper
 
 ADDRESS = '192.168.100.1'
 ADDRESS2 = '192.168.100.2'
