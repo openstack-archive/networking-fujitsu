@@ -18,9 +18,9 @@ import mock
 from neutron.tests import base
 from oslo_config import cfg
 
-from networking_fujitsu.ml2.common.ovsdb import ovsdb_writer
-from networking_fujitsu.ml2.common import tunnel_caller
-from networking_fujitsu.ml2.common import type_vxlan
+from networking_fujitsu.common.ovsdb import ovsdb_writer
+from networking_fujitsu.common import tunnel_caller
+from networking_fujitsu.common import type_vxlan
 from networking_fujitsu.ml2.fossw import fossw_vxlandriver
 from networking_fujitsu.ml2.fossw import mech_fossw
 from networking_fujitsu.tests.unit.ml2.common.ovsdb import (

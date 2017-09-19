@@ -20,7 +20,7 @@ from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
 from neutron.tests import base
 
-from networking_fujitsu.ml2.common import tunnel_caller
+from networking_fujitsu.common import tunnel_caller
 
 
 class TestTunnelCaller(base.BaseTestCase):
