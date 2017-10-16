@@ -307,7 +307,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         This method will select driver's method.
         Case1: param['lag'] is True
-            This method calls 'setup_vlan_with_lag' and clears VLAN and LAG.
+            This method calls 'setup_lag' and clears VLAN and LAG.
         Case2: param['lag'] is False
             This method calls 'setup_vlan' and setup only VLAN.
 
@@ -319,17 +319,22 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :rtype: None
         """
 
-        target = 'setup_vlan_with_lag' if params['lag'] else 'setup_vlan'
+        target = 'setup_lag' if params['lag'] else 'setup_vlan'
+        LOG.info("Call %(target)s.  params: %(params)s",
+                 {'target': target, 'params': params})
         try:
-            setup_method = getattr(self._vlan_driver, target)
-            LOG.info("Call %(target)s.  params: %(params)s",
-                     {'target': target, 'params': params})
-            setup_method(
-                params['vlanid'],
-                params['local_link_info'],
-                self.switches_mac_ip_pair,
-            )
+            if params['lag']:
+                self._vlan_driver.setup_lag(
+                    params['local_link_info'],
+                    self.switches_mac_ip_pair,
+                    vlanid=params['vlanid'])
+            else:
+                self._vlan_driver.setup_vlan(
+                    params['vlanid'],
+                    params['local_link_info'],
+                    self.switches_mac_ip_pair)
         except Exception:
+            # TODO(yushiro): Separate each exceptions.
             LOG.exception("Failed to setup vlan(%s)", params['vlanid'])
             raise ml2_exc.MechanismDriverError(method=target)
 
@@ -459,8 +464,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         req_id = context.network._plugin_context.request_id
         try:
             if utils.is_lag(lli):
-                self._vlan_driver.setup_vlan_with_lag(
-                    DEFAULT_VLAN, lli, self.switches_mac_ip_pair)
+                self._vlan_driver.setup_lag(lli, self.switches_mac_ip_pair)
                 self._vxlan_driver.update_physical_port_with_lag(
                     seg_id, lli, port, self.switches_mac_ip_pair, req_id)
             else:

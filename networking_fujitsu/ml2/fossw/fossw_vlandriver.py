@@ -147,22 +147,23 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
 
     @runtime.synchronized(_LOCK_NAME, external=True)
-    def setup_vlan_with_lag(self, vlanid, llis, ip_mac_pairs):
+    def setup_lag(self, llis, ip_mac_pairs, vlanid=None):
         """Setup VLAN and LAG for physical ports FOS switch.
 
-        :param vlanid: the ID of VLAN to be associated
-        :type vlanid: string
         :param llis: the local link informations of ironic node
         :type llis: list of local link informations dictionary
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
                              switch
         :type ip_mac_pairs: dictionary
+        :param vlanid: the VLANID to configure. If it is not set, it will skip
+                       VLAN configuration.
+        :type vlanid: Integer
 
         :returns: None
         :rtype: None
 
         """
-        method = "setup_vlan_with_lag"
+        method = "setup_lag"
         mlag = False
         unique_mac_list = sorted(list(set([lli['switch_id'] for lli in llis])))
         if len(unique_mac_list) > 1:
@@ -200,7 +201,8 @@ class FOSSWVlanDriver(object):
             # Setup VLAN for logical port
             lag_lli = copy.deepcopy(mac_llis[0])
             lag_lli['port_id'] = lag_port
-            self.setup_vlan(vlanid, [lag_lli], ip_mac_pairs)
+            if vlanid:
+                self.setup_vlan(vlanid, [lag_lli], ip_mac_pairs)
 
             if mlag:
                 # Get available VPC id from FOS switch

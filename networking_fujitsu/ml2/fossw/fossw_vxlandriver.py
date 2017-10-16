@@ -159,7 +159,7 @@ class FOSSWVxlanDriver(object):
             self.save_all_fossw()
 
     def update_physical_port(self, vni, lli, port, ip_mac_pairs, req_id=None,
-                             save=True):
+                             lag_port=None, save=True):
         """Update Physical_Port table in FOS switch OVSDB.
 
         There are 3 cases about port operation
@@ -200,15 +200,16 @@ class FOSSWVxlanDriver(object):
         tunnel_ip = self.type_vxlan.db_get_endpoint_ip_by_host(target)
 
         if lli:
-            sw_port = lli[0]['port_id']
+            sw_port_id = lli[0]['port_id']
             # Update Physical_Port table first.
             ovsdb_cli = ovsdb_writer.OVSDBWriter(target_ip, self.ovsdb_port)
-            bind_ls_uuid = ovsdb_cli.get_logical_switch_uuid(ls_name)
-            binding_vid = ovsdb_cli.get_binding_vid(bind_ls_uuid)
-            bind_vid = binding_vid if binding_vid else (
-                int(sw_port[2:]) + self.ovsdb_vlanid_range_min - 1)
+            lsw_id = ovsdb_cli.get_logical_switch_uuid(ls_name)
+            binding_vid = ovsdb_cli.get_binding_vid(lsw_id)
+            bind_vlanid = binding_vid if binding_vid else (
+                int(sw_port_id[2:]) + self.ovsdb_vlanid_range_min - 1)
 
-            ovsdb_cli.update_physical_port(sw_port, bind_vid, bind_ls_uuid)
+            bind_port_id = lag_port if lag_port else sw_port_id
+            ovsdb_cli.update_physical_port(bind_port_id, bind_vlanid, lsw_id)
             # After Physical_Port table has been updated, update
             # Ucast_Macs_Local table.
             # If any garbage exist, remove them first.
@@ -222,10 +223,10 @@ class FOSSWVxlanDriver(object):
             # MAC address.
             if locator_uuid_local:
                 ovsdb_cli.insert_ucast_macs_local(
-                    bind_ls_uuid, locator_uuid_local, mac)
+                    lsw_id, locator_uuid_local, mac)
             else:
                 ovsdb_cli.insert_ucast_macs_local_and_locator(
-                    bind_ls_uuid, locator_ip_local, mac)
+                    lsw_id, locator_ip_local, mac)
             # Create vxlan port for FOS Switch when this method was called with
             # req_id.
             if req_id:
