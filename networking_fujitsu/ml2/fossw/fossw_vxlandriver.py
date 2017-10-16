@@ -12,8 +12,8 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-from neutron.common import utils
 from neutron_lib import context
+from neutron_lib.utils import runtime
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -117,7 +117,7 @@ class FOSSWVxlanDriver(object):
                 LOG.warning("Unable to get endpoint information from "
                             "switch (IP = %s). Skip.", fossw_ip)
 
-    @utils.synchronized(_LOCK_NAME, external=True)
+    @runtime.synchronized(_LOCK_NAME, external=True)
     def create_logical_switch(self, net_uuid, vni, save=True):
         """Create a row in Logical_Switch table in FOS switch OVSDB.
 
@@ -137,7 +137,7 @@ class FOSSWVxlanDriver(object):
         if save:
             self.save_all_fossw()
 
-    @utils.synchronized(_LOCK_NAME, external=True)
+    @runtime.synchronized(_LOCK_NAME, external=True)
     def delete_logical_switch(self, net_uuid, save=True):
         """Delete row in Logical_Switch table in FOS switch OVSDB.
 
@@ -289,7 +289,7 @@ class FOSSWVxlanDriver(object):
         if save:
             self.save_all_fossw()
 
-    @utils.synchronized(_LOCK_NAME, external=True)
+    @runtime.synchronized(_LOCK_NAME, external=True)
     def update_physical_port_with_lag(self, vni, llis, port, ip_mac_pairs,
                                       req_id):
         """Call update_physical_port for all physical swtich ports.
@@ -316,7 +316,7 @@ class FOSSWVxlanDriver(object):
             self.update_physical_port(
                 vni, [lli], port, ip_mac_pairs, req_id)
 
-    @utils.synchronized(_LOCK_NAME, external=True)
+    @runtime.synchronized(_LOCK_NAME, external=True)
     def reset_physical_port_with_lag(self, llis, port, ip_mac_pairs):
         """Call reset_physical_port for all physical switch ports.
 

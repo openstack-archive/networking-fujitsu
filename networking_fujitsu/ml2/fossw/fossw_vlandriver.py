@@ -19,7 +19,7 @@ management.
 
 import copy
 
-from neutron.common import utils
+from neutron_lib.utils import runtime
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -42,7 +42,7 @@ class FOSSWVlanDriver(object):
             self._conf = cfg.CONF
         self.client = client.FOSSWClient(self._conf)
 
-    @utils.synchronized(_LOCK_NAME)
+    @runtime.synchronized(_LOCK_NAME)
     def get_switch_mac_ip_pair(self, ips):
         """Get and create pair of switch's MAC address and IP address.
 
@@ -146,7 +146,7 @@ class FOSSWVlanDriver(object):
                           "physical port on FOS switch. %s", e)
             raise client.FOSSWClientException(method)
 
-    @utils.synchronized(_LOCK_NAME, external=True)
+    @runtime.synchronized(_LOCK_NAME, external=True)
     def setup_vlan_with_lag(self, vlanid, llis, ip_mac_pairs):
         """Setup VLAN and LAG for physical ports FOS switch.
 
@@ -274,7 +274,7 @@ class FOSSWVlanDriver(object):
                           "physical port on FOS switch. %s", e)
             raise client.FOSSWClientException(method)
 
-    @utils.synchronized(_LOCK_NAME, external=True)
+    @runtime.synchronized(_LOCK_NAME, external=True)
     def clear_vlan_with_lag(self, llis, ip_mac_pairs):
         """Clear VLAN and LAG from FOS switch.
 

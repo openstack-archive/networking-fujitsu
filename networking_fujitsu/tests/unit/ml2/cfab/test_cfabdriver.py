@@ -21,10 +21,10 @@ import time
 
 from itertools import chain
 import mock
-from neutron.common import utils
 from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.tests import base
+from neutron_lib.utils import runtime
 import testtools
 
 from networking_fujitsu.ml2.cfab import cfabdriver
@@ -256,7 +256,7 @@ class TestCFABManager(base.BaseTestCase):
         self.assertEqual(
             expected_config, _EXCLUDE_BRACKET_LINE_RE.findall(running_config))
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_modes(self):
         self.manager._close_session()
         self.assertEqual(cfabdriver._MODE_ADMIN, self.manager._get_mode())
@@ -271,7 +271,7 @@ class TestCFABManager(base.BaseTestCase):
         self.manager._execute("exit")
         self.assertEqual(cfabdriver._MODE_USER, self.manager._get_mode())
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_get_running_config(self):
         self.manager.configure(
             ["no pprofile",
@@ -284,7 +284,7 @@ class TestCFABManager(base.BaseTestCase):
             ["pprofile 1 vlan tag 1", "pprofile 2 vlan tag 2"],
             re.findall(r"^pprofile\s+.+$", running_config, re.MULTILINE))
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_get_running_config_prefix(self):
         self.manager.configure(
             ["no pprofile",
@@ -294,7 +294,7 @@ class TestCFABManager(base.BaseTestCase):
         self.assert_running_config(
             "pprofile", ["1 vlan tag 1", "2 vlan tag 2"])
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_configure(self):
         self.manager.configure(["no pprofile"])
 
@@ -304,7 +304,7 @@ class TestCFABManager(base.BaseTestCase):
 
         self.assert_running_config("pprofile", ["1 vlan tag 1"])
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_configure_from_interface_config(self):
         self.manager.configure(["no pprofile"])
         self.manager._execute("interface 1/1/1/1")
@@ -313,7 +313,7 @@ class TestCFABManager(base.BaseTestCase):
 
         self.assert_running_config("pprofile", ["1 vlan tag 1"])
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_configure_from_user(self):
         self.manager.configure(["no pprofile"])
         self.manager._execute("exit")
@@ -323,7 +323,7 @@ class TestCFABManager(base.BaseTestCase):
 
         self.assert_running_config("pprofile", ["1 vlan tag 1"])
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_configure_from_closed(self):
         self.manager.configure(["no pprofile"])
         self.manager._close_session()
@@ -332,7 +332,7 @@ class TestCFABManager(base.BaseTestCase):
 
         self.assert_running_config("pprofile", ["1 vlan tag 1"])
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_configure_no_commit(self):
         self.manager.configure(["no pprofile"])
 
@@ -344,7 +344,7 @@ class TestCFABManager(base.BaseTestCase):
 
         self.assert_running_config("pprofile", ["1 vlan tag 1"])
 
-    @utils.synchronized(cfabdriver._LOCK_NAME, external=True)
+    @runtime.synchronized(cfabdriver._LOCK_NAME, external=True)
     def test_configure_error(self):
         self.assertRaises(
             ml2_exc.MechanismDriverError, self.manager.configure, ["error"])
