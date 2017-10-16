@@ -12,6 +12,8 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
+import copy
+
 from neutron.common import utils
 from neutron_lib import context
 from oslo_config import cfg
@@ -159,7 +161,7 @@ class FOSSWVxlanDriver(object):
             self.save_all_fossw()
 
     def update_physical_port(self, vni, lli, port, ip_mac_pairs, req_id=None,
-                             save=True):
+                             mac_lag_map=None, save=True):
         """Update Physical_Port table in FOS switch OVSDB.
 
         There are 3 cases about port operation
@@ -200,15 +202,20 @@ class FOSSWVxlanDriver(object):
         tunnel_ip = self.type_vxlan.db_get_endpoint_ip_by_host(target)
 
         if lli:
-            sw_port = lli[0]['port_id']
+            sw_port_id = lli[0]['port_id']
+            if mac_lag_map:
+                lag_port = mac_lag_map.get(lli[0]['switch_id'], None)
+            else:
+                lag_port = None
             # Update Physical_Port table first.
             ovsdb_cli = ovsdb_writer.OVSDBWriter(target_ip, self.ovsdb_port)
-            bind_ls_uuid = ovsdb_cli.get_logical_switch_uuid(ls_name)
-            binding_vid = ovsdb_cli.get_binding_vid(bind_ls_uuid)
-            bind_vid = binding_vid if binding_vid else (
-                int(sw_port[2:]) + self.ovsdb_vlanid_range_min - 1)
+            lsw_id = ovsdb_cli.get_logical_switch_uuid(ls_name)
+            binding_vid = ovsdb_cli.get_binding_vid(lsw_id)
+            bind_vlanid = binding_vid if binding_vid else (
+                int(sw_port_id[2:]) + self.ovsdb_vlanid_range_min - 1)
 
-            ovsdb_cli.update_physical_port(sw_port, bind_vid, bind_ls_uuid)
+            bind_port_id = lag_port if lag_port else sw_port_id
+            ovsdb_cli.update_physical_port(bind_port_id, bind_vlanid, lsw_id)
             # After Physical_Port table has been updated, update
             # Ucast_Macs_Local table.
             # If any garbage exist, remove them first.
@@ -222,10 +229,10 @@ class FOSSWVxlanDriver(object):
             # MAC address.
             if locator_uuid_local:
                 ovsdb_cli.insert_ucast_macs_local(
-                    bind_ls_uuid, locator_uuid_local, mac)
+                    lsw_id, locator_uuid_local, mac)
             else:
                 ovsdb_cli.insert_ucast_macs_local_and_locator(
-                    bind_ls_uuid, locator_ip_local, mac)
+                    lsw_id, locator_ip_local, mac)
             # Create vxlan port for FOS Switch when this method was called with
             # req_id.
             if req_id:
@@ -276,6 +283,7 @@ class FOSSWVxlanDriver(object):
             target = ip_mac_pairs[lli[0]['switch_id']]
             port_id = lli[0]['port_id']
             ovsdb_cli = ovsdb_writer.OVSDBWriter(target, self.ovsdb_port)
+            # TODO(yushiro): Need to send lag port in case of LAG
             ovsdb_cli.reset_physical_port(port_id)
 
         mac = port["mac_address"]
@@ -291,7 +299,7 @@ class FOSSWVxlanDriver(object):
 
     @utils.synchronized(_LOCK_NAME, external=True)
     def update_physical_port_with_lag(self, vni, llis, port, ip_mac_pairs,
-                                      req_id):
+                                      req_id, mac_lag_map=None):
         """Call update_physical_port for all physical swtich ports.
 
         :param vni: The segment ID of Neutron network which the port belongs
@@ -314,10 +322,12 @@ class FOSSWVxlanDriver(object):
 
         for lli in llis:
             self.update_physical_port(
-                vni, [lli], port, ip_mac_pairs, req_id)
+                vni, [lli], port, ip_mac_pairs, req_id,
+                mac_lag_map=mac_lag_map)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def reset_physical_port_with_lag(self, llis, port, ip_mac_pairs):
+    def reset_physical_port_with_lag(self, llis, port, ip_mac_pairs,
+                                     mac_lag_map=None):
         """Call reset_physical_port for all physical switch ports.
 
         :param llis: `local_link_information' of 'binding:profile' for the port
@@ -332,5 +342,15 @@ class FOSSWVxlanDriver(object):
         :returns: None
         """
 
-        for lli in llis:
+        # TODO(yushiro): Need to refactor
+        targets = []
+        if mac_lag_map:
+            for lli in llis:
+                targets.append({
+                    'port_id': mac_lag_map[lli['switch_id']],
+                    'switch_id': lli['switch_id']})
+        else:
+            targets = copy.deepcopy(llis)
+
+        for lli in targets:
             self.reset_physical_port([lli], port, ip_mac_pairs)

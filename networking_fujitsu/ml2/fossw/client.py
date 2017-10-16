@@ -34,7 +34,7 @@ MAX_LOOP = 50
 MAX_VPC_ID = 63
 SHOW_PC_BRIEF = 'show port-channel brief'
 TERMINAL_LENGTH_0 = 'terminal length 0'
-RECV_BUF = 8192
+RECV_BUF = 32768
 
 
 class FOSSWClient(object):
@@ -125,7 +125,7 @@ class FOSSWClient(object):
         try:
             raw_res = ""
             self.console.send(command + "\n")
-            LOG.debug("FOSSW client sent: %s", command)
+            LOG.info("FOSSW client sent: %s", command)
             i = 0
             while i < MAX_LOOP:
                 time.sleep(0.1)

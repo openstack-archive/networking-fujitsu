@@ -147,22 +147,23 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def setup_vlan_with_lag(self, vlanid, llis, ip_mac_pairs):
+    def setup_lag(self, llis, ip_mac_pairs, vlanid=None):
         """Setup VLAN and LAG for physical ports FOS switch.
 
-        :param vlanid: the ID of VLAN to be associated
-        :type vlanid: string
         :param llis: the local link informations of ironic node
         :type llis: list of local link informations dictionary
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
                              switch
         :type ip_mac_pairs: dictionary
+        :param vlanid: the VLANID to configure. If it is not set, it will skip
+                       VLAN configuration.
+        :type vlanid: Integer
 
-        :returns: None
-        :rtype: None
+        :returns: mac_lag_map MAC address and LAG port ID pair
+        :rtype: dictionary
 
         """
-        method = "setup_vlan_with_lag"
+        method = "setup_lag"
         mlag = False
         unique_mac_list = sorted(list(set([lli['switch_id'] for lli in llis])))
         if len(unique_mac_list) > 1:
@@ -182,6 +183,7 @@ class FOSSWVlanDriver(object):
         #     self.setup_vlan(vlanid, [lli], ip_mac_pairs)
 
         # Create lag resource
+        mac_lag_map = {}
         for mac in unique_mac_list:
             target_ip = ip_mac_pairs[mac]
             mac_llis = [lli for lli in llis if lli['switch_id'] == mac]
@@ -194,13 +196,19 @@ class FOSSWVlanDriver(object):
                               "switch(%s).", target_ip)
                 raise client.FOSSWClientException(method)
 
+            mac_lag_map[mac] = lag_port
+
+            # TODO(yushiro): join_to_lag should be separated following methods:
+            # 1. Change status for specified logicalport
+            # 2. Insert logicalport into physical_port
             for port in ports:
                 self.client.join_to_lag(port, lag_port)
 
             # Setup VLAN for logical port
             lag_lli = copy.deepcopy(mac_llis[0])
             lag_lli['port_id'] = lag_port
-            self.setup_vlan(vlanid, [lag_lli], ip_mac_pairs)
+            if vlanid:
+                self.setup_vlan(vlanid, [lag_lli], ip_mac_pairs)
 
             if mlag:
                 # Get available VPC id from FOS switch
@@ -212,6 +220,7 @@ class FOSSWVlanDriver(object):
                     self.client.disconnect()
                     raise client.FOSSWClientException(method)
             self.client.disconnect()
+        return mac_lag_map
 
     def _validate_lli_macs_with_config(self, macs, ip_mac_pairs):
         ips = [ip_mac_pairs.get(mac, None) for mac in macs]
@@ -275,7 +284,7 @@ class FOSSWVlanDriver(object):
             raise client.FOSSWClientException(method)
 
     @utils.synchronized(_LOCK_NAME, external=True)
-    def clear_vlan_with_lag(self, llis, ip_mac_pairs):
+    def clear_lag(self, llis, ip_mac_pairs):
         """Clear VLAN and LAG from FOS switch.
 
         :param llis: the local link informations of ironic node
@@ -288,7 +297,7 @@ class FOSSWVlanDriver(object):
         :rtype: None
 
         """
-        method = "clear_vlan_with_lag"
+        method = "clear_lag"
         mlag = None
         unique_mac_list = sorted(list(set([lli['switch_id'] for lli in llis])))
         if len(unique_mac_list) > 1:
@@ -299,6 +308,7 @@ class FOSSWVlanDriver(object):
                               "peerlink setting.")
                 raise client.FOSSWClientException(method)
 
+        mac_lag_map = {}
         for mac in unique_mac_list:
             target_ip = ip_mac_pairs[mac]
             mac_llis = [lli for lli in llis if lli['switch_id'] == mac]
@@ -318,6 +328,7 @@ class FOSSWVlanDriver(object):
                 for port in ports:
                     self.client.leave_from_lag(port, lag_port)
 
+                mac_lag_map[mac] = lag_port
                 # Clear VLAN for logical port
                 lag_lli = copy.deepcopy(mac_llis[0])
                 lag_lli['port_id'] = lag_port
@@ -334,3 +345,4 @@ class FOSSWVlanDriver(object):
         # Clear VLAN for each physical port
         # for lli in llis:
         #     self.clear_vlan([lli], ip_mac_pairs)
+        return mac_lag_map
