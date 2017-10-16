@@ -35,6 +35,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         # The self.send(query) never fails.
         # Either it returns true, or there will be a Exception there.
         # However, none of the business here.
+        LOG.info("OVSDBWriter query: %s", query)
         self.send(query)
         if rcv_required:
             self._get_reply(operation_id)
@@ -134,7 +135,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'where': [],
                              'columns': ['tunnel_ips', 'name']}],
                  'id': op_id}
-        LOG.debug("get_sw_ep_info: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
             result_rows = self.response['result'][0]['rows']
@@ -174,7 +174,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                                      'tunnel_key': tunnel_key}},
                             commit_dict],
                  'id': op_id}
-        LOG.debug("insert_logical_switch: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def get_logical_switch_uuid(self, logical_switch_name, rcv_required=True):
@@ -195,7 +194,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'table': 'Logical_Switch',
                              'where': [['name', '==', logical_switch_name]]}],
                  'id': op_id}
-        LOG.debug("get_logical_switch_uuid: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
             result_rows = self.response['result'][0]['rows']
@@ -232,7 +230,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                                         ['uuid', logical_switch_uuid]]]},
                             commit_dict],
                  'id': op_id}
-        LOG.debug("delete_logical_switch: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def get_binding_vid(self, logical_switch_uuid, rcv_required=True):
@@ -257,7 +254,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'where': [['vlan_bindings', '!=', ['map', []]]],
                              'columns': ['vlan_bindings']}],
                  'id': op_id}
-        LOG.debug("get_binding_vid: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
         binding_list = []
         try:
@@ -312,7 +308,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                                                 logical_switch_uuid]]]]}},
                             commit_dict],
                  'id': op_id}
-        LOG.debug("update_physical_port: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def get_ucast_macs_local(self, port_mac, rcv_required=True):
@@ -333,7 +328,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'table': 'Ucast_Macs_Local',
                              'where': [['MAC', '==', port_mac]]}],
                  'id': op_id}
-        LOG.debug("get_ucast_macs_local: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
             return_list = self.response['result'][0]['rows']
@@ -364,7 +358,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'where': [['MAC', '==', port_mac]]},
                             commit_dict],
                  'id': op_id}
-        LOG.debug("delete_ucast_macs_local: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def get_physical_locator_uuid(self, dst_ip, rcv_required=True):
@@ -384,7 +377,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'table': 'Physical_Locator',
                              'where': [['dst_ip', '==', dst_ip]]}],
                  'id': op_id}
-        LOG.debug("get_physical_locator_uuid: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
             result_rows = self.response['result'][0]['rows']
@@ -423,7 +415,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                                      'locator': ['uuid', locator_uuid]}},
                             commit_dict],
                  'id': op_id}
-        LOG.debug("insert_ucast_macs_local: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def insert_ucast_macs_local_and_locator(self, logical_switch_uuid,
@@ -459,7 +450,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                                      'locator': ['named-uuid', 'RVTEP']}},
                             commit_dict],
                  'id': op_id}
-        LOG.debug("insert_ucast_macs_local: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def get_ucast_macs_remote(self, port_mac, rcv_required=True):
@@ -480,7 +470,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'table': 'Ucast_Macs_Remote',
                              'where': [['MAC', '==', port_mac]]}],
                  'id': op_id}
-        LOG.debug("get_ucast_macs_remote: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
         try:
             return_list = self.response['result'][0]['rows']
@@ -511,7 +500,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                              'where': [['MAC', '==', port_mac]]},
                             commit_dict],
                  'id': op_id}
-        LOG.debug("delete_ucast_macs_remote: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def insert_ucast_macs_remote(self, logical_switch_uuid, MAC_value,
@@ -552,7 +540,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         query = {"method": "transact",
                  "params": params,
                  "id": op_id}
-        LOG.debug("insert_ucast_macs_remote: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def insert_ucast_macs_remote_and_locator(self, logical_switch_uuid,
@@ -600,7 +587,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         query = {"method": "transact",
                  "params": params,
                  "id": op_id}
-        LOG.debug("insert_ucast_macs_remote: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)
 
     def reset_physical_port(self, port_name, rcv_required=True):
@@ -624,5 +610,4 @@ class OVSDBWriter(base_connection.BaseConnection):
                              "row": {"vlan_bindings": ["map", []]}},
                             commit_dict],
                  "id": op_id}
-        LOG.debug("reset_physical_port: query: %s", query)
         self._send_and_receive(query, op_id, rcv_required)

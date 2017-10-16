@@ -177,15 +177,15 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
         ctx = self.prepare_dummy_context(nic='lag')
         self.mech.bind_port(ctx)
         params = params_for_driver(ctx.current, lag=True)
-        self.mech._vlan_driver.setup_vlan_with_lag.assert_called_once_with(
-            params['segmentation_id'],
+        self.mech._vlan_driver.setup_lag.assert_called_once_with(
             params['local_link_info'],
-            self.mech.switches_mac_ip_pair
+            self.mech.switches_mac_ip_pair,
+            vlanid=params['segmentation_id'],
         )
 
-    def test_bind_port_with_lag_raises_setup_vlan_with_lag(self):
+    def test_bind_port_with_lag_raises_setup_lag(self):
         ctx = self.prepare_dummy_context(nic='lag')
-        self.mech._vlan_driver.setup_vlan_with_lag.side_effect = Exception
+        self.mech._vlan_driver.setup_lag.side_effect = Exception
         self.assertRaises(
             ml2_exc.MechanismDriverError,
             self.mech.bind_port, ctx)
@@ -194,10 +194,10 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
         ctx = self.prepare_dummy_context(nic='mlag')
         self.mech.bind_port(ctx)
         params = params_for_driver(ctx.current, lag=True)
-        self.mech._vlan_driver.setup_vlan_with_lag.assert_called_once_with(
-            params['segmentation_id'],
+        self.mech._vlan_driver.setup_lag.assert_called_once_with(
             params['local_link_info'],
-            self.mech.switches_mac_ip_pair
+            self.mech.switches_mac_ip_pair,
+            vlanid=params['segmentation_id'],
         )
 
     def test_bind_port_with_flat(self):
@@ -226,7 +226,7 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
         self.mech.update_port_postcommit(ctx)
         params = params_for_driver(ctx.original)
 
-        self.mech._vlan_driver.clear_vlan_with_lag.assert_called_once_with(
+        self.mech._vlan_driver.clear_lag.assert_called_once_with(
             params['local_link_info'],
             self.mech.switches_mac_ip_pair)
 
@@ -254,7 +254,7 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
         ctx = self.prepare_dummy_context(nic='lag')
         self.mech.delete_port_postcommit(ctx)
         params = params_for_driver(ctx.current, lag=True)
-        self.mech._vlan_driver.clear_vlan_with_lag.assert_called_with(
+        self.mech._vlan_driver.clear_lag.assert_called_with(
             params['local_link_info'],
             self.mech.switches_mac_ip_pair
         )
@@ -263,7 +263,7 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
         ctx = self.prepare_dummy_context(nic='mlag')
         self.mech.delete_port_postcommit(ctx)
         params = params_for_driver(ctx.current, lag=True)
-        self.mech._vlan_driver.clear_vlan_with_lag.assert_called_with(
+        self.mech._vlan_driver.clear_lag.assert_called_with(
             params['local_link_info'],
             self.mech.switches_mac_ip_pair
         )
@@ -281,8 +281,8 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
             self.mech.delete_port_postcommit, ctx)
         self.mech._vxlan_driver.reset_physical_port.assert_not_called()
 
-    def test_delete_with_lag_raises_clear_vlan_with_lag(self):
-        self.mech._vlan_driver.clear_vlan_with_lag.side_effect = Exception
+    def test_delete_with_lag_raises_clear_lag(self):
+        self.mech._vlan_driver.clear_lag.side_effect = Exception
         ctx = self.prepare_dummy_context(nic='lag')
         self.assertRaises(
             ml2_exc.MechanismDriverError,
@@ -399,8 +399,7 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
         ctx = self.prepare_dummy_context(net_type='vxlan', nic='lag')
         self.mech.bind_port(ctx)
         params = params_for_driver(ctx.current, lag=True)
-        self.mech._vlan_driver.setup_vlan_with_lag.assert_called_once_with(
-            mech_fossw.DEFAULT_VLAN,
+        self.mech._vlan_driver.setup_lag.assert_called_once_with(
             params['local_link_info'],
             self.mech.switches_mac_ip_pair)
         target = self.mech._vxlan_driver.update_physical_port_with_lag
@@ -416,8 +415,7 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
         ctx = self.prepare_dummy_context(net_type='vxlan', nic='mlag')
         self.mech.bind_port(ctx)
         params = params_for_driver(ctx.current, lag=True)
-        self.mech._vlan_driver.setup_vlan_with_lag.assert_called_once_with(
-            mech_fossw.DEFAULT_VLAN,
+        self.mech._vlan_driver.setup_lag.assert_called_once_with(
             params['local_link_info'],
             self.mech.switches_mac_ip_pair)
         target = self.mech._vxlan_driver.update_physical_port_with_lag
@@ -469,7 +467,7 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
         self.mech.update_port_postcommit(ctx)
         params = params_for_driver(ctx.original)
 
-        self.mech._vlan_driver.clear_vlan_with_lag.assert_called_once_with(
+        self.mech._vlan_driver.clear_lag.assert_called_once_with(
             params['local_link_info'],
             self.mech.switches_mac_ip_pair)
         target = self.mech._vxlan_driver.reset_physical_port_with_lag
@@ -531,7 +529,7 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
     def test_delete_port_with_lag_raises_reset_physical_port_with_lag(self):
         ctx = self.prepare_dummy_context(
             net_type='vxlan', vif_type='normal', nic='lag')
-        self.mech._vlan_driver.clear_vlan_with_lag.side_effect = [
+        self.mech._vlan_driver.clear_lag.side_effect = [
             Exception, None]
         self.mech._vxlan_driver.reset_physical_port_with_lag.side_effect = [
             Exception, Exception]
