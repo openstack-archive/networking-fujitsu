@@ -12,9 +12,9 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-from neutron.plugins.common import constants as p_const
 from neutron.tests.unit.plugins.ml2.drivers import base_type_tunnel
 from neutron.tests.unit import testlib_api
+from neutron_lib import constants
 
 from networking_fujitsu.ml2.common import type_vxlan
 
@@ -23,7 +23,7 @@ class TestTypeVxlan(base_type_tunnel.TunnelTypeTestMixin,
                     testlib_api.SqlTestCase):
     DRIVER_MODULE = type_vxlan
     DRIVER_CLASS = type_vxlan.TypeVxlan
-    TYPE = p_const.TYPE_VXLAN
+    TYPE = constants.TYPE_VXLAN
 
     def add_endpoint(self, ip=base_type_tunnel.TUNNEL_IP_ONE,
                      host=base_type_tunnel.HOST_ONE,
