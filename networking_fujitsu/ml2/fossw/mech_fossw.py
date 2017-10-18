@@ -306,7 +306,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         This method will select driver's method.
         Case1: param['lag'] is True
-            This method calls 'setup_vlan_with_lag' and clears VLAN and LAG.
+            This method calls 'setup_lag' and clears VLAN and LAG.
         Case2: param['lag'] is False
             This method calls 'setup_vlan' and setup only VLAN.
 
@@ -318,17 +318,22 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :rtype: None
         """
 
-        target = 'setup_vlan_with_lag' if params['lag'] else 'setup_vlan'
+        target = 'setup_lag' if params['lag'] else 'setup_vlan'
+        LOG.info("Call %(target)s.  params: %(params)s",
+                 {'target': target, 'params': params})
         try:
-            setup_method = getattr(self._vlan_driver, target)
-            LOG.info("Call %(target)s.  params: %(params)s",
-                     {'target': target, 'params': params})
-            setup_method(
-                params['vlanid'],
-                params['local_link_info'],
-                self.switches_mac_ip_pair,
-            )
+            if params['lag']:
+                self._vlan_driver.setup_lag(
+                    params['local_link_info'],
+                    self.switches_mac_ip_pair,
+                    vlanid=params['vlanid'])
+            else:
+                self._vlan_driver.setup_vlan(
+                    params['vlanid'],
+                    params['local_link_info'],
+                    self.switches_mac_ip_pair)
         except Exception:
+            # TODO(yushiro): Separate each exceptions.
             LOG.exception("Failed to setup vlan(%s)", params['vlanid'])
             raise ml2_exc.MechanismDriverError(method=target)
 
@@ -338,7 +343,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         This method will select driver's method.
         Case1: param['lag'] is True
-            This method calls 'clear_vlan_with_lag' and clears VLAN and LAG.
+            This method calls 'clear_lag' and clears VLAN and LAG.
         Case2: param['lag'] is False
             This method calls 'clear_vlan' and clears only VLAN.
 
@@ -351,7 +356,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         if not validate_baremetal_deploy(context, use_original):
             return
         params = self.get_physical_net_params(context, use_original)
-        target = 'clear_vlan_with_lag'
+        target = 'clear_lag'
         try:
             call_target = target if params['lag'] else 'clear_vlan'
             clear_method = getattr(self._vlan_driver, call_target)
@@ -375,10 +380,11 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         lli = utils.get_physical_connectivity(port)
         try:
             if utils.is_lag(lli):
-                self._vlan_driver.clear_vlan_with_lag(
+                mac_lag_map = self._vlan_driver.clear_lag(
                     lli, self.switches_mac_ip_pair)
                 self._vxlan_driver.reset_physical_port_with_lag(
-                    lli, port, self.switches_mac_ip_pair)
+                    lli, port, self.switches_mac_ip_pair,
+                    mac_lag_map=mac_lag_map)
             else:
                 self._vxlan_driver.reset_physical_port(
                     lli, port, self.switches_mac_ip_pair)
@@ -458,10 +464,11 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         req_id = context.network._plugin_context.request_id
         try:
             if utils.is_lag(lli):
-                self._vlan_driver.setup_vlan_with_lag(
-                    DEFAULT_VLAN, lli, self.switches_mac_ip_pair)
+                mac_lag_map = self._vlan_driver.setup_lag(
+                    lli, self.switches_mac_ip_pair)
                 self._vxlan_driver.update_physical_port_with_lag(
-                    seg_id, lli, port, self.switches_mac_ip_pair, req_id)
+                    seg_id, lli, port, self.switches_mac_ip_pair, req_id,
+                    mac_lag_map=mac_lag_map)
             else:
                 self._vxlan_driver.update_physical_port(
                     seg_id, lli, port, self.switches_mac_ip_pair, req_id)
