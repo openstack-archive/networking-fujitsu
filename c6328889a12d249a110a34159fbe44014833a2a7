@@ -1,0 +1,8 @@
+Code-Review+2: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Workflow+1: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Wed, 18 Oct 2017 14:11:15 +0000
+Reviewed-on: https://review.openstack.org/513035
+Project: openstack/networking-fujitsu
+Branch: refs/heads/stable/pike
