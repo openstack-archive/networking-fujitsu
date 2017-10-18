@@ -30,6 +30,7 @@ FOSSW_IPS = ["fake_switch_ip1", "fake_switch_ip2"]
 FAKE_SOCKET = base_test.SocketClass(None, None, None, '{"f_key":"f_value"}')
 
 
+# TODO(yushiro): Refactor to use test helper
 class TestFOSSWVxlanDriver(base.BaseTestCase):
     def setUp(self):
         super(TestFOSSWVxlanDriver, self).setUp()
@@ -414,11 +415,16 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                                       self.fake_llis,
                                                       self.fake_port_context,
                                                       self.fake_ip_mac_pairs,
-                                                      self.fake_request_id)
+                                                      self.fake_request_id,
+                                                      mac_lag_map={})
             self.assertEqual(2, up_pp.call_count)
-            up_pp.assert_called_with(
-                'fake_vnid', mock.ANY, self.fake_port_context,
-                self.fake_ip_mac_pairs, self.fake_request_id)
+            for idx, arg in enumerate(up_pp.call_args_list):
+                self.assertEqual('fake_vnid', arg[0][0])
+                self.assertEqual([self.fake_llis[idx]], arg[0][1])
+                self.assertEqual(self.fake_port_context, arg[0][2])
+                self.assertEqual(self.fake_ip_mac_pairs, arg[0][3])
+                self.assertEqual(self.fake_request_id, arg[0][4])
+                self.assertEqual({'mac_lag_map': {}}, arg[1])
 
     def test_reset_physical_port_with_lag(self):
         """Test case to test reset_physical_port_with_lag."""
@@ -426,7 +432,10 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                'reset_physical_port') as res_pp:
             self.driver.reset_physical_port_with_lag(self.fake_llis,
                                                      self.fake_port_context,
-                                                     self.fake_ip_mac_pairs)
+                                                     self.fake_ip_mac_pairs,
+                                                     mac_lag_map={})
             self.assertEqual(2, res_pp.call_count)
-            res_pp.assert_called_with(
-                mock.ANY, self.fake_port_context, self.fake_ip_mac_pairs)
+            for idx, arg in enumerate(res_pp.call_args_list):
+                self.assertEqual([self.fake_llis[idx]], arg[0][0])
+                self.assertEqual(self.fake_port_context, arg[0][1])
+                self.assertEqual(self.fake_ip_mac_pairs, arg[0][2])
