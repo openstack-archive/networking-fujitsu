@@ -166,7 +166,7 @@ def get_physical_connectivity(port):
     """
 
     # TODO(yushiro) replace following characters to constant value
-    lli = port['binding:profile'].get("local_link_information", [])
+    lli = port[pb_def.PROFILE].get("local_link_information", [])
     if not lli:
         return []
     is_all_specified = True

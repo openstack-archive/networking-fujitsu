@@ -19,6 +19,7 @@ import mock
 from neutron.plugins.ml2 import driver_context
 from neutron.plugins.ml2 import models
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
+from neutron_lib.api.definitions import portbindings as pb_def
 from oslo_utils import uuidutils
 
 LLI = {
@@ -91,9 +92,9 @@ class FujitsuMechanismHelper(test_ml2_plugin.Ml2PluginV2TestCase):
         project_id = network['network']['project_id']
         self._create_subnet(self.fmt, net['id'], '172.16.1.0/24')
         baremetal = {
-            'binding:vnic_type': vnic_type,
-            'binding:host_id': uuidutils.generate_uuid(),
-            'binding:profile': {'local_link_information': LLI[nic]}
+            pb_def.VNIC_TYPE: vnic_type,
+            pb_def.HOST_ID: uuidutils.generate_uuid(),
+            pb_def.PROFILE: {'local_link_information': LLI[nic]}
         }
         data = {
             'port': {
@@ -109,10 +110,10 @@ class FujitsuMechanismHelper(test_ml2_plugin.Ml2PluginV2TestCase):
         port_data = port['port']
         port_data.update(baremetal)
         if vif_type:
-            port_data.update({'binding:vif_type': vif_type})
+            port_data.update({pb_def.VIF_TYPE: vif_type})
         if set_original:
             original_port = copy.deepcopy(port_data)
-            original_port.update({'binding:vif_type': 'other'})
+            original_port.update({pb_def.VIF_TYPE: pb_def.VIF_TYPE_OTHER})
         else:
             original_port = None
         plugin = mock.Mock()
