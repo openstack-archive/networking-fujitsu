@@ -19,6 +19,7 @@ import mock
 from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.common import exceptions as ml2_exc
 from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
+from neutron_lib.api.definitions import portbindings as pb_def
 
 from networking_fujitsu.ml2.cfab import cfabdriver
 from networking_fujitsu.ml2.cfab import mech_cfab
@@ -191,7 +192,7 @@ class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
 
     def test_update_port(self):
         ctx = self.prepare_dummy_context(set_original=True)
-        ctx.current['binding:vif_type'] = 'other'
+        ctx.current[pb_def.VIF_TYPE] = 'other'
         self.mech.update_port_postcommit(ctx)
         self.mech._driver.associate_mac_to_network.assert_not_called()
         self.mech._driver.clear_vlan.assert_not_called()
@@ -271,7 +272,7 @@ class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
 
 
 def params_for_setup_vlan(port, lag=False):
-    lli = port['binding:profile']['local_link_information']
+    lli = port[pb_def.PROFILE]['local_link_information']
     return {
         'address': ADDRESS,
         'username': USERNAME,
