@@ -30,7 +30,7 @@ ADDRESS = '192.168.100.1'
 PHYSICAL_NET = ["physnet1:1"]
 
 
-class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
+class TestFujitsuMechDriverV2(helper.FujitsuMechanismHelper):
     """Test Fujitsu mechanism driver.
 
     If the environment variable OS_FUJITSU_CFAB_ADDRESS is defined, tests will
@@ -96,7 +96,7 @@ class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
     pass
 
 
-class TestMechCFABIsSupported(helper.FujitsuMechanismHelper):
+class TestMechCFABIsSupported(TestFujitsuMechDriverV2):
 
     def test_is_supported_type_vlan(self):
         ctx = self.prepare_dummy_context('network')
