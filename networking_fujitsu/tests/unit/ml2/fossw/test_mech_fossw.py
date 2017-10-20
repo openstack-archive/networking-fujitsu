@@ -30,7 +30,7 @@ USERNAME = 'fossw_user'
 PASSWORD = 'fossw_password'
 
 
-class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
+class TestFujitsuMechDriverV2(helper.FujitsuMechanismHelper):
     """Test Fujitsu mechanism driver.
 
     """
@@ -61,13 +61,7 @@ class TestFujitsuMechDriverV2(test_ml2_plugin.Ml2PluginV2TestCase):
             super(TestFujitsuMechDriverV2, self).setUp()
 
 
-class TestFujitsuMechDriverNetworksV2(test_ml2_plugin.TestMl2NetworksV2,
-                                      TestFujitsuMechDriverV2):
-    pass
-
-
-class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
-                                   TestFujitsuMechDriverV2):
+class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2):
     pass
 
 
@@ -114,11 +108,10 @@ class TestFOSSWInitialize(helper.FujitsuMechanismHelper):
             mech_fossw.FOSSWMechanismDriver)
 
 
-class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
-                                  helper.FujitsuMechanismHelper):
+class TestFOSSWNetwork(TestFujitsuMechDriverV2):
 
     def setUp(self):
-        super(TestFOSSWBaremetalPortsVlan, self).setUp()
+        super(TestFOSSWNetwork, self).setUp()
 
     def test_create_network(self):
         ctx = self.prepare_dummy_context('network')
@@ -149,6 +142,12 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2,
             ml2_exc.MechanismDriverError,
             self.mech.delete_network_postcommit, ctx
         )
+
+
+class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2):
+
+    def setUp(self):
+        super(TestFOSSWBaremetalPortsVlan, self).setUp()
 
     def test_create_port(self):
         ctx = self.prepare_dummy_context()
@@ -299,8 +298,7 @@ def params_for_driver(port, lag=False):
     }
 
 
-class TestFOSSWIsSupported(TestFujitsuMechDriverV2,
-                           helper.FujitsuMechanismHelper):
+class TestFOSSWIsSupported(TestFujitsuMechDriverV2):
     def setUp(self):
         super(TestFOSSWIsSupported, self).setUp()
 
@@ -322,8 +320,7 @@ class TestFOSSWIsSupported(TestFujitsuMechDriverV2,
         self.assertFalse(mech_fossw.is_supported(network))
 
 
-class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2,
-                                   helper.FujitsuMechanismHelper):
+class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2):
 
     def setUp(self):
         super(TestFOSSWBaremetalPortsVxlan, self).setUp()
