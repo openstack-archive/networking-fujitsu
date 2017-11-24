@@ -240,6 +240,13 @@ class TestFujitsuMechDriverBaremetalPortsV2(helper.FujitsuMechanismHelper):
         )
         self.mech._driver.dissociate_mac_from_network.assert_not_called()
 
+    def test_delete_port_without_local_link_information(self):
+        ctx = self.prepare_dummy_context(nic='single')
+        ctx.current['binding:profile'] = {}
+        self.mech.delete_port_postcommit(ctx)
+        self.mech._driver.clear_vlan.assert_not_called()
+        self.mech._driver.dissociate_mac_from_network.assert_not_called()
+
     def test_delete_with_lag(self):
         ctx = self.prepare_dummy_context(nic='lag')
         self.mech.delete_port_postcommit(ctx)

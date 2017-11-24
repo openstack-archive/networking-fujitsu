@@ -353,7 +353,10 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :returns: None
         :rtype: None
         """
-        if not validate_baremetal_deploy(context, use_original):
+
+        port = context.original if use_original else context.current
+        if not utils.has_lli(port):
+            LOG.warning('local_link_information not found in port %s', port)
             return
         params = self.get_physical_net_params(context, use_original)
         target = 'clear_lag'
@@ -373,9 +376,10 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         method = "clear_vxlan"
         port = context.original if use_original else context.current
         network = context.network
-        vif_type = port[pb_def.VIF_TYPE]
-        if (vif_type == pb_def.VIF_TYPE_UNBOUND or
-                utils.get_network_type(network) == nl_const.TYPE_FLAT):
+        if port[pb_def.VIF_TYPE] == pb_def.VIF_TYPE_UNBOUND:
+            return
+        if not utils.has_lli(port):
+            LOG.warning('local_link_information not found in port %s', port)
             return
         lli = utils.get_physical_connectivity(port)
         try:
