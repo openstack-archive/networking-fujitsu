@@ -166,18 +166,26 @@ def get_physical_connectivity(port):
     """
 
     # TODO(yushiro) replace following characters to constant value
-    lli = port[pb_def.PROFILE].get("local_link_information", [])
-    if not lli:
-        return []
-    is_all_specified = True
-    for i in lli:
-        if not (i.get('switch_id') and i.get('port_id') and
-                i.get('switch_info')):
-            is_all_specified = False
-    if is_all_specified:
-        return lli
-    LOG.warning("Some physical network param is missing:%s", lli)
-    return []
+    lli = port[pb_def.PROFILE].get('local_link_information', [])
+    if False in [bool(i.get('switch_id') and
+                      i.get('port_id') and
+                      i.get('switch_info')) for i in lli]:
+        LOG.warning('Some physical network param is missing:%s', lli)
+        lli = []
+    return lli
+
+
+def has_lli(port):
+    """Check local_link_information exists in specified port.
+
+    :param port: a port dictionary
+    :type port: dictionary
+
+    :returns True(a port has 'local_link_information') or False(otherwise)
+    :rtype: boolean
+    """
+
+    return ('local_link_information' in port[pb_def.PROFILE])
 
 
 def is_baremetal(port):

@@ -329,3 +329,14 @@ class TestIsUnbound(FujitsuCommonUtilsTestCase):
     def test_is_not_unbound(self):
         self.ctx.current[portbindings.VIF_TYPE] = portbindings.VIF_TYPE_OTHER
         self.assertFalse(utils.is_unbound(self.ctx))
+
+
+class TestHasLLI(FujitsuCommonUtilsTestCase):
+    """Test class for has_lli"""
+
+    def test_has_lli(self):
+        self.assertTrue(utils.has_lli(self.port))
+
+    def test_lli_not_exist(self):
+        self.port['binding:profile'] = {}
+        self.assertFalse(utils.has_lli(self.port))
