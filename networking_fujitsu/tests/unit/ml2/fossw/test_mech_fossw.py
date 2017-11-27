@@ -240,6 +240,12 @@ class TestFOSSWBaremetalPortsVlan(TestFujitsuMechDriverV2):
         self.mech.update_port_postcommit(ctx)
         self.mech._vlan_driver.associate_mac_to_network.assert_not_called()
 
+    def test_delete_port_with_no_local_link_information(self):
+        ctx = self.prepare_dummy_context(nic='single')
+        ctx.current['binding:profile'] = {}
+        self.mech.delete_port_postcommit(ctx)
+        self.mech._vlan_driver.clear_vlan.assert_not_called()
+
     def test_delete_port_with_single(self):
         ctx = self.prepare_dummy_context(nic='single')
         self.mech.delete_port_postcommit(ctx)
@@ -508,6 +514,12 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2):
 
     def test_delete_port(self):
         ctx = self.prepare_dummy_context(net_type='vxlan')
+        self.mech.delete_port_postcommit(ctx)
+        self.mech._vxlan_driver.reset_physical_port.assert_not_called()
+
+    def test_delete_port_with_no_local_link_information(self):
+        ctx = self.prepare_dummy_context(net_type='vxlan')
+        ctx.current['binding:profile'] = {}
         self.mech.delete_port_postcommit(ctx)
         self.mech._vxlan_driver.reset_physical_port.assert_not_called()
 

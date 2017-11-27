@@ -204,9 +204,7 @@ class CFABMechanismDriver(api.MechanismDriver):
                     LOG.exception("Failed to clear VLAN(%s).",
                                   params['vlanid'])
                     raise ml2_exc.MechanismDriverError(method=method)
-        elif not is_supported(network):
-            pass
-        else:
+        elif is_supported(network):
             physical_network = utils.get_physical_network(network)
             vlanid = utils.get_segmentation_id(network)
             vfab_id = self._get_vfab_id(physical_network)
