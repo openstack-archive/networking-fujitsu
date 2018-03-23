@@ -12,9 +12,9 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-from neutron.common import topics
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
+from neutron_lib.agent import topics
 
 
 class TunnelCaller(object):
