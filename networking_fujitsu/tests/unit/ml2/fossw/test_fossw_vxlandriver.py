@@ -70,7 +70,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                      {'ip_address': 'fake_ip_address2',
                                       'udp_port': 4789,
                                       'host': 'fake_host_name2'}]
-        self.fake_context = mock.MagicMock()
+        self.fake_context = mock.Mock()
         self.fake_request_id = "req-00000000-0000-0000-0000-000000000000"
 
         with mock.patch.object(socket, 'socket', return_value=FAKE_SOCKET), \
@@ -83,14 +83,14 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
             mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
                               '_update_neutron_db',
                               return_value=None):
-            self.driver = fossw_vxlandriver.FOSSWVxlanDriver()
+            self.vxlan = fossw_vxlandriver.FOSSWVxlanDriver()
 
     def test_save_all_fossw(self):
         """Test case to test save_all_fossw."""
-        self.driver.client = mock.Mock(return_value=None)
-        self.assertIsNone(self.driver.save_all_fossw())
+        self.vxlan.client = mock.Mock(return_value=None)
+        self.assertIsNone(self.vxlan.save_all_fossw())
         self.assertEqual(len(FOSSW_IPS),
-                         self.driver.client.save_running_config.call_count)
+                         self.vxlan.client.save_running_config.call_count)
 
     def test_update_neutron_db_insert(self):
         """Test case to test _update_neutron_db.
@@ -108,7 +108,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               return_value={}) as get_epbi, \
             mock.patch.object(type_vxlan.TypeVxlan,
                               'add_endpoint') as add_ep:
-            self.driver._update_neutron_db()
+            self.vxlan._update_neutron_db()
             get_epbi.assert_called_with('fake_endpoint_ip')
             add_ep.assert_called_with('fake_endpoint_ip',
                                       'fake_endpoint_hostname', 4789)
@@ -134,7 +134,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               'delete_endpoint') as del_ep, \
             mock.patch.object(type_vxlan.TypeVxlan,
                               'add_endpoint') as add_ep:
-                self.driver._update_neutron_db()
+                self.vxlan._update_neutron_db()
                 get_epbi.assert_called_with('fake_endpoint_ip')
                 del_ep.assert_called_with('fake_endpoint_ip')
                 add_ep.assert_called_with('fake_endpoint_ip',
@@ -157,7 +157,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                                             'udp_port': 4789,
                                             'host': 'fake_endpoint_hostname'}
                               ) as get_epbi:
-                self.driver._update_neutron_db()
+                self.vxlan._update_neutron_db()
                 get_epbi.assert_called_with('fake_endpoint_ip')
 
     def test_create_logical_switch(self):
@@ -167,7 +167,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               'insert_logical_switch') as ins_ls, \
             mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
                               'save_all_fossw') as save_all:
-            self.driver.create_logical_switch("aa-bb-cc", "fake_vnid")
+            self.vxlan.create_logical_switch("aa-bb-cc", "fake_vnid")
             ins_ls.assert_called_with("fake_vnid", "aabbcc")
             self.assertEqual(1, save_all.call_count)
 
@@ -181,7 +181,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               'delete_logical_switch') as del_ls, \
             mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
                               'save_all_fossw') as save_all:
-            self.driver.delete_logical_switch("aa-bb-cc")
+            self.vxlan.delete_logical_switch("aa-bb-cc")
             get_lsuuid.assert_called_with("aabbcc")
             del_ls.assert_called_with("fake_uuid")
             self.assertEqual(1, save_all.call_count)
@@ -231,10 +231,10 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                 mock.patch(
                     'networking_fujitsu.ml2.fossw.fossw_vxlandriver.context.'
                     'Context', return_value=self.fake_context):
-            self.driver.update_physical_port("fake_vnid", self.fake_lli,
-                                             self.fake_port_context,
-                                             self.fake_ip_mac_pairs,
-                                             req_id=self.fake_request_id)
+            self.vxlan.update_physical_port("fake_vnid", self.fake_lli,
+                                            self.fake_port_context,
+                                            self.fake_ip_mac_pairs,
+                                            req_id=self.fake_request_id)
             get_epbh.assert_called_with('fake_switch_name1')
             get_ls_uuid.assert_called_with("aabbcc")
             get_bvid.assert_called_with("fake_uuid")
@@ -298,9 +298,9 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                 mock.patch(
                     'networking_fujitsu.ml2.fossw.fossw_vxlandriver.context.'
                     'Context', return_value=self.fake_context):
-            self.driver.update_physical_port("fake_vnid", self.fake_lli,
-                                             self.fake_port_context,
-                                             self.fake_ip_mac_pairs)
+            self.vxlan.update_physical_port("fake_vnid", self.fake_lli,
+                                            self.fake_port_context,
+                                            self.fake_ip_mac_pairs)
             get_epbh.assert_called_with('fake_switch_name1')
             get_ls_uuid.assert_called_with("aabbcc")
             get_bvid.assert_called_with("fake_uuid")
@@ -340,7 +340,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               'insert_ucast_macs_remote_and_locator'
                               ) as ins_umral:
 
-            self.driver._update_ucast_macs_remote(
+            self.vxlan._update_ucast_macs_remote(
                 'fake_switch_ip1', 'logical_switch_name', 'fake_port_mac',
                 'fake_target_tunnel_ip', ['fake_port_ips'])
             get_lsuuid.assert_called_with('logical_switch_name')
@@ -376,7 +376,7 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               'insert_ucast_macs_remote_and_locator'
                               ) as ins_umral:
 
-            self.driver._update_ucast_macs_remote(
+            self.vxlan._update_ucast_macs_remote(
                 'fake_switch_ip1', 'aabbcc', 'fake_port_mac',
                 'fake_target_tunnel_ip', ['fake_port_ips'])
             get_lsuuid.assert_called_with('aabbcc')
@@ -399,9 +399,9 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
                               'delete_ucast_macs_remote') as del_umr, \
             mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
                               'save_all_fossw') as _save:
-            self.driver.reset_physical_port(self.fake_lli,
-                                            self.fake_port_context,
-                                            self.fake_ip_mac_pairs)
+            self.vxlan.reset_physical_port(self.fake_lli,
+                                           self.fake_port_context,
+                                           self.fake_ip_mac_pairs)
             res_pp.assert_called_with("0/2")
             del_uml.assert_called_with("fake_port_mac")
             del_umr.assert_called_with("fake_port_mac")
@@ -411,12 +411,12 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
         """Test case to test update_physical_port_with_lag."""
         with mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
                                'update_physical_port') as up_pp:
-            self.driver.update_physical_port_with_lag('fake_vnid',
-                                                      self.fake_llis,
-                                                      self.fake_port_context,
-                                                      self.fake_ip_mac_pairs,
-                                                      self.fake_request_id,
-                                                      mac_lag_map={})
+            self.vxlan.update_physical_port_with_lag('fake_vnid',
+                                                     self.fake_llis,
+                                                     self.fake_port_context,
+                                                     self.fake_ip_mac_pairs,
+                                                     self.fake_request_id,
+                                                     mac_lag_map={})
             self.assertEqual(2, up_pp.call_count)
             for idx, arg in enumerate(up_pp.call_args_list):
                 self.assertEqual('fake_vnid', arg[0][0])
@@ -430,10 +430,10 @@ class TestFOSSWVxlanDriver(base.BaseTestCase):
         """Test case to test reset_physical_port_with_lag."""
         with mock.patch.object(fossw_vxlandriver.FOSSWVxlanDriver,
                                'reset_physical_port') as res_pp:
-            self.driver.reset_physical_port_with_lag(self.fake_llis,
-                                                     self.fake_port_context,
-                                                     self.fake_ip_mac_pairs,
-                                                     mac_lag_map={})
+            self.vxlan.reset_physical_port_with_lag(self.fake_llis,
+                                                    self.fake_port_context,
+                                                    self.fake_ip_mac_pairs,
+                                                    mac_lag_map={})
             self.assertEqual(2, res_pp.call_count)
             for idx, arg in enumerate(res_pp.call_args_list):
                 self.assertEqual([self.fake_llis[idx]], arg[0][0])
