@@ -197,7 +197,7 @@ class FOSSWVxlanDriver(object):
         mac = port["mac_address"]
         port_ips = [fixed_ip['ip_address'] for fixed_ip in port["fixed_ips"]]
         host_id = port['binding:host_id']
-        target_ip = ip_mac_pairs[lli[0]['switch_id']] if lli else None
+        sw_ip = ip_mac_pairs[lli[0]['switch_id']] if lli else None
         target = lli[0]['switch_info'] if lli else host_id
         tunnel_ip = self.type_vxlan.db_get_endpoint_ip_by_host(target)
 
@@ -208,7 +208,7 @@ class FOSSWVxlanDriver(object):
             else:
                 lag_port = None
             # Update Physical_Port table first.
-            ovsdb_cli = ovsdb_writer.OVSDBWriter(target_ip, self.ovsdb_port)
+            ovsdb_cli = ovsdb_writer.OVSDBWriter(sw_ip, self.ovsdb_port)
             lsw_id = ovsdb_cli.get_logical_switch_uuid(ls_name)
             binding_vid = ovsdb_cli.get_binding_vid(lsw_id)
             bind_vlanid = binding_vid if binding_vid else (
@@ -237,18 +237,18 @@ class FOSSWVxlanDriver(object):
             # req_id.
             if req_id:
                 ctxt = context.Context(request_id=req_id, is_admin=True)
-                self.tunnel_caller.trigger_tunnel_sync(ctxt, target_ip)
+                self.tunnel_caller.trigger_tunnel_sync(ctxt, tunnel_ip)
         # At last Ucast_Macs_Remote table of other switches.
         self._update_ucast_macs_remote(
-            target_ip, ls_name, mac, tunnel_ip, port_ips)
+            ls_name, mac, tunnel_ip, port_ips, ignore=sw_ip)
         if save:
             self.save_all_fossw()
 
-    def _update_ucast_macs_remote(self, target_ip, logical_switch_name, mac,
-                                  tunnel_ip, port_ips):
+    def _update_ucast_macs_remote(self, logical_switch_name, mac, tunnel_ip,
+                                  port_ips, ignore=None):
         """Update Ucast_Macs_Remote table in all FOS switches OVSDB."""
         for fossw_ip in self.fossw_ips:
-            if target_ip == fossw_ip:
+            if ignore == fossw_ip:
                 continue
             ovsdb_cli = ovsdb_writer.OVSDBWriter(fossw_ip, self.ovsdb_port)
             ls_uuid = ovsdb_cli.get_logical_switch_uuid(logical_switch_name)
