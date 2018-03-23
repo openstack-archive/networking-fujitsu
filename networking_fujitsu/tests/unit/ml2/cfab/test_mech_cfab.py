@@ -18,7 +18,6 @@ import os
 import mock
 from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 from neutron_lib.api.definitions import portbindings as pb_def
 
 from networking_fujitsu.ml2.cfab import cfabdriver
@@ -90,11 +89,6 @@ class TestFujitsuMechDriverV2(helper.FujitsuMechanismHelper):
             with mock.patch.object(mech_cfab.CFABMechanismDriver,
                                    'initialize', new=mocked_initialize):
                 super(TestFujitsuMechDriverV2, self).setUp()
-
-
-class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2,
-                                   TestFujitsuMechDriverV2):
-    pass
 
 
 class TestMechCFABIsSupported(TestFujitsuMechDriverV2):
