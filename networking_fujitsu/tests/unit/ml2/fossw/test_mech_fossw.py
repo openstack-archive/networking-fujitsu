@@ -16,7 +16,6 @@
 import mock
 from neutron.conf.plugins.ml2 import config
 from neutron.plugins.ml2.common import exceptions as ml2_exc
-from neutron.tests.unit.plugins.ml2 import test_plugin as test_ml2_plugin
 from oslo_config import cfg
 from oslo_utils import importutils
 
@@ -59,10 +58,6 @@ class TestFujitsuMechDriverV2(helper.FujitsuMechanismHelper):
                                'initialize', new=mocked_initialize):
             self.mech = mech_fossw.FOSSWMechanismDriver()
             super(TestFujitsuMechDriverV2, self).setUp()
-
-
-class TestFujitsuMechDriverPortsV2(test_ml2_plugin.TestMl2PortsV2):
-    pass
 
 
 class TestFOSSWInitialize(helper.FujitsuMechanismHelper):
