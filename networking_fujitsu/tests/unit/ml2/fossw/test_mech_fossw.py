@@ -84,14 +84,14 @@ class TestFOSSWInitialize(helper.FujitsuMechanismHelper):
             mech_fossw.FOSSW_VLAN_DRIVER,
             importutils.import_object.call_args_list[0][0][0])
         self.assertEqual(
-            config.cfg.CONF,
-            importutils.import_object.call_args_list[0][0][1])
+            config.cfg.CONF.__dict__,
+            importutils.import_object.call_args_list[0][0][1].__dict__)
         self.assertEqual(
             mech_fossw.FOSSW_VXLAN_DRIVER,
             importutils.import_object.call_args_list[1][0][0])
         self.assertEqual(
-            config.cfg.CONF,
-            importutils.import_object.call_args_list[1][0][1])
+            config.cfg.CONF.__dict__,
+            importutils.import_object.call_args_list[1][0][1].__dict__)
         self.mech._vlan_driver.get_switch_mac_ip_pair.assert_called_once_with(
             [ADDRESS, ADDRESS2])
 
