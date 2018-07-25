@@ -1,0 +1,8 @@
+Code-Review+2: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Workflow+1: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Wed, 25 Jul 2018 23:39:01 +0000
+Reviewed-on: https://review.openstack.org/585679
+Project: openstack/networking-fujitsu
+Branch: refs/heads/master
