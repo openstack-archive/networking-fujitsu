@@ -1,4 +1,4 @@
-# Copyright 2015-2017 FUJITSU LIMITED
+# Copyright 2015-2018 FUJITSU LIMITED
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@ def eliminate_val(source, reject):
     :type source: string
     :param reject: a list of integer to reject. ex. [1, 2]
     :type reject: list of integer
-
     :returns: a string separated with "," like an example
     :rtype: string
     """
@@ -120,10 +119,10 @@ def get_network_type(network):
 
     :param network: NetworkContext or network dict
     :type network: NetworkContext or dict
-
     :returns network_type: 'vlan', 'vxlan', 'local', 'flat' and 'geneve'
     :rtype: string
     """
+
     return _get_provider_attribute(network, 'NETWORK_TYPE')
 
 
@@ -132,10 +131,10 @@ def get_segmentation_id(network):
 
     :param network: NetworkContext or network dict
     :type network: NetworkContext or dict
-
     :returns segmentation_id: VLANID('vlan') or VNI('vxlan')
     :rtype: integer
     """
+
     return _get_provider_attribute(network, 'SEGMENTATION_ID')
 
 
@@ -144,10 +143,10 @@ def get_physical_network(network):
 
     :param network: NetworkContext or network dict
     :type network: NetworkContext or dict
-
     :returns physical_network: physical network name for the network
     :rtype: string
     """
+
     return _get_provider_attribute(network, 'PHYSICAL_NETWORK')
 
 
@@ -156,7 +155,6 @@ def get_physical_connectivity(port):
 
     :param port: a dictionary of neutron port
     :type port: dictionary
-
     :returns lli: "local_link_information" as follows
                  [{"switch_id": "MAC_of_switch", "port_id": "1/1/0/1",
                   "switch_info": "switch_name"}]
@@ -180,7 +178,6 @@ def has_lli(port):
 
     :param port: a port dictionary
     :type port: dictionary
-
     :returns True(a port has 'local_link_information') or False(otherwise)
     :rtype: boolean
     """
@@ -193,7 +190,6 @@ def is_baremetal(port):
 
     :param port: a dictionary of neutron port
     :type port: dictionary
-
     :returns: True(vnic_type is baremetal) or False(otherwise)
     :rtype: boolean
     """
@@ -207,7 +203,6 @@ def is_lag(local_link_information):
 
     :param local_link_information: physical connectivity information
     :type local_link_information: list of dict
-
     :returns: True(mode is LAG) or False(otherwise)
     :rtype: boolean
     """
@@ -216,13 +211,13 @@ def is_lag(local_link_information):
 
 
 def is_unbound(context):
-    """Judge current port object is unbound or not.
+    """Judge current port object is changed into 'unbound' status or not.
 
     :param context: port context
     :type context: PortContext object
-
     :returns: True(port is unbound) or False(otherwise)
     :rtype: boolean
     """
+
     return (context.current[pb_def.VIF_TYPE] == pb_def.VIF_TYPE_UNBOUND and
             context.original[pb_def.VIF_TYPE] == pb_def.VIF_TYPE_OTHER)

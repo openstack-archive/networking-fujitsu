@@ -1,4 +1,4 @@
-# Copyright 2017 FUJITSU LIMITED
+# Copyright 2017-2018 FUJITSU LIMITED
 #
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
@@ -50,13 +50,13 @@ class FOSSWClient(object):
         If exists session for specified target, reuse it otherwise reconnect.
         In order to get command result correctly, execute 'terminal length 0'
         at the beginning of the session.
+
         :param ip: a ip address of FOS switch
         :type ip: string
         :returns: None
         :rtype: None
-
         """
-        if not self.lookup(ip):
+        if not self._lookup(ip):
             self._reconnect(ip)
             self._exec_command(TERMINAL_LENGTH_0)
 
@@ -67,8 +67,8 @@ class FOSSWClient(object):
         :type ip: string
         :returns: None
         :rtypes: None
-
         """
+
         self.disconnect()
         method = "connect"
         retry_count = 0
@@ -112,8 +112,8 @@ class FOSSWClient(object):
 
         :returns: None
         :rtypes: None
-
         """
+
         if self.ssh:
             self.ssh.close()
             self.ssh = None
@@ -159,15 +159,13 @@ class FOSSWClient(object):
             raise FOSSWClientException(method)
         return formatted
 
-    def lookup(self, target):
+    def _lookup(self, target):
         """Check exist session for specified IP.
 
         :param target: IP address of a target host
         :type target: string
-
         :returns: exist(True) or not exist(False)
         :rtype: bool
-
         """
         if self.ssh:
             if self.ssh._host_keys:
@@ -181,10 +179,8 @@ class FOSSWClient(object):
 
         :param segmentation_id: id of VLAN to be created.
         :type segmentation_id: string
-
         :returns: received message from FOS switch
         :rtype: string
-
         """
         self.change_mode(MODE_VLAN)
         cmd = self._format_command("vlan {vlanid}", vlanid=segmentation_id)
@@ -195,11 +191,10 @@ class FOSSWClient(object):
 
         :param segmentation_id: id of VLAN to be deleted.
         :type segmentation_id: string
-
         :returns: None
         :rtype: None
-
         """
+
         self.change_mode(MODE_VLAN)
         cmd = self._format_command("no vlan {vlanid}", vlanid=segmentation_id)
         if "Failed to delete" in self._exec_command(cmd):
@@ -212,11 +207,10 @@ class FOSSWClient(object):
         :type segmentation_id: string
         :param port_id: the number of physical port on FOS switch
         :type port_id: string
-
         :returns: None
         :rtype: None
-
         """
+
         method = "set_vlan"
         self.change_mode(MODE_INTERFACE, port_id)
         self._exec_command("switchport mode access")
@@ -232,11 +226,10 @@ class FOSSWClient(object):
 
         :param port_id: the number of physical port on FOS switch
         :type port_id: string
-
         :returns: None
         :rtype: None
-
         """
+
         self.change_mode(MODE_INTERFACE, port_id)
         self._exec_command("no switchport access vlan")
         self._exec_command("no switchport mode")
@@ -248,11 +241,10 @@ class FOSSWClient(object):
         :type port: string
         :param logicalport: the number of logical port on FOS switch
         :type logicalport: string
-
         :returns: None
         :rtype: None
-
         """
+
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         self._exec_command("no port-channel static")
 
@@ -268,10 +260,10 @@ class FOSSWClient(object):
         :param logicalport: the number of logicalport
             (optional, default: "none")
         :type logicalport: string
-
         :returns: the ID of VPC or None.
         :rtype: string
         """
+
         # TODO(yushiro): Replace regexp
         for i in iter(range(1, MAX_VPC_ID + 1)):
             cmd = 'show vpc {vid} | include "Port channel"'.format(vid=str(i))
@@ -297,11 +289,10 @@ class FOSSWClient(object):
         :type logicalport: string
         :param vpcid: id of VPC
         :type vpcid: string
-
         :returns: None
         :rtype: None
-
         """
+
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         self._exec_command("vpc {vpcid}".format(vpcid=vpcid))
 
@@ -310,8 +301,8 @@ class FOSSWClient(object):
 
         :returns: IP address of peerlink partner
         :rtype: string
-
         """
+
         # TODO(yushiro): Replace regexp
         ret = self._exec_command('show vpc peer-keepalive | include "Peer '
                                  'IP address"')
@@ -331,8 +322,8 @@ class FOSSWClient(object):
         :returns: the number of logical port which associated with specified
                   physical port
         :rtype: string
-
         """
+
         # Find related lag_port with specified portname
         if portname:
             cmd = "show running-config interface %s" % portname
@@ -349,8 +340,8 @@ class FOSSWClient(object):
 
         :returns: MAC address of FOS switch
         :rtype: string
-
         """
+
         cmd = 'show hardware eeprom | include "Base MAC Address"'
         res = self._exec_command(cmd)
         if res:
@@ -364,11 +355,10 @@ class FOSSWClient(object):
         :type port: string
         :param logicalport: the number of logical port on FOS switch
         :type logicalport: string
-
         :returns: None
         :rtype: None
-
         """
+
         self.change_mode(MODE_INTERFACE, ifname=port)
         res = self._exec_command(
             "deleteport {lo_port}".format(lo_port=logicalport))
@@ -386,11 +376,10 @@ class FOSSWClient(object):
         :type logicalport: string
         :param vpcid: id of VPC
         :type vpcid: string
-
         :returns: None
         :rtype: None
-
         """
+
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
         res = self._exec_command("no vpc {vpcid}".format(vpcid=vpcid))
         if "Failed to remove" in res:
@@ -403,8 +392,8 @@ class FOSSWClient(object):
 
         :returns: None
         :rtypes: None
-
         """
+
         self._exec_command("copy system:running-config nvram:startup-config")
         self._exec_command("y")
         self._exec_command("")
@@ -417,11 +406,10 @@ class FOSSWClient(object):
         :param ifname: the number of physical port on FOS switch
             (optional, default: None)
         :type ifname: string
-
         :returns: None
         :rtype: None
-
         """
+
         # Move to Privileged EXEC mode.
         prompt = self._exec_command(END)
         if ") >" in prompt:

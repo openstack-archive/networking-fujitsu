@@ -1,4 +1,4 @@
-# Copyright 2017 FUJITSU LIMITED
+# Copyright 2017-2018 FUJITSU LIMITED
 #
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
@@ -46,14 +46,13 @@ class FOSSWVlanDriver(object):
     def get_switch_mac_ip_pair(self, ips):
         """Get and create pair of switch's MAC address and IP address.
 
-        :param ips: list of IP address of FOS switch
-        :type ips: list of IP address strings
-
-        :returns: the dictionary which stores pair of  MAC address and IP
-                  address
-        :rtype: dictionary of MAC address and IP address
-
+        :param ips: List of IP address of FOS switch
+        :type ips: List of IP address strings
+        :returns: A dictionary which stores pair of MAC address and IP
+                  address like {'fe:54:00:23:33:9a': '192.168.50.1'}
+        :rtype: A dictionary of MAC address and IP address
         """
+
         switches_mac_ip_pair = {}
         for ip in ips:
             self.client.connect(ip)
@@ -73,11 +72,10 @@ class FOSSWVlanDriver(object):
         :type ip: string
         :param vlanid: ID of VLAN to be created
         :type vlanid: string
-
         :returns: None
         :rtype: None
-
         """
+
         method = 'create_vlan'
         try:
             self.client.connect(ip)
@@ -96,11 +94,10 @@ class FOSSWVlanDriver(object):
         :type ip: string
         :param vlanid: ID of VLAN to be deleted
         :type vlanid: string
-
         :returns: None
         :rtype: None
-
         """
+
         method = 'delete_vlan'
         try:
             self.client.connect(ip)
@@ -122,11 +119,10 @@ class FOSSWVlanDriver(object):
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
                              switch
         :type ip_mac_pairs: dictionary
-
         :returns: None
         :rtype: None
-
         """
+
         method = "setup_vlan"
         sw_mac = lli[0]['switch_id']
         port_id = lli[0]['port_id']
@@ -158,11 +154,10 @@ class FOSSWVlanDriver(object):
         :param vlanid: the VLANID to configure. If it is not set, it will skip
                        VLAN configuration.
         :type vlanid: Integer
-
         :returns: mac_lag_map MAC address and LAG port ID pair
         :rtype: dictionary
-
         """
+
         method = "setup_lag"
         mlag = False
         unique_mac_list = sorted(list(set([lli['switch_id'] for lli in llis])))
@@ -238,11 +233,10 @@ class FOSSWVlanDriver(object):
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
                              switches
         :type ip_mac_pairs: dictionary
-
         :returns: Result of validation
         :rtype: Boolean
-
         """
+
         try:
             ips = self._validate_lli_macs_with_config(macs, ip_mac_pairs)
             self.client.connect(ips[0])
@@ -264,6 +258,7 @@ class FOSSWVlanDriver(object):
                              switches
         :type ip_mac_pairs: dictionary
         """
+
         method = "clear_vlan"
         sw_mac = lli[0]['switch_id']
         port_id = lli[0]['port_id']
@@ -292,11 +287,10 @@ class FOSSWVlanDriver(object):
         :param ip_mac_pairs: the pair of MAC address and IP address of FOS
                              switches
         :type ip_mac_pairs: dictionary
-
         :returns: None
         :rtype: None
-
         """
+
         method = "clear_lag"
         mlag = None
         unique_mac_list = sorted(list(set([lli['switch_id'] for lli in llis])))

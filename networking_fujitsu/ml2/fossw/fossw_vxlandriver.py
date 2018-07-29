@@ -1,4 +1,4 @@
-# Copyright 2017 FUJITSU LIMITED
+# Copyright 2017-2018 FUJITSU LIMITED
 #
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
@@ -66,6 +66,7 @@ class FOSSWVxlanDriver(object):
 
     def save_all_fossw(self):
         """Save running-config to startup-config in all FOS switches."""
+
         for fossw_ip in self.fossw_ips:
             self.client.connect(fossw_ip)
             self.client.save_running_config()
@@ -75,6 +76,7 @@ class FOSSWVxlanDriver(object):
         """Update Neutron DB ml2_vxlan_endpoints table
 
         Update with VTEPs of all FOS switches.
+
         :returns: None
         """
 
@@ -125,11 +127,11 @@ class FOSSWVxlanDriver(object):
 
         We consider net_uuid is always unique, and both vni and net_uuid
         must be immutable. So there is not a update case.
+
         :param net_uuid: The uuid of Neutron network.
         :type net_uuid: string
         :param vni: The segment ID of Neutron network.
         :type vni: integer
-
         :returns: None
         """
 
@@ -145,9 +147,9 @@ class FOSSWVxlanDriver(object):
 
         We only consider deleting the existing Logical_Switch ROW.
         Also note that even it does not exit, the jsonrpc returns no error.
+
         :param net_uuid: The uuid of Neutron network.
         :type: string
-
         :returns: None
         """
 
@@ -182,14 +184,13 @@ class FOSSWVxlanDriver(object):
                      to.
         :type vni: integer
         :param lli: The local_link_information of the port.
-                    If it is a VM port, then [{}] should be given.
+                    If it is a VM port, then [] should be given.
         :type lli: list
         :param port: Dictionary of a port
         :type port: dictionary
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
-
         :returns: None
         """
 
@@ -247,6 +248,7 @@ class FOSSWVxlanDriver(object):
     def _update_ucast_macs_remote(self, logical_switch_name, mac, tunnel_ip,
                                   port_ips, ignore=None):
         """Update Ucast_Macs_Remote table in all FOS switches OVSDB."""
+
         for fossw_ip in self.fossw_ips:
             if ignore == fossw_ip:
                 continue
@@ -263,7 +265,7 @@ class FOSSWVxlanDriver(object):
                     ls_uuid, mac, port_ips, tunnel_ip)
 
     def reset_physical_port(self, lli, port, ip_mac_pairs, save=True):
-        """Remove setting of raw of Physical_Port table in FOS switch OVSDB.
+        """Remove setting of row of Physical_Port table in FOS switch OVSDB.
 
         ROWs with the same MAC address in Ucast_Macs_Local table and
         Ucast_Macs_Remote table are the target to extinct.
@@ -275,16 +277,16 @@ class FOSSWVxlanDriver(object):
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
-
         :returns: None
         """
 
         if lli:
             target = ip_mac_pairs[lli[0]['switch_id']]
-            port_id = lli[0]['port_id']
+            # If this method is callef from reset_physical_port_with_lag,
+            # sw_port_id should be logical port(for LAG)
+            sw_port_id = lli[0]['port_id']
             ovsdb_cli = ovsdb_writer.OVSDBWriter(target, self.ovsdb_port)
-            # TODO(yushiro): Need to send lag port in case of LAG
-            ovsdb_cli.reset_physical_port(port_id)
+            ovsdb_cli.reset_physical_port(sw_port_id)
 
         mac = port["mac_address"]
 
@@ -316,7 +318,6 @@ class FOSSWVxlanDriver(object):
         :param req_id: A request ID of network context which use for generate
                        new context.
         :type req_id: string
-
         :returns: None
         """
 
@@ -338,7 +339,6 @@ class FOSSWVxlanDriver(object):
         :param ip_mac_pairs: List of MAC(key) - IP(value) pairs of all FOS
                              switches.
         :type ip_mac_pairs: dictionary
-
         :returns: None
         """
 

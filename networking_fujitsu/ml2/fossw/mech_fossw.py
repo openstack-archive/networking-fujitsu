@@ -1,4 +1,4 @@
-# Copyright 2017 FUJITSU LIMITED
+# Copyright 2017-2018 FUJITSU LIMITED
 #
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
@@ -115,10 +115,8 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         :param mech_context: context of network
         :type mech_context: NetworkContext
-
         :returns: None
         :rtype: None
-
         """
 
         network = net_context.current
@@ -143,11 +141,10 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         :param vlanid: the ID of VLAN to be created
         :type vlanid: string
-
         :returns: None
         :rtype: None
-
         """
+
         method = 'create_network_postcommit'
         for ip in self.ips:
             try:
@@ -159,6 +156,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
     @log_helpers.log_method_call
     def create_network_postcommit_vxlan(self, net_uuid, seg_id):
+
         method = 'create_network_postcommit'
         try:
             self._vxlan_driver.create_logical_switch(net_uuid, seg_id)
@@ -181,7 +179,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         :param net_context: context of network
         :type net_context: NetworkContext
-
         :returns: None
         :rtype: None
         """
@@ -206,11 +203,10 @@ class FOSSWMechanismDriver(api.MechanismDriver):
 
         :param vlanid: the ID of VLAN to be deleted
         :type vlanid: string
-
         :returns: None
         :rtypes: None
-
         """
+
         method = 'delete_network_postcommit'
         for ip in self.ips:
             try:
@@ -234,16 +230,17 @@ class FOSSWMechanismDriver(api.MechanismDriver):
     def delete_port_postcommit(self, mech_context):
         """Calls cleanup process for FOS switch.
 
-        Case1: Baremetal deploy with VLAN
-                   Clear VLAN/LAG for specified physical port.
-        Case2:
-                   Clear VXLAN/LAG for specified physical port.
-        Case3: Otherwise
-                   Do nothing.
+        Case1: 'network_type' is 'vlan' and the port is for baremetal
+                   Call clear VLAN/LAG for specified physical port.
+        Case2: 'network_type' is 'vxlan' and the port is for baremetal
+                   Call clear VXLAN/LAG for specified physical port.
+        Case3: 'network_type' is 'vxlan' and the port is for VM/DHCP/router
+                   Call clear VXLAN/LAG for specified physical port.
+        Case4: Otherwise
+                   Ignore
 
         :param mech_context: context of port
         :type mech_context: PortContext
-
         :returns: None
         :rtype: None
         """
@@ -266,6 +263,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
     @log_helpers.log_method_call
     def update_port_postcommit(self, context):
         """Update specified physical port on switch."""
+
         method = 'update_port_postcommit'
         port = context.current
         network = context.network
@@ -291,7 +289,7 @@ class FOSSWMechanismDriver(api.MechanismDriver):
             if (network_type != nl_const.TYPE_VXLAN or
                     vif_type == pb_def.VIF_TYPE_UNBOUND):
                 return
-            # currently supports only one segment per network
+            # Currently this driver supports only one segment per network.
             # Setup VXLAN for port which bound with DHCP, router, and vms.
             try:
                 self._vxlan_driver.update_physical_port(
@@ -313,7 +311,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :param params: a dictionary of the return value for
                         get_physical_net_params
         :type params: dictionary
-
         :returns: None
         :rtype: None
         """
@@ -363,8 +360,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         try:
             call_target = target if params['lag'] else 'clear_vlan'
             clear_method = getattr(self._vlan_driver, call_target)
-            LOG.info("call %(target)s. params: %(params)s",
-                     {'target': call_target, 'params': params})
             clear_method(params['local_link_info'], self.switches_mac_ip_pair)
         except Exception:
             LOG.exception("Failed to clear vlan(%s)", params['vlanid'])
@@ -378,18 +373,20 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network = context.network
         if port[pb_def.VIF_TYPE] == pb_def.VIF_TYPE_UNBOUND:
             return
-        if not utils.has_lli(port):
-            LOG.warning('local_link_information not found in port %s', port)
-            return
+        # Returns empty list if port doesn't include 'local_link_information'
         lli = utils.get_physical_connectivity(port)
         try:
             if utils.is_lag(lli):
-                mac_lag_map = self._vlan_driver.clear_lag(
+                ret = self._vlan_driver.clear_lag(
                     lli, self.switches_mac_ip_pair)
                 self._vxlan_driver.reset_physical_port_with_lag(
-                    lli, port, self.switches_mac_ip_pair,
-                    mac_lag_map=mac_lag_map)
+                    lli, port, self.switches_mac_ip_pair, mac_lag_map=ret)
             else:
+                # In case of baremetal port
+                #   - 'lli' exists and 'vnic_type' is 'baremetal'
+                # In case of router/DHCP/VM port
+                #   - 'lli' is [](empty list)
+                #   - This method only removes Ucast_macs_Remote entry
                 self._vxlan_driver.reset_physical_port(
                     lli, port, self.switches_mac_ip_pair)
         except Exception:
@@ -415,10 +412,10 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :type port: dictionary
         :param network: a network object
         :type network: NetworkContext
-
         :returns: A dictionary parameters for baremetal deploy
         :rtype: dictionary
         """
+
         port = context.original if use_original else context.current
         network = context.network
         vlanid = utils.get_segmentation_id(network)
@@ -437,31 +434,22 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         network = context.network
         if not is_supported(network):
             return
-        LOG.debug("Attempting to bind port %(port)s with vnic_type "
-                  "%(vnic_type)s on network %(network)s",
-                  {'port': port['id'], 'vnic_type': port[pb_def.VNIC_TYPE],
-                   'network': port['network_id']})
 
         network_type = utils.get_network_type(network)
-        to_bind = False
-
         if network_type == nl_const.TYPE_VXLAN:
-            # vxlan driver handles not only baremetal port, but vm, dhcp,
-            # router ports.
+            # VXLAN driver handles not only baremetal port, but VM/DHCP/router
             self.setup_vxlan(context)
-            to_bind = True
-        if utils.is_baremetal(port) and network_type == nl_const.TYPE_VLAN:
+        if network_type == nl_const.TYPE_VLAN and utils.is_baremetal(port):
             self.setup_vlan(self.get_physical_net_params(context))
-            to_bind = True
-        if to_bind:
-            context.set_binding(context.segments_to_bind[0][api.ID],
-                                pb_def.VIF_TYPE_OTHER, {},
-                                status=nl_const.PORT_STATUS_ACTIVE)
+
+        context.set_binding(context.segments_to_bind[0][api.ID],
+                            pb_def.VIF_TYPE_OTHER, {},
+                            status=nl_const.PORT_STATUS_ACTIVE)
 
     @log_helpers.log_method_call
     def setup_vxlan(self, context):
         """Update VXLAN from specified physical port on switch."""
-        # currently supports only one segment per network
+
         port = context.current
         seg_id = utils.get_segmentation_id(context.network)
         lli = utils.get_physical_connectivity(port)
@@ -486,8 +474,7 @@ def is_supported(network):
 
     :param network: a network object
     :type network: NetworkContext
-
-    :returns: True if network_type is supported and segmentation_id is included
+    :returns: True if network_type is supported and segmentation_id exists
               otherwise False
     :rtype: boolean
     """
@@ -497,18 +484,3 @@ def is_supported(network):
         LOG.warning("Network type(%s) is not supported. Skip it.", net_type)
         return False
     return True if utils.get_segmentation_id(network) else False
-
-
-def validate_baremetal_deploy(port_context, use_original=False):
-    """Validate baremetal deploy.
-
-    :param port_context: a PortContext object
-    :type port_context: PortContext
-
-    :returns: True if enable to baremetal deploy otherwise False
-    :rtype: boolean
-    """
-
-    port = port_context.original if use_original else port_context.current
-    network = port_context.network
-    return utils.is_baremetal(port) and is_supported(network)

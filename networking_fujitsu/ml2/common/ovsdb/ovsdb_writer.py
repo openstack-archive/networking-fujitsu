@@ -1,4 +1,4 @@
-# Copyright 2017 FUJITSU LIMITED
+# Copyright 2017-2018 FUJITSU LIMITED
 #
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may
 #   not use this file except in compliance with the License. You may obtain
@@ -28,6 +28,7 @@ LOG = logging.getLogger(__name__)
 
 class OVSDBWriter(base_connection.BaseConnection):
     """Performs transactions to OVSDB server tables."""
+
     def __init__(self, ovsdb_ip, ovsdb_port):
         super(OVSDBWriter, self).__init__(ovsdb_ip, ovsdb_port)
 
@@ -160,7 +161,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param logical_switch_name: Neutron network uuid, but delete all '-'
                                     to make sure the length is within 32.
         :type logical_switch_name: string
-
         :returns: None
         """
 
@@ -182,7 +182,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param logical_switch_name: Neutron network uuid, but delete all '-'
                                     to make sure the length is within 32.
         :type logical_switch_name: string
-
         :returns: UUID of ROW in Logical_Switch table.
         :rtype: uuid
         """
@@ -212,7 +211,6 @@ class OVSDBWriter(base_connection.BaseConnection):
 
         :param logical_switch_uuid: UUID of ROW in Logical_Switch table.
         :type logical_switch_uuid: uuid
-
         :returns: None
         """
 
@@ -240,7 +238,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param logical_switch_uuid: UUID of logical_switch in the binding-pair
                                     mapping.
         :type logical_switch_uuid: uuid
-
         :returns: vlanid in the binding-pair mapping.
         :rtype: integer
         """
@@ -290,7 +287,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param logical_switch_uuid: UUID of logical_switch in the binding-pair
                                     mapping.
         :type logical_switch_uuid: uuid
-
         :returns: None
         """
 
@@ -315,7 +311,6 @@ class OVSDBWriter(base_connection.BaseConnection):
 
         :param port_mac: MAC address of physical port.
         :type port_mac: string
-
         :returns: list of ROWs information of the given port_mac in
                   Ucast_Macs_Local table.
         :rtype: list
@@ -345,7 +340,6 @@ class OVSDBWriter(base_connection.BaseConnection):
 
         :param port_mac: MAC address of physical port.
         :type port_mac: string
-
         :returns: None
         """
 
@@ -365,7 +359,6 @@ class OVSDBWriter(base_connection.BaseConnection):
 
         :param dst_ip: IP address of physical locator.
         :type dst_ip: string
-
         :returns: uuid of ROW of the given dst_ip in Physical_Locator table.
         :rtype: uuid
         """
@@ -399,7 +392,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :type locator_uuid: uuid
         :param MAC_value: MAC address of NIC of baremetal server.
         :type MAC_value: string
-
         :returns: None
         """
 
@@ -429,7 +421,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :type locator_ip: string
         :param MAC_value: MAC address of NIC of baremetal server.
         :type MAC_value: string
-
         :returns: None
         """
 
@@ -457,7 +448,6 @@ class OVSDBWriter(base_connection.BaseConnection):
 
         :param port_mac: MAC address of VM port.
         :type port_mac: string
-
         :returns: list of ROWs information of the given port_mac in
                   Ucast_Macs_Remote table.
         :rtype: list
@@ -487,7 +477,6 @@ class OVSDBWriter(base_connection.BaseConnection):
 
         :param port_mac: MAC address of VM port.
         :type port_mac: string
-
         :returns: None
         """
 
@@ -521,7 +510,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param locator_uuid: uuid of physical locator (remote VTEP) where
                              the port is binding to.
         :type locator_uuid: uuid
-
         :returns: None
         """
 
@@ -563,7 +551,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param locator_IP: IP address of physical locator (remote VTEP) where
                            the port is binding to.
         :type locator_uuid: string
-
         :returns: None
         """
 
@@ -596,7 +583,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                           format: <slot/port>
                           example: 0/2
         :type port_name: string
-
         :returns: None
         """
 

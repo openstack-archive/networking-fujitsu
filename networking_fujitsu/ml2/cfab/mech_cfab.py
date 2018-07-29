@@ -1,4 +1,4 @@
-# Copyright 2015-2017 FUJITSU LIMITED
+# Copyright 2015-2018 FUJITSU LIMITED
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -127,6 +127,7 @@ class CFABMechanismDriver(api.MechanismDriver):
         Case2: Otherwise
                    Associate the assigned MAC address to the portprofile.
         """
+
         port = mech_context.current
         network = mech_context.network
         if utils.is_baremetal(port):

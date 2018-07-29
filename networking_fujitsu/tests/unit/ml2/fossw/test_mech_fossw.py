@@ -1,4 +1,4 @@
-# Copyright 2017 FUJITSU LIMITED
+# Copyright 2017-2018 FUJITSU LIMITED
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -507,6 +507,26 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2):
             ml2_exc.MechanismDriverError,
             self.mech.update_port_postcommit, ctx)
 
+    def test_update_port_raises_setup_vlan(self):
+        ctx = self.prepare_dummy_context(net_type='vxlan',
+                                         vif_type='unbound',
+                                         set_original=True)
+        # Raise in setup_vlan method
+        self.mech._vxlan_driver.reset_physical_port.side_effect = Exception
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.update_port_postcommit, ctx)
+
+    def test_update_port_raises_setup_vxlan(self):
+        ctx = self.prepare_dummy_context(net_type='vxlan',
+                                         vif_type='unbound',
+                                         set_original=True)
+        # Raise in setup_vxlan method
+        self.mech._vxlan_driver.reset_physical_port.side_effect = Exception
+        self.assertRaises(
+            ml2_exc.MechanismDriverError,
+            self.mech.update_port_postcommit, ctx)
+
     def test_delete_port(self):
         ctx = self.prepare_dummy_context(net_type='vxlan')
         self.mech.delete_port_postcommit(ctx)
@@ -524,6 +544,16 @@ class TestFOSSWBaremetalPortsVxlan(TestFujitsuMechDriverV2):
         params = params_for_driver(ctx.current)
         self.mech._vxlan_driver.reset_physical_port.assert_called_with(
             params['local_link_info'],
+            ctx.current,
+            self.mech.switches_mac_ip_pair
+        )
+
+    def test_delete_port_with_bound_not_baremetal(self):
+        ctx = self.prepare_dummy_context(net_type='vxlan', vif_type='ovs')
+        ctx.current['binding:profile'] = {}
+        self.mech.delete_port_postcommit(ctx)
+        self.mech._vxlan_driver.reset_physical_port.assert_called_once_with(
+            [],
             ctx.current,
             self.mech.switches_mac_ip_pair
         )
