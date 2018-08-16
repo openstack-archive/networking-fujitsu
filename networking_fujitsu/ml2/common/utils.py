@@ -28,13 +28,14 @@ def eliminate_val(source, reject):
     """Eliminate specified value from range value.
 
     ex. source='1,2,3-10', reject=[1], result: '2,3-10'
-    :param source: a string of range definition separated with ","
-    :type source: string
-    :param reject: a list of integer to reject. ex. [1, 2]
-    :type reject: list of integer
-    :returns: a string separated with "," like an example
-    :rtype: string
+
+    :param source: A Range definition separated with ","
+    :type source: String
+    :param reject: Integer values to reject. ex. [1, 2]
+    :type reject: List of integer
+    :returns: A string separated with "," like an example
     """
+
     if source is None:
         return
     values = [str(i) for i in reject]
@@ -119,8 +120,7 @@ def get_network_type(network):
 
     :param network: NetworkContext or network dict
     :type network: NetworkContext or dict
-    :returns network_type: 'vlan', 'vxlan', 'local', 'flat' and 'geneve'
-    :rtype: string
+    :returns: 'vlan', 'vxlan', 'local', 'flat' and 'geneve'
     """
 
     return _get_provider_attribute(network, 'NETWORK_TYPE')
@@ -131,8 +131,7 @@ def get_segmentation_id(network):
 
     :param network: NetworkContext or network dict
     :type network: NetworkContext or dict
-    :returns segmentation_id: VLANID('vlan') or VNI('vxlan')
-    :rtype: integer
+    :returns: VLANID('vlan') or VNI('vxlan')
     """
 
     return _get_provider_attribute(network, 'SEGMENTATION_ID')
@@ -143,8 +142,7 @@ def get_physical_network(network):
 
     :param network: NetworkContext or network dict
     :type network: NetworkContext or dict
-    :returns physical_network: physical network name for the network
-    :rtype: string
+    :returns: Physical network name for the network
     """
 
     return _get_provider_attribute(network, 'PHYSICAL_NETWORK')
@@ -155,12 +153,11 @@ def get_physical_connectivity(port):
 
     :param port: a dictionary of neutron port
     :type port: dictionary
-    :returns lli: "local_link_information" as follows
+    :returns: "local_link_information" as follows
                  [{"switch_id": "MAC_of_switch", "port_id": "1/1/0/1",
                   "switch_info": "switch_name"}]
                  If all of parameter specified, returns above format otherwise
                  empty list
-    :rtype: list of dict or empty list
     """
 
     # TODO(yushiro) replace following characters to constant value
@@ -176,10 +173,9 @@ def get_physical_connectivity(port):
 def has_lli(port):
     """Check local_link_information exists in specified port.
 
-    :param port: a port dictionary
-    :type port: dictionary
-    :returns True(a port has 'local_link_information') or False(otherwise)
-    :rtype: boolean
+    :param port: A port dictionary
+    :type port: Dict
+    :returns: True(a port has 'local_link_information') or False(otherwise)
     """
 
     return ('local_link_information' in port[pb_def.PROFILE])
@@ -188,10 +184,9 @@ def has_lli(port):
 def is_baremetal(port):
     """Judge a specified port is for baremetal or not.
 
-    :param port: a dictionary of neutron port
-    :type port: dictionary
+    :param port: A dictionary of neutron port
+    :type port: Dict
     :returns: True(vnic_type is baremetal) or False(otherwise)
-    :rtype: boolean
     """
 
     vnic_type = port.get(pb_def.VNIC_TYPE, pb_def.VNIC_NORMAL)
@@ -201,10 +196,9 @@ def is_baremetal(port):
 def is_lag(local_link_information):
     """Judge a specified port param is for LAG(linkaggregation) or not.
 
-    :param local_link_information: physical connectivity information
-    :type local_link_information: list of dict
+    :param local_link_information: Physical connectivity information
+    :type local_link_information: List of dict
     :returns: True(mode is LAG) or False(otherwise)
-    :rtype: boolean
     """
 
     return (len(local_link_information) > 1)
@@ -213,10 +207,9 @@ def is_lag(local_link_information):
 def is_unbound(context):
     """Judge current port object is changed into 'unbound' status or not.
 
-    :param context: port context
+    :param context: A port context
     :type context: PortContext object
     :returns: True(port is unbound) or False(otherwise)
-    :rtype: boolean
     """
 
     return (context.current[pb_def.VIF_TYPE] == pb_def.VIF_TYPE_UNBOUND and

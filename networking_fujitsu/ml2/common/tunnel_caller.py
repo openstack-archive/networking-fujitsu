@@ -30,10 +30,10 @@ class TunnelCaller(object):
     def trigger_tunnel_sync(self, context, tunnel_ip):
         """Sends tunnel sync RPC message to the neutron L2 agent.
 
-        :param context: A context of request.
-        :type context: A Neutron context object.
-        :param tunnel_ip: An endpoint IP address of vxlan.
-        :type tunnel_ip: string
+        :param context: A context of request
+        :type context: Neutron context object
+        :param tunnel_ip: An endpoint IP address of vxlan
+        :type tunnel_ip: String
         :returns: None
         """
 

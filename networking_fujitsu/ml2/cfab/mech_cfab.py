@@ -237,9 +237,9 @@ class CFABMechanismDriver(api.MechanismDriver):
         Case2: param['lag'] is False
             This method calls 'setup_vlan' and setup only VLAN.
 
-        @param  params  a dictionary of the return value for
-                        get_physical_net_params
-        @return  None
+        :param params: Return value for get_physical_net_params()
+        :type params: Dict
+        :returns: None
         """
 
         target = 'setup_vlan_with_lag' if params['lag'] else 'setup_vlan'
@@ -273,9 +273,9 @@ class CFABMechanismDriver(api.MechanismDriver):
         Case2: param['lag'] is False
             This method calls 'clear_vlan' and clears only VLAN.
 
-        @param  params A dictionary of the return value for
-                       get_physical_net_params
-        @return  None
+        :param params: Return value for get_physical_net_params()
+        :type params: Dict
+        :returns: None
         """
 
         target = 'clear_vlan_with_lag' if params['lag'] else 'clear_vlan'
@@ -319,9 +319,7 @@ class CFABMechanismDriver(api.MechanismDriver):
         :type network: NetworkContext
         :param use_original: A flag to use context.original or not
         :type use_original: boolean
-
         :returns: A dictionary parameters for baremetal deploy
-        :rtype: dictionary
         """
 
         port = context.original if use_original else context.current
@@ -360,9 +358,10 @@ class CFABMechanismDriver(api.MechanismDriver):
 def is_supported(network):
     """Validate network parameter(network_type and segmentation_id).
 
-    @param a network object
-    @return True if network_type is 'VLAN' and segmentation_id is included
-            otherwise False
+    :param network: A network object
+    :type network: Network object
+    :returns: True if network_type is 'VLAN' and segmentation_id is included
+              otherwise False
     """
 
     net_type = utils.get_network_type(network)
@@ -376,8 +375,9 @@ def is_supported(network):
 def validate_baremetal_deploy(mech_context):
     """Validate baremetal deploy.
 
-    @param mech_context a context object
-    @return True if enable to baremetal deploy otherwise False
+    :param mech_context: A context object
+    :type mech_context: Context
+    :returns: True if enable to baremetal deploy otherwise False
     """
 
     port = mech_context.current

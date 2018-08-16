@@ -51,11 +51,11 @@ class FOSSWClient(object):
         In order to get command result correctly, execute 'terminal length 0'
         at the beginning of the session.
 
-        :param ip: a ip address of FOS switch
-        :type ip: string
+        :param ip: An IP address of FOS switch
+        :type ip: String
         :returns: None
-        :rtype: None
         """
+
         if not self._lookup(ip):
             self._reconnect(ip)
             self._exec_command(TERMINAL_LENGTH_0)
@@ -63,10 +63,9 @@ class FOSSWClient(object):
     def _reconnect(self, ip):
         """Reconnect a new SSH session
 
-        :param ip: a ip address of FOS switch
-        :type ip: string
+        :param ip: An IP address of FOS switch
+        :type ip: String
         :returns: None
-        :rtypes: None
         """
 
         self.disconnect()
@@ -111,7 +110,7 @@ class FOSSWClient(object):
         """Close ssh connection with FOS switch.
 
         :returns: None
-        :rtypes: None
+        :raises: FOSSWClientException
         """
 
         if self.ssh:
@@ -162,11 +161,11 @@ class FOSSWClient(object):
     def _lookup(self, target):
         """Check exist session for specified IP.
 
-        :param target: IP address of a target host
-        :type target: string
-        :returns: exist(True) or not exist(False)
-        :rtype: bool
+        :param target: An IP address of a target host
+        :type target: String
+        :returns: Exist(True) or not exist(False)
         """
+
         if self.ssh:
             if self.ssh._host_keys:
                 if self.ssh._host_keys.lookup(target):
@@ -179,9 +178,9 @@ class FOSSWClient(object):
 
         :param segmentation_id: id of VLAN to be created.
         :type segmentation_id: string
-        :returns: received message from FOS switch
-        :rtype: string
+        :returns: Received message from FOS switch
         """
+
         self.change_mode(MODE_VLAN)
         cmd = self._format_command("vlan {vlanid}", vlanid=segmentation_id)
         return self._exec_command(cmd)
@@ -192,7 +191,6 @@ class FOSSWClient(object):
         :param segmentation_id: id of VLAN to be deleted.
         :type segmentation_id: string
         :returns: None
-        :rtype: None
         """
 
         self.change_mode(MODE_VLAN)
@@ -208,7 +206,6 @@ class FOSSWClient(object):
         :param port_id: the number of physical port on FOS switch
         :type port_id: string
         :returns: None
-        :rtype: None
         """
 
         method = "set_vlan"
@@ -227,7 +224,6 @@ class FOSSWClient(object):
         :param port_id: the number of physical port on FOS switch
         :type port_id: string
         :returns: None
-        :rtype: None
         """
 
         self.change_mode(MODE_INTERFACE, port_id)
@@ -242,7 +238,6 @@ class FOSSWClient(object):
         :param logicalport: the number of logical port on FOS switch
         :type logicalport: string
         :returns: None
-        :rtype: None
         """
 
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
@@ -260,8 +255,7 @@ class FOSSWClient(object):
         :param logicalport: the number of logicalport
             (optional, default: "none")
         :type logicalport: string
-        :returns: the ID of VPC or None.
-        :rtype: string
+        :returns: The ID of VPC or None
         """
 
         # TODO(yushiro): Replace regexp
@@ -290,7 +284,6 @@ class FOSSWClient(object):
         :param vpcid: id of VPC
         :type vpcid: string
         :returns: None
-        :rtype: None
         """
 
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
@@ -300,7 +293,6 @@ class FOSSWClient(object):
         """Get peerlink partner switch's IP address.
 
         :returns: IP address of peerlink partner
-        :rtype: string
         """
 
         # TODO(yushiro): Replace regexp
@@ -319,9 +311,8 @@ class FOSSWClient(object):
             3. No member port exists
         :param portname: the number of physical port on FOS switch
         :type portname: string
-        :returns: the number of logical port which associated with specified
+        :returns: The number of logical port which associated with specified
                   physical port
-        :rtype: string
         """
 
         # Find related lag_port with specified portname
@@ -339,7 +330,6 @@ class FOSSWClient(object):
         """Get MAC address of FOS switch.
 
         :returns: MAC address of FOS switch
-        :rtype: string
         """
 
         cmd = 'show hardware eeprom | include "Base MAC Address"'
@@ -356,7 +346,6 @@ class FOSSWClient(object):
         :param logicalport: the number of logical port on FOS switch
         :type logicalport: string
         :returns: None
-        :rtype: None
         """
 
         self.change_mode(MODE_INTERFACE, ifname=port)
@@ -377,7 +366,6 @@ class FOSSWClient(object):
         :param vpcid: id of VPC
         :type vpcid: string
         :returns: None
-        :rtype: None
         """
 
         self.change_mode(MODE_INTERFACE, ifname=logicalport)
@@ -391,7 +379,6 @@ class FOSSWClient(object):
         """Save running config of FOS switch.
 
         :returns: None
-        :rtypes: None
         """
 
         self._exec_command("copy system:running-config nvram:startup-config")
@@ -407,7 +394,6 @@ class FOSSWClient(object):
             (optional, default: None)
         :type ifname: string
         :returns: None
-        :rtype: None
         """
 
         # Move to Privileged EXEC mode.

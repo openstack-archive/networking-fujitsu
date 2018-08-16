@@ -116,7 +116,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :param mech_context: context of network
         :type mech_context: NetworkContext
         :returns: None
-        :rtype: None
         """
 
         network = net_context.current
@@ -142,7 +141,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :param vlanid: the ID of VLAN to be created
         :type vlanid: string
         :returns: None
-        :rtype: None
         """
 
         method = 'create_network_postcommit'
@@ -180,7 +178,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :param net_context: context of network
         :type net_context: NetworkContext
         :returns: None
-        :rtype: None
         """
 
         network = net_context.current
@@ -204,7 +201,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :param vlanid: the ID of VLAN to be deleted
         :type vlanid: string
         :returns: None
-        :rtypes: None
         """
 
         method = 'delete_network_postcommit'
@@ -242,7 +238,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :param mech_context: context of port
         :type mech_context: PortContext
         :returns: None
-        :rtype: None
         """
 
         port = mech_context.current
@@ -312,7 +307,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                         get_physical_net_params
         :type params: dictionary
         :returns: None
-        :rtype: None
         """
 
         target = 'setup_lag' if params['lag'] else 'setup_vlan'
@@ -348,7 +342,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
                        get_physical_net_params
         :type params: dictionary
         :returns: None
-        :rtype: None
         """
 
         port = context.original if use_original else context.current
@@ -413,7 +406,6 @@ class FOSSWMechanismDriver(api.MechanismDriver):
         :param network: a network object
         :type network: NetworkContext
         :returns: A dictionary parameters for baremetal deploy
-        :rtype: dictionary
         """
 
         port = context.original if use_original else context.current
@@ -476,7 +468,6 @@ def is_supported(network):
     :type network: NetworkContext
     :returns: True if network_type is supported and segmentation_id exists
               otherwise False
-    :rtype: boolean
     """
 
     net_type = utils.get_network_type(network)
