@@ -33,7 +33,7 @@ class OVSDBError(exceptions.NeutronException):
 class BaseConnection(object):
     """Connects to OVSDB server.
 
-       Connects to an ovsdb server on a given host and TCP port.
+    Connects to an ovsdb server on a given host and TCP port.
     """
     def __init__(self, ovsdb_ip, ovsdb_port):
         self.response = {}

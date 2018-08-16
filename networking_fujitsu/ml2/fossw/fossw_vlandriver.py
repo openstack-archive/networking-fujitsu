@@ -50,7 +50,6 @@ class FOSSWVlanDriver(object):
         :type ips: List of IP address strings
         :returns: A dictionary which stores pair of MAC address and IP
                   address like {'fe:54:00:23:33:9a': '192.168.50.1'}
-        :rtype: A dictionary of MAC address and IP address
         """
 
         switches_mac_ip_pair = {}
@@ -73,7 +72,6 @@ class FOSSWVlanDriver(object):
         :param vlanid: ID of VLAN to be created
         :type vlanid: string
         :returns: None
-        :rtype: None
         """
 
         method = 'create_vlan'
@@ -95,7 +93,6 @@ class FOSSWVlanDriver(object):
         :param vlanid: ID of VLAN to be deleted
         :type vlanid: string
         :returns: None
-        :rtype: None
         """
 
         method = 'delete_vlan'
@@ -120,7 +117,6 @@ class FOSSWVlanDriver(object):
                              switch
         :type ip_mac_pairs: dictionary
         :returns: None
-        :rtype: None
         """
 
         method = "setup_vlan"
@@ -155,7 +151,6 @@ class FOSSWVlanDriver(object):
                        VLAN configuration.
         :type vlanid: Integer
         :returns: mac_lag_map MAC address and LAG port ID pair
-        :rtype: dictionary
         """
 
         method = "setup_lag"
@@ -234,7 +229,6 @@ class FOSSWVlanDriver(object):
                              switches
         :type ip_mac_pairs: dictionary
         :returns: Result of validation
-        :rtype: Boolean
         """
 
         try:
@@ -288,7 +282,6 @@ class FOSSWVlanDriver(object):
                              switches
         :type ip_mac_pairs: dictionary
         :returns: None
-        :rtype: None
         """
 
         method = "clear_lag"

@@ -1,4 +1,4 @@
-# Copyright 2015-2016 FUJITSU LIMITED
+# Copyright 2015-2018 FUJITSU LIMITED
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -33,6 +33,7 @@ TELNET_PORT = 23
 
 telnetlib = eventlet.import_patched('telnetlib')
 
+# TODO(yushiro): define them at constants file
 _EP = 'endpoint'
 _PORT_MODE = 'cfab port-mode'
 _IFGROUP = 'ifgroup'
@@ -81,9 +82,9 @@ _REG = {_IFGROUP: _IFGROUP_RE, _LAG: _LAG_RE}
 
 
 class _CFABManager(object):
-    """C-Fabric CLI manager.
+    """CFX2000 CLI manager.
 
-    Manages C-Fabric using a single telnet connection.
+    Manages CFX2000 using a single telnet connection.
     """
 
     def __init__(self):
@@ -97,7 +98,16 @@ class _CFABManager(object):
         self._retry_count = 0
 
     def connect(self, address, username, password):
-        """Connect via TELNET and initialize the CLI session."""
+        """Connect via TELNET and initialize the CLI session.
+
+        :param address: IP address of CFX2000
+        :type address: String
+        :param username: Username of CFX2000
+        :type username: String
+        :param password: Password of CFX2000
+        :type password: String
+        :returns: None
+        """
 
         # Use the persisted TELNET connection
         if ((self._telnet and address == self._address and
@@ -111,7 +121,12 @@ class _CFABManager(object):
         self._reconnect()
 
     def get_candidate_config(self, prefix=None):
-        """Get running-config of the switch."""
+        """Get candidate-config of the switch.
+
+        :param prefix: An option of candidate-config for filtering
+        :type prefix: String
+        :returns: Result of "show candidate-config"
+        """
 
         terminal = self._execute("show terminal")
         match = _PAGER_ENABLE_RE.search(terminal)
@@ -134,7 +149,12 @@ class _CFABManager(object):
         return self._execute(cmd)
 
     def get_running_config(self, prefix=None):
-        """Get running-config of the switch."""
+        """Get running-config of the switch.
+
+        :param prefix: An option of running-config for filtering
+        :type prefix: String
+        :returns: Result of "show running-config"
+        """
 
         terminal = self._execute("show terminal")
         match = _PAGER_ENABLE_RE.search(terminal)
@@ -157,7 +177,14 @@ class _CFABManager(object):
         return self._execute(cmd)
 
     def configure(self, cmds, commit=True):
-        """Configures the switch."""
+        """Run commands with mode 'configure'
+
+        :param cmds: Commands for the switch
+        :type cmds: List of string
+        :param commit: If this value is True, run 'commit'
+        :type commit: Bool
+        :returns: None
+        """
 
         self._set_mode_config()
         for cmd in cmds:
@@ -260,7 +287,12 @@ class _CFABManager(object):
                   dict(address=self._address, telnet_port=TELNET_PORT))
 
     def close_session(self):
-        """Close TELNET session."""
+        """Close TELNET session.
+
+        If exists TELNET session, close this one.
+
+        :returns: None
+        """
 
         if self._telnet:
             self._telnet.close()
@@ -350,9 +382,9 @@ CFAB_MANAGER = _CFABManager()
 
 
 class CFABdriver(object):
-    """C-Fabric CLI interface driver for Neutron network.
+    """CFX2000 CLI interface driver for Neutron network.
 
-    Handles life-cycle management of Neutron network (leverages AMPP on C-Fab)
+    Handles life-cycle management of Neutron network(leverages AMPP on CFX2000)
     """
 
     def __init__(self, conf=None):
@@ -473,16 +505,17 @@ class CFABdriver(object):
     def _setup_lag(self, ports, config):
         """Setup LAG configuration.
 
-        @param self  CFABdriver's instance
-        @param ports  a string of the ports which is separated by ','
-        @param config  a string of candidate-config for C-Fabric.
-        @return lag_id(int)
+        :param ports: Switch ports separated by ','
+        :type ports: String
+        :param config: Candidate-config for CFX2000
+        :type config: String
+        :returns: ID of LAG
         """
 
         lag_id = _get_available_index(_LAG, config)
         if lag_id is None:
             raise ml2_exc.MechanismDriverError(method="_setup_lag")
-        # TODO(yushiro) LAG mode 'static', 'active' or 'passive'
+        # NOTE(yushiro) LAG mode 'static', 'active' or 'passive'
         #               Currently, only support 'active'
         mode_opts = {'type': _EP, _PORT_MODE: 'external', 'mode': 'active'}
         self._configure_lag_mode(_get_domain_id(ports), lag_id, mode_opts)
@@ -491,12 +524,14 @@ class CFABdriver(object):
     def _configure_lag_mode(self, domain_id, lag_id, mode_opts, commit=False):
         """Add LAG definitions.
 
-        @param self  CFABdriver's instance
-        @param domain_id  the string of domain_id to which the port belongs
-        @param lag_id  the string of LAG definiton ID
-        @param mode_opts  the string of LAG mode options
-        @param commit  the boolean whether executes commit or not
-        @return None
+        :param domain_id: 'domain_id' to which the switch port belongs
+        :type domain_id: String
+        :param lag_id: LAG definiton ID
+        :type lag_id: String
+        :param mode_opts: LAG mode options
+        :type mode_opts: String
+        :param commit: The boolean whether executes commit or not
+        :returns: None
         """
 
         commands = []
@@ -509,17 +544,19 @@ class CFABdriver(object):
 
     def _clear_vlans(self, vfab_id, ports, config, port_type=_EP,
                      vlan_type='untag', lag_id=None, commit=False):
-        """Clear all VLAN definitions with specified ports.
+        """Clear all VLAN definitions with specified switch ports.
 
-        @param self  CFABdriver's instance
-        @param vfab_id  the string of VFAB ID
-        @param ports  a string of the ports which is separated by ','
-        @param config a string of a candidate-config
-        @return None or string of the modified ifgroups separated by ','
+        :param vfab_id: VFAB ID for CFX2000
+        :type vfab_id: String
+        :param ports: Switch ports separated by ','
+        :type ports: String
+        :param config: Result of 'show candidate-config'
+        :type config: String
+        :returns: None or string of the modified ifgroups separated by ','
         """
 
-        # (yushiro): ifgroup won't delete because it can not determine
-        #            whether ifgroup is created by plugin or not.
+        # NOTE(yushiro): ifgroup won't delete because it can not determine
+        #                whether ifgroup is created by plugin or not.
         indices = search_ifgroup_indices(ports, config, lag_id=lag_id)
         vlan_ifgs = _get_all_vfab_vlans_and_ifgroups(vfab_id, config,
                                                      vlan_type='untag')
@@ -560,11 +597,11 @@ class CFABdriver(object):
     def _clear_interfaces(self, ports, commit=False):
         """Clear port type definitions with specified interfaces.
 
-        @param self  CFABdriver's instance
-        @param ports  a string of the ports which is separated by ','
-        @param ether a boolean to judge ether port or linkaggregation
-        @param commit a boolean to judge use "commit" or not
-        @return None
+        :param ports: Physical ports which is separated by ','
+        :type ports: String
+        :param commit: The boolean whether executes commit or not
+        :type commit: Bool
+        :returns: None
         """
 
         cmds = ["interface range {ports}".format(ports=ports)]
@@ -576,12 +613,15 @@ class CFABdriver(object):
     def _clear_lag(self, vfab_id, lag_id, ports, config, commit=False):
         """Clear linkaggregation definition with specified ports.
 
-        @param self  CFABdriver's instance
-        @param vfab_id a string of VFAB ID
-        @param lag_id a string of LAG ID
-        @param ports a string of the ports which is separated by ','
-        @param config a string of candidate-config
-        @return None
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param ports: Physical ports which is separated by ','
+        :type ports: String
+        :param config: candidate-config from CFX2000
+        :type config: String
+        :param commit: The boolean whether executes commit or not
+        :type commit: Bool
+        :return None
         """
 
         prefix = 'no linkaggregation {domain_id} {lag_id}'.format(
@@ -598,16 +638,23 @@ class CFABdriver(object):
                    vfab_id, vlanid, ports, mac):
         """Setup untagged VLAN with specified ports.
 
-        @param self CFABdriver's instance
-        @param address the string of C-Fabric IP address
-        @param username the string of C-Fabric username
-        @param password the string of C-Fabric password
-        @param vfab_id the string of VFAB ID
-        @param vlanid the string of VLAN ID
-        @param ports string of the ports which is separated by ','
-        @param mac  string of the MAC address
-        @return None
+        :param address: IP address of CFX2000
+        :type address: String
+        :param username: Username of CFX2000
+        :type username: String
+        :param password: Password of CFX2000
+        :type password: String
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param vlanid: VLANID for set
+        :type vlanid: String
+        :param ports: Physical ports which is separated by ','
+        :type ports: String
+        :param mac: MAC address of baremetal instance
+        :type mac: String
+        :return: None
         """
+
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
@@ -627,16 +674,23 @@ class CFABdriver(object):
                             vfab_id, vlanid, ports, mac):
         """Setup untagged VLAN and linkaggregation.
 
-        @param self CFABdriver's instance
-        @param address the string of C-Fabric IP address
-        @param username the string of C-Fabric username
-        @param password the string of C-Fabric password
-        @param vfab_id the string of VFAB ID
-        @param vlanid the string of VLAN ID
-        @param ports  string of the ports which is separated by ','
-        @param mac  string of the MAC address
-        @return None
+        :param address: IP address of CFX2000
+        :type address: String
+        :param username: Username of CFX2000
+        :type username: String
+        :param password: Password of CFX2000
+        :type password: String
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param vlanid: VLANID for set
+        :type vlanid: String
+        :param ports: Physical ports which is separated by ','
+        :type ports: String
+        :param mac: MAC address of baremetal instance
+        :type mac: String
+        :return: None
         """
+
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
@@ -656,16 +710,23 @@ class CFABdriver(object):
                    vfab_id, vlanid, ports, mac):
         """Clear untagged VLAN.
 
-        @param self  CFABdriver's instance
-        @param address  the string of C-Fabric IP address
-        @param username  the string of C-Fabric username
-        @param password  the string of C-Fabric password
-        @param vfab_id  the string of VFAB ID
-        @param vlanid  the string of VLAN ID
-        @param ports   string of the ports which is separated by ','
-        @param mac  string of the MAC address
-        @return None
+        :param address: IP address of CFX2000
+        :type address: String
+        :param username: Username of CFX2000
+        :type username: String
+        :param password: Password of CFX2000
+        :type password: String
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param vlanid: VLANID for set
+        :type vlanid: String
+        :param ports: Physical ports which are separated by ','
+        :type ports: String
+        :param mac: MAC address of baremetal instance
+        :type mac: String
+        :return: None
         """
+
         try:
             self.mgr.connect(address, username, password)
             config = self.mgr.get_candidate_config()
@@ -685,14 +746,17 @@ class CFABdriver(object):
                              commit=False):
         """Cleanup existing LAG/VLAN/interface definitions.
 
-        @param self  CFABdriver's instance
-        @param vfab_id  the string of VFAB ID
-        @param vlanid  the string of VLAN ID
-        @param ports   string of the ports which is separated by ','
-        @param config  string of candidate-config
-        @param mac  string of the MAC address
-        @param commit  the boolean whether executes commit or not
-        @return  A string of modified ifgroups for vfab vlan or None
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param vlanid: VLANID for set
+        :type vlanid: String
+        :param ports: Physical ports which are separated by ','
+        :type ports: String
+        :param config: Candidate-config for CFX2000
+        :type config: String
+        :param mac: MAC address of baremetal instance
+        :type mac: String
+        :return: Modified ifgroups for vfab vlan or None
         """
 
         self._dissociate_mac_from_port_profile(vfab_id, vlanid, mac,
@@ -711,19 +775,24 @@ class CFABdriver(object):
         return modified.get(str(vlanid), None)
 
     @runtime.synchronized(_LOCK_NAME, external=True)
-    def clear_vlan_with_lag(self, address, username, password,
-                            vfab_id, vlanid, ports, mac):
-        """Clear untagged VLAN with linkaggregation.
+    def clear_vlan_with_lag(
+            self, address, username, password, vfab_id, vlanid, ports, mac): """Clear untagged VLAN with linkaggregation.
 
-        @param self  CFABdriver's instance
-        @param address  the string of C-Fabric IP address
-        @param username  the string of C-Fabric username
-        @param password  the string of C-Fabric password
-        @param vfab_id  the string of VFAB ID
-        @param vlanid  the string of VLAN ID
-        @param ports   string of the ports which is separated by ','
-        @param mac  string of the MAC address
-        @return None
+        :param address: IP address of CFX2000
+        :type address: String
+        :param username: Username of CFX2000
+        :type username: String
+        :param password: Password of CFX2000
+        :type password: String
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param vlanid: VLAN ID
+        :type vlanid: String
+        :param ports: Physical ports which are separated by ','
+        :type ports: String
+        :param mac:  MAC address of a neutron port
+        :type mac: String
+        :returns: None
         """
 
         try:
@@ -740,22 +809,27 @@ class CFABdriver(object):
 
     @runtime.synchronized(_LOCK_NAME, external=True)
     def associate_mac_to_network(self, address, username, password,
-                                 vfab_id, net_id, mac):
+                                 vfab_id, vlanid, mac):
         """Associates a MAC address to virtual network.
 
-        @param self  CFABdriver's instance
-        @param address  the string of C-Fabric IP address
-        @param username  the string of C-Fabric username
-        @param password  the string of C-Fabric password
-        @param vfab_id  the string of VFAB ID
-        @param net_id  the string of VLAN ID(segmentation_id for network)
-        @param mac the string of MAC address
-        @return None
+        :param address: IP address of CFX2000
+        :type address: String
+        :param username: Username of CFX2000
+        :type username: String
+        :param password: Password of CFX2000
+        :type password: String
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param vlanid: VLAN ID(segmentation_id for network)
+        :type vlanid: String
+        :param mac: MAC address of neutron port
+        :type mac: String
+        :returns: None
         """
 
         try:
             self.mgr.connect(address, username, password)
-            self._associate_mac_to_port_profile(vfab_id, net_id, mac)
+            self._associate_mac_to_port_profile(vfab_id, vlanid, mac)
             self.mgr.close_session()
         except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
@@ -765,22 +839,27 @@ class CFABdriver(object):
 
     @runtime.synchronized(_LOCK_NAME, external=True)
     def dissociate_mac_from_network(self, address, username, password,
-                                    vfab_id, net_id, mac):
+                                    vfab_id, vlanid, mac):
         """Dissociates a MAC address from virtual network.
 
-        @param self  CFABdriver's instance
-        @param address  the string of C-Fabric IP address
-        @param username  the string of C-Fabric username
-        @param password  the string of C-Fabric password
-        @param vfab_id  the string of VFAB ID
-        @param net_id  the string of VLAN ID(segmentation_id for network)
-        @param mac the string of MAC address
-        @return None
+        :param address: IP address of CFX2000
+        :type address: String
+        :param username: Username of CFX2000
+        :type username: String
+        :param password: Password of CFX2000
+        :type password: String
+        :param vfab_id: ID of VFAB for CFX2000
+        :type vfab_id: String
+        :param vlanid: VLAN ID(segmentation_id for network)
+        :type vlanid: String
+        :param mac: MAC address of neutron port
+        :type mac: String
+        :returns: None
         """
 
         try:
             self.mgr.connect(address, username, password)
-            self._dissociate_mac_from_port_profile(vfab_id, net_id, mac)
+            self._dissociate_mac_from_port_profile(vfab_id, vlanid, mac)
             self.mgr.close_session()
         except (EOFError, OSError, EnvironmentError, select.error,
                 ml2_exc.MechanismDriverError):
@@ -972,12 +1051,17 @@ def _get_vfab_pprofile_index(vfab_id, pprofile, mac_address, running_config):
 def _get_ifgroups_of_vfab_vlan(vfab_id, vlanid, config, vlan_type='untag'):
     """Gets ifgroup definitions for specified vfab vlan.
 
-        @param vfab_id  the string of VFAB ID
-        @param vlanid  the string of VLAN ID
-        @param config the string of candidate-config
-        @param vlan_type 'untag(default)' or 'tag'.
-        @return the string of ifgroups otherwise None
+    :param vfab_id: ID of VFAB for CFX2000
+    :type vfab_id: String
+    :param vlanid: VLAN ID
+    :type vlanid: String
+    :param config: Candidate-config for CFX2000
+    :type config: String
+    :param vlan_type: 'untag(default)' or 'tag'.
+    :type vlan_type: String
+    :returns: ifgroups or None
     """
+
     match = re.search(
         _VFAB_VLAN.format(v=vfab_id, vlan=vlanid, vlan_type=vlan_type),
         config, re.MULTILINE)
@@ -990,11 +1074,15 @@ def _get_ifgroups_of_vfab_vlan(vfab_id, vlanid, config, vlan_type='untag'):
 def _get_all_vfab_vlans_and_ifgroups(vfab_id, config, vlan_type='untag'):
     """Gets all VFAB VLAN definitions and ifgroups.
 
-        @param vfab_id  the string of VFAB ID
-        @param config the string of candidate-config
-        @param vlan_type 'untag(default)' or 'tag'.
-        @return the string of ifgroups otherwise None
+    :param vfab_id: ID of VFAB for CFX2000
+    :type vfab_id: String
+    :param config: Candidate-config for CFX2000
+    :type config: String
+    :param vlan_type 'untag(default)' or 'tag'.
+    :type vlan_type: String
+    :returns: ifgroups or None
     """
+
     match = re.findall(_VFAB_VLANS.format(v=vfab_id, vlan_type=vlan_type),
                        config, re.MULTILINE)
     result = dict(match)

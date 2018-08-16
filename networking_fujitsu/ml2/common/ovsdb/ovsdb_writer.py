@@ -125,7 +125,6 @@ class OVSDBWriter(base_connection.BaseConnection):
         :returns: (endpoint_ip, endpoint_hostname)
                   endpoint_ip: tunnel_ips in Physical_Switch table
                   endpoint_hostname: name in Physical_Switch table
-        :rtype: string, string
         """
 
         op_id = str(random.getrandbits(128))
@@ -183,7 +182,6 @@ class OVSDBWriter(base_connection.BaseConnection):
                                     to make sure the length is within 32.
         :type logical_switch_name: string
         :returns: UUID of ROW in Logical_Switch table.
-        :rtype: uuid
         """
 
         op_id = str(random.getrandbits(128))
@@ -237,9 +235,8 @@ class OVSDBWriter(base_connection.BaseConnection):
 
         :param logical_switch_uuid: UUID of logical_switch in the binding-pair
                                     mapping.
-        :type logical_switch_uuid: uuid
+        :type logical_switch_uuid: UUID
         :returns: vlanid in the binding-pair mapping.
-        :rtype: integer
         """
 
         binding_vid = 0
@@ -280,13 +277,13 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param port_name: Symbolic name for the port of FOS switch.
                           format: <slot/port>
                           example: 0/2
-        :type port_name: string
+        :type port_name: String
         :param vlanid: Identifier of physical port and logical switch binding.
                         Must be in range 0 to 4095.
-        :type vlanid: integer
+        :type vlanid: Integer
         :param logical_switch_uuid: UUID of logical_switch in the binding-pair
                                     mapping.
-        :type logical_switch_uuid: uuid
+        :type logical_switch_uuid: UUID
         :returns: None
         """
 
@@ -310,10 +307,9 @@ class OVSDBWriter(base_connection.BaseConnection):
         """Get ROWs of port_mac in Ucast_Macs_Local table.
 
         :param port_mac: MAC address of physical port.
-        :type port_mac: string
-        :returns: list of ROWs information of the given port_mac in
+        :type port_mac: String
+        :returns: List of ROWs information of the given port_mac in
                   Ucast_Macs_Local table.
-        :rtype: list
         """
 
         op_id = str(random.getrandbits(128))
@@ -339,7 +335,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         Even if the port_mac does not exist, no ERROR will occur.
 
         :param port_mac: MAC address of physical port.
-        :type port_mac: string
+        :type port_mac: String
         :returns: None
         """
 
@@ -358,9 +354,8 @@ class OVSDBWriter(base_connection.BaseConnection):
         """Get _uuid of ROW in Physical_Locator table.
 
         :param dst_ip: IP address of physical locator.
-        :type dst_ip: string
-        :returns: uuid of ROW of the given dst_ip in Physical_Locator table.
-        :rtype: uuid
+        :type dst_ip: String
+        :returns: UUID of ROW of the given dst_ip in Physical_Locator table.
         """
 
         op_id = str(random.getrandbits(128))
@@ -385,13 +380,13 @@ class OVSDBWriter(base_connection.BaseConnection):
                                 MAC_value, rcv_required=True):
         """Insert ROW to Ucast_Macs_Local table.
 
-        :param logical_switch_uuid: uuid of logical switch.
-        :type dst_ip: uuid
-        :param locator_uuid: uuid of physical locator which its dst_ip is the
+        :param logical_switch_uuid: UUID of logical switch.
+        :type dst_ip: UUID
+        :param locator_uuid: UUID of physical locator which its dst_ip is the
                              tunnel_ips of physical switch.
-        :type locator_uuid: uuid
+        :type locator_uuid: UUID 
         :param MAC_value: MAC address of NIC of baremetal server.
-        :type MAC_value: string
+        :type MAC_value: String
         :returns: None
         """
 
@@ -414,13 +409,13 @@ class OVSDBWriter(base_connection.BaseConnection):
                                             rcv_required=True):
         """Insert ROW to Ucast_Macs_Local table.
 
-        :param logical_switch_uuid: uuid of logical switch.
-        :type dst_ip: uuid
+        :param logical_switch_uuid: UUID of logical switch.
+        :type dst_ip: UUID
         :param locator_ip: IP address of physical locator which also is the
                            tunnel_ips of physical switch.
-        :type locator_ip: string
+        :type locator_ip: String
         :param MAC_value: MAC address of NIC of baremetal server.
-        :type MAC_value: string
+        :type MAC_value: String
         :returns: None
         """
 
@@ -447,10 +442,9 @@ class OVSDBWriter(base_connection.BaseConnection):
         """Get ROWs of port_mac in Ucast_Macs_Remote table.
 
         :param port_mac: MAC address of VM port.
-        :type port_mac: string
-        :returns: list of ROWs information of the given port_mac in
+        :type port_mac: String
+        :returns: List of ROWs information of the given port_mac in
                   Ucast_Macs_Remote table.
-        :rtype: list
         """
 
         op_id = str(random.getrandbits(128))
@@ -476,7 +470,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         Even if the port_mac does not exist, no ERROR will occur.
 
         :param port_mac: MAC address of VM port.
-        :type port_mac: string
+        :type port_mac: String
         :returns: None
         """
 
@@ -501,15 +495,15 @@ class OVSDBWriter(base_connection.BaseConnection):
         Case 2:
             A BM port has been created or updated in another FOS switch.
 
-        :param logical_switch_uuid: uuid of logical switch.
-        :type logical_switch_uuid: uuid
+        :param logical_switch_uuid: UUID of logical switch.
+        :type logical_switch_uuid: UUID
         :param MAC_value: MAC address of port.
-        :type MAC_value: string
-        :param ipaddrs: list of fixed ips pairs to MAC_value.
-        :type ipaddrs: list
-        :param locator_uuid: uuid of physical locator (remote VTEP) where
+        :type MAC_value: String
+        :param ipaddrs: List of fixed ips pairs to MAC_value.
+        :type ipaddrs: List
+        :param locator_uuid: UUID of physical locator (remote VTEP) where
                              the port is binding to.
-        :type locator_uuid: uuid
+        :type locator_uuid: UUID
         :returns: None
         """
 
@@ -542,15 +536,15 @@ class OVSDBWriter(base_connection.BaseConnection):
         Case 2:
         A BM port has been created or updated in another FOS switch.
 
-        :param logical_switch_uuid: uuid of logical switch.
-        :type logical_switch_uuid: uuid
+        :param logical_switch_uuid: UUID of logical switch.
+        :type logical_switch_uuid:UUID 
         :param MAC_value: MAC address of port.
-        :type MAC_value: string
-        :param ipaddrs: list of fixed ips pairs to MAC_value.
-        :type ipaddrs: list
+        :type MAC_value: String
+        :param ipaddrs: List of fixed IPs pairs to MAC_value.
+        :type ipaddrs: List
         :param locator_IP: IP address of physical locator (remote VTEP) where
                            the port is binding to.
-        :type locator_uuid: string
+        :type locator_uuid: String
         :returns: None
         """
 
@@ -582,7 +576,7 @@ class OVSDBWriter(base_connection.BaseConnection):
         :param port_name: Symbolic name for the port of FOS switch.
                           format: <slot/port>
                           example: 0/2
-        :type port_name: string
+        :type port_name: String
         :returns: None
         """
 
