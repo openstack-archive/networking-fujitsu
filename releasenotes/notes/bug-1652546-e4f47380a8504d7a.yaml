@@ -1,4 +1,0 @@
----
-critical:
-  - Enable to load modules for 'fujitsu_cfab' mechanism driver.
-    [Bug `1652546 <https://bugs.launchpad.net/bugs/1652546>`_]
